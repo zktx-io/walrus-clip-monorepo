@@ -1,7 +1,40 @@
 {
   "name": "kinoko-wallet-monorepo",
-  "description": "",
+  "description": "Experience Sui Wallet Standard with zkLogin, customizable with your DApp's unique name and icon.",
+  "keywords": [
+    "sui",
+    "zklogin",
+    "wallet",
+    "wallet standard",
+    "customizable"
+  ],
   "version": "0.0.0",
   "author": "daoauth",
-  "license": "ISC"
+  "license": "ISC",
+  "scripts": {
+    "lint": "eslint 'packages/**/*.{js,jsx,ts,tsx}' --fix",
+    "format": "prettier --write 'packages/**/*.{js,jsx,ts,tsx,json,css,md}'",
+    "install:example": "cd packages/example && npm i",
+    "install:package": "cd packages/kinoko-wallet && npm i",
+    "install:all": "npm run install:package && npm run install:example",
+    "dev": "cd packages/example && npm run dev",
+    "build": "cd packages/kinoko-wallet && npm run build"
+  },
+  "workspaces": [
+    "packages/kinoko-wallet",
+    "packages/example"
+  ],
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.21.0",
+    "@typescript-eslint/parser": "^8.21.0",
+    "eslint": "^9.18.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "husky": "^9.1.7",
+    "lerna": "^8.1.9",
+    "prettier": "^3.4.2",
+    "typescript-eslint": "^8.21.0"
+  }
 }
