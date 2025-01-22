@@ -1,0 +1,57 @@
+{
+  "name": "@zktx.io/kinoko-wallet",
+  "description": "Experience Sui Wallet Standard with zkLogin, customizable with your DApp's unique name and icon.",
+  "keywords": [
+    "sui",
+    "zklogin",
+    "wallet",
+    "wallet standard"
+  ],
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/types/index.d.ts",
+  "author": "daoauth",
+  "license": "ISC",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && rollup -c",
+    "lint": "npm run lint --prefix ../..",
+    "format": "npm run format --prefix ../.."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zktx-io/kinoko-wallet-monorepo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zktx-io/kinoko-wallet-monorepo/issues"
+  },
+  "homepage": "https://github.com/zktx-io/kinoko-wallet-monorepo#readme",
+  "files": [
+    "dist/"
+  ],
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.2",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.20.0",
+    "@mysten/wallet-standard": "^0.13.23",
+    "@radix-ui/react-dialog": "^1.1.4",
+    "@radix-ui/react-form": "^0.1.1",
+    "@stitches/react": "^1.2.8",
+    "jose": "^5.9.6",
+    "mitt": "^3.0.1"
+  }
+}
