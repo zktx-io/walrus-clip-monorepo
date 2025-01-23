@@ -6,8 +6,6 @@ export const REDIRECT_URL = 'http://localhost:3000/login';
 export const CLIENT_ID = '';
 export const ENOKI = '';
 export const SPONSORED = {
-  create:
-    'https://..',
-  execute:
-    'https://..',
-}
+  create: 'https://..',
+  execute: 'https://..',
+};
