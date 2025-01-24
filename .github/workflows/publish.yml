@@ -21,10 +21,10 @@ jobs:
 
       - name: publish programmable transaction blocks builder package
         uses: JS-DevTools/npm-publish@v3
-        id: ptb-builder
+        id: kinoko-wallet
         with:
             access: public
             provenance: true
             token: ${{ secrets.NPM_TOKEN }}
-            package: "packages/ptb-builder/package.json"
+            package: "packages/kinoko-wallet/package.json"
             strategy: upgrade
