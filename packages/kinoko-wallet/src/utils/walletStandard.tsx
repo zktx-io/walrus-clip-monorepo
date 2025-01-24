@@ -37,6 +37,8 @@ type WalletEventsMap = {
   >[0];
 };
 
+export const TIME_OUT = 300;
+
 export class WalletStandard implements Wallet {
   readonly #events: Emitter<WalletEventsMap>;
 
@@ -124,13 +126,17 @@ export class WalletStandard implements Wallet {
     root.render(
       <Password
         onClose={() => {
-          root.unmount();
-          document.body.removeChild(container);
+          setTimeout(() => {
+            root.unmount();
+            document.body.removeChild(container);
+          }, TIME_OUT);
           this.#zkLoginCallback!('');
         }}
         onConfirm={async (password: string) => {
-          root.unmount();
-          document.body.removeChild(container);
+          setTimeout(() => {
+            root.unmount();
+            document.body.removeChild(container);
+          }, TIME_OUT);
           const { nonce, data } = await createNonce(
             password,
             this.#network,
@@ -151,13 +157,17 @@ export class WalletStandard implements Wallet {
       root.render(
         <Password2
           onClose={() => {
-            root.unmount();
-            document.body.removeChild(container);
+            setTimeout(() => {
+              root.unmount();
+              document.body.removeChild(container);
+            }, TIME_OUT);
             reject(new Error('rejected'));
           }}
           onConfirm={async (password: string) => {
-            root.unmount();
-            document.body.removeChild(container);
+            setTimeout(() => {
+              root.unmount();
+              document.body.removeChild(container);
+            }, TIME_OUT);
             const { iv, encrypted } = account.nonce.keypair.privateKey;
             const privateKey = await decryptText(password, encrypted, iv);
             if (privateKey) {

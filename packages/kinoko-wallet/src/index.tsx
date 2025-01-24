@@ -10,7 +10,10 @@ import { Transaction } from '@mysten/sui/transactions';
 import { genAddressSeed } from '@mysten/sui/zklogin';
 import { IdentifierString, registerWallet } from '@mysten/wallet-standard';
 import { decodeJwt } from 'jose';
+import ReactDOM from 'react-dom/client';
 
+import { QrRead } from './components/qrRead';
+import { QrShow } from './components/qrShow';
 import { createProof } from './utils/createProof';
 import {
   getAccountData,
@@ -19,11 +22,19 @@ import {
 } from './utils/localStorage';
 import { signAndExecuteSponsoredTransaction } from './utils/sponsoredTransaction';
 import { NETWORK } from './utils/types';
-import { WalletStandard } from './utils/walletStandard';
+import { TIME_OUT, WalletStandard } from './utils/walletStandard';
 
 interface IKinokoWalletContext {
   login: (jwt: string) => Promise<void>;
   isLoggedIn: () => boolean;
+  isScannerEnabled: boolean;
+  deposit: (
+    title: string,
+    description: string,
+    transaction: Transaction,
+    isSponsored?: boolean,
+  ) => Promise<string>;
+  withdraw: (title: string, description: string) => Promise<string>;
   signAndExecuteSponsoredTransaction: (input: {
     transaction: Transaction;
     chain: IdentifierString;
@@ -53,15 +64,14 @@ export const KinokoWallet = ({
   icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
   network: NETWORK;
   enokey: string;
-  sponsored?: {
-    create: string;
-    execute: string;
-  };
+  sponsored?: string;
   epochOffset?: number;
   zkLogin: (nonce: string) => void;
   children: React.ReactNode;
 }) => {
   const initialized = useRef<boolean>(false);
+  const [isScannerEnabled, setIsScannerEnabled] =
+    React.useState<boolean>(false);
 
   const login = useCallback(
     async (jwt: string): Promise<void> => {
@@ -100,11 +110,92 @@ export const KinokoWallet = ({
     }
   }, [name, icon, network, enokey, epochOffset, zkLogin, sponsored]);
 
+  useEffect(() => {
+    const test = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputDevices = devices.filter(
+          (device) => device.kind === 'videoinput',
+        );
+        if (videoInputDevices.length > 0) {
+          setIsScannerEnabled(true);
+        } else {
+          setIsScannerEnabled(false);
+        }
+      } catch (error) {
+        setIsScannerEnabled(false);
+      }
+    };
+    test();
+  }, []);
+
   return (
     <KinokoWalletContext.Provider
       value={{
         login,
         isLoggedIn,
+        isScannerEnabled,
+        deposit: (title, description, transaction, isSponsored) => {
+          return new Promise((resolve, reject) => {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            const root = ReactDOM.createRoot(container);
+            root.render(
+              <QrShow
+                option={{
+                  title,
+                  description,
+                  transaction,
+                }}
+                network={network}
+                sponsored={isSponsored ? sponsored : undefined}
+                icon={icon}
+                onClose={(error, message) => {
+                  setTimeout(() => {
+                    root.unmount();
+                    document.body.removeChild(container);
+                  }, TIME_OUT);
+                  if (error) {
+                    reject(new Error(message));
+                  } else {
+                    resolve(message);
+                  }
+                }}
+              />,
+            );
+          });
+        },
+        withdraw: (title, description) => {
+          const account = getAccountData();
+          if (account) {
+            return new Promise((resolve, reject) => {
+              const container = document.createElement('div');
+              document.body.appendChild(container);
+              const root = ReactDOM.createRoot(container);
+              root.render(
+                <QrRead
+                  option={{
+                    title,
+                    description,
+                  }}
+                  account={account}
+                  onClose={(error, message) => {
+                    setTimeout(() => {
+                      root.unmount();
+                      document.body.removeChild(container);
+                    }, TIME_OUT);
+                    if (error) {
+                      reject(new Error(message));
+                    } else {
+                      resolve(message);
+                    }
+                  }}
+                />,
+              );
+            });
+          }
+          throw new Error('Account not found');
+        },
         signAndExecuteSponsoredTransaction: sponsored
           ? (input) => signAndExecuteSponsoredTransaction(sponsored, input)
           : () => {

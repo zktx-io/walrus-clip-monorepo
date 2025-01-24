@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { FormControl, FormField, FormInput, FormRoot } from './form';
 import {
   DlgButton,
-  DlgClose,
   DlgContent,
   DlgDescription,
   DlgOverlay,
@@ -21,11 +20,19 @@ export const Password2 = ({
   onClose: () => void;
   onConfirm: (password: string) => void;
 }) => {
+  const [open, setOpen] = useState(true);
   const [password, setPassword] = useState('');
+
   return (
-    <DlgRoot open={true}>
+    <DlgRoot open={open}>
       <DlgPortal>
-        <DlgOverlay mode={mode} />
+        <DlgOverlay
+          mode={mode}
+          onClick={() => {
+            setOpen(false);
+            onClose();
+          }}
+        />
         <DlgContent mode={mode}>
           <DlgTitle mode={mode}>Sign</DlgTitle>
           <DlgDescription mode={mode}>
@@ -56,15 +63,13 @@ export const Password2 = ({
               gap: '12px',
             }}
           >
-            <DlgClose asChild>
-              <DlgButton mode={mode} onClick={onClose}>
-                Cancel
-              </DlgButton>
-            </DlgClose>
             <DlgButton
               mode={mode}
               disabled={password.length < 1}
-              onClick={() => onConfirm(password)}
+              onClick={() => {
+                setOpen(false);
+                onConfirm(password);
+              }}
             >
               Confirm
             </DlgButton>

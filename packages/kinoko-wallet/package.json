@@ -54,6 +54,7 @@
     "@yudiel/react-qr-scanner": "^2.1.0",
     "jose": "^5.9.6",
     "mitt": "^3.0.1",
+    "peerjs": "^1.5.4",
     "react-qrcode-logo": "^3.0.0"
   }
 }

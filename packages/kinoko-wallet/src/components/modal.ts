@@ -4,7 +4,6 @@ import { keyframes, styled } from '@stitches/react';
 export const DlgRoot = styled(Dialog.Root, {});
 export const DlgTrigger = styled(Dialog.Trigger, {});
 export const DlgPortal = styled(Dialog.Portal, {});
-export const DlgClose = styled(Dialog.Close, {});
 
 const overlayShow = keyframes({
   from: {
@@ -95,6 +94,24 @@ export const DlgDescription = styled(Dialog.DialogDescription, {
   opacity: 0.7,
   fontSize: '12px',
   lineHeight: '1.5',
+  variants: {
+    mode: {
+      light: {
+        color: '#000000',
+      },
+      dark: {
+        color: '#ffffff',
+      },
+    },
+  },
+});
+
+export const DlgDescription2 = styled(Dialog.DialogDescription, {
+  margin: '10px 0 16px',
+  opacity: 0.7,
+  fontSize: '12px',
+  lineHeight: '1.5',
+  textAlign: 'center',
   variants: {
     mode: {
       light: {
