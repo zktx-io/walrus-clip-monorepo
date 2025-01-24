@@ -148,7 +148,7 @@ export const QrRead = ({
               }}
               formats={['qr_code']}
               onScan={(result) => {
-                if (result[0].format === 'QR_CODE') {
+                if (result[0].format === 'qr_code') {
                   const schema = result[0].rawValue.split('-');
                   if (
                     schema[0] === 'sui' &&
