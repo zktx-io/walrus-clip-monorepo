@@ -18,7 +18,9 @@
     "install:package": "cd packages/kinoko-wallet && npm i",
     "install:all": "npm run install:package && npm run install:example",
     "dev": "cd packages/example && npm run dev",
-    "build": "cd packages/kinoko-wallet && npm run build"
+    "build": "cd packages/kinoko-wallet && npm run build",
+    "version:patch": "lerna version patch",
+    "version:minor": "lerna version minor"
   },
   "workspaces": [
     "packages/kinoko-wallet",
