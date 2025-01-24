@@ -25,9 +25,9 @@ const router = createBrowserRouter([
   },
 ]);
 
-const ENOKI_KEY = process.env.REACT_APP_ENOKI_KEY;
-const SPONSORED_URL = process.env.REACT_APP_SPONSORED_URL;
-const CLIENT_ID = process.env.REACT_APP_CLIENT_ID;
+const ENOKI_KEY = import.meta.env.VITE_APP_ENOKI_KEY;
+const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
+const CLIENT_ID = import.meta.env.VITE_APP_CLIENT_ID;
 
 function App() {
   const [activeNetwork, setActiveNetwork] = useState<
