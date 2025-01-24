@@ -35,8 +35,8 @@ function App() {
   >(NETWORK);
 
   const zkLoginHandle = (nonce: string) => {
-    if (nonce) {
-      window.location.replace(getProviderUrl(nonce, CLIENT_ID!));
+    if (nonce && CLIENT_ID) {
+      window.location.replace(getProviderUrl(nonce, CLIENT_ID));
     }
   };
 
