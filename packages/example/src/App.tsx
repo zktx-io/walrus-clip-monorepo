@@ -9,7 +9,7 @@ import './App.css';
 import '@mysten/dapp-kit/dist/index.css';
 
 import { Home } from './pages/Home';
-import { Login } from './pages/Login';
+import { Auth } from './pages/Auth';
 import { ENOKI, ICON, SPONSORED, WALLET_NAME } from './utils/.config';
 import { getProviderUrl } from './utils/getProviderUrl';
 import { NETWORK } from './utils/.config';
@@ -20,8 +20,8 @@ const router = createBrowserRouter([
     element: <Home />,
   },
   {
-    path: '/login',
-    element: <Login />,
+    path: '/auth',
+    element: <Auth />,
   },
 ]);
 

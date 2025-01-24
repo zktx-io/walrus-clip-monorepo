@@ -5,7 +5,7 @@ import { useConnectWallet, useWallets } from '@mysten/dapp-kit';
 import { useKinokoWallet } from '@zktx.io/kinoko-wallet';
 import { WALLET_NAME } from '../utils/.config';
 
-export const Login = () => {
+export const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
