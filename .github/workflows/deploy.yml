@@ -24,6 +24,10 @@ jobs:
           cp -r ./packages/example/* /tmp/example/
 
       - name: Install dependencies in temporary directory and Build React app
+        env:
+          REACT_APP_CLIENT_ID: ${{ secrets.REACT_APP_CLIENT_ID }}
+          REACT_APP_ENOKI_KEY: ${{ secrets.REACT_APP_ENOKI_KEY }}
+          REACT_APP_SPONSORED_URL: ${{ secrets.REACT_APP_SPONSORED_URL }}
         run: |
           cd /tmp/example
           npm install

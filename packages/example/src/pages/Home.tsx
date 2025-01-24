@@ -10,7 +10,7 @@ import {
 import { Transaction } from '@mysten/sui/transactions';
 import { useKinokoWallet } from '@zktx.io/kinoko-wallet';
 import { enqueueSnackbar } from 'notistack';
-import { NETWORK } from '../utils/.config';
+import { NETWORK } from '../utils/config';
 
 export const Home = () => {
   const { connectionStatus } = useCurrentWallet();

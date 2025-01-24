@@ -10,9 +10,9 @@ import '@mysten/dapp-kit/dist/index.css';
 
 import { Home } from './pages/Home';
 import { Auth } from './pages/Auth';
-import { ENOKI, ICON, SPONSORED, WALLET_NAME } from './utils/.config';
+import { ICON, WALLET_NAME } from './utils/config';
 import { getProviderUrl } from './utils/getProviderUrl';
-import { NETWORK } from './utils/.config';
+import { NETWORK } from './utils/config';
 
 const router = createBrowserRouter([
   {
@@ -25,6 +25,10 @@ const router = createBrowserRouter([
   },
 ]);
 
+const ENOKI_KEY = process.env.REACT_APP_ENOKI_KEY;
+const SPONSORED_URL = process.env.REACT_APP_SPONSORED_URL;
+const CLIENT_ID = process.env.REACT_APP_CLIENT_ID;
+
 function App() {
   const [activeNetwork, setActiveNetwork] = useState<
     'testnet' | 'mainnet' | 'devnet'
@@ -32,7 +36,7 @@ function App() {
 
   const zkLoginHandle = (nonce: string) => {
     if (nonce) {
-      window.location.replace(getProviderUrl(nonce));
+      window.location.replace(getProviderUrl(nonce, CLIENT_ID!));
     }
   };
 
@@ -41,8 +45,8 @@ function App() {
       name={WALLET_NAME}
       icon={ICON}
       network={activeNetwork}
-      enokey={ENOKI}
-      sponsored={SPONSORED}
+      enokey={ENOKI_KEY!}
+      sponsored={SPONSORED_URL}
       zkLogin={zkLoginHandle}
     >
       <SuiClientProvider
