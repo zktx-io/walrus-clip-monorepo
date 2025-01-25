@@ -161,7 +161,14 @@ export const Home = () => {
             <h3>Connected</h3>
             <div>
               <p style={{ marginBottom: '0px', fontSize: '24px' }}>Address</p>
-              <p style={{ marginTop: '0px', fontSize: '16px' }}>
+              <p
+                style={{
+                  marginTop: '0px',
+                  fontSize: '16px',
+                  wordBreak: 'break-all',
+                  textAlign: 'center',
+                }}
+              >
                 {address || 'n/a'}
               </p>
               <p style={{ marginBottom: '0px', fontSize: '24px' }}>Balance</p>
