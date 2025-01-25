@@ -101,9 +101,16 @@ export const Home = () => {
         'Bill',
         'Please scan the QR code to deposit.',
         transaction,
+        (notification) => {
+          enqueueSnackbar(notification.message, {
+            variant: notification.variant,
+          });
+        },
         true,
       );
-      console.log(hash);
+      enqueueSnackbar(`${hash}`, {
+        variant: 'success',
+      });
     } catch (error) {
       enqueueSnackbar(`${error}`, {
         variant: 'error',
@@ -112,7 +119,24 @@ export const Home = () => {
   };
 
   const onShowPay = async () => {
-    await withdraw('Pay', 'Please scan the QR code to withdraw.');
+    try {
+      const hash = await withdraw(
+        'Pay',
+        'Please scan the QR code to withdraw.',
+        (notification) => {
+          enqueueSnackbar(notification.message, {
+            variant: notification.variant,
+          });
+        },
+      );
+      enqueueSnackbar(`${hash}`, {
+        variant: 'success',
+      });
+    } catch (error) {
+      enqueueSnackbar(`${error}`, {
+        variant: 'error',
+      });
+    }
   };
 
   useEffect(() => {

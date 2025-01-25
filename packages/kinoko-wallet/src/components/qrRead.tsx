@@ -3,10 +3,12 @@ import React, { useEffect, useState } from 'react';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { fromBase64 } from '@mysten/sui/utils';
 import { generateRandomness } from '@mysten/sui/zklogin';
+import { Cross2Icon } from '@radix-ui/react-icons';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import Peer from 'peerjs';
 
 import {
+  DlgClose,
   DlgContent,
   DlgDescription2,
   DlgOverlay,
@@ -18,6 +20,7 @@ import {
   IAccount,
   makeMessage,
   MessageType,
+  NotiVariant,
   parseMessage,
 } from '../utils/types';
 import { WalletStandard } from '../utils/walletStandard';
@@ -31,11 +34,13 @@ export const QrRead = ({
   mode = 'light',
   option,
   account,
+  onEvent,
   onClose,
 }: {
   mode?: 'dark' | 'light';
   option: IWithdrawOption;
   account: IAccount;
+  onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onClose: (error: boolean, message: string) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
@@ -47,6 +52,11 @@ export const QrRead = ({
     const randomness = generateRandomness();
     const peer = new Peer(randomness);
     if (destId) {
+      onEvent({
+        variant: 'info',
+        message: 'Connecting...',
+      });
+      setOpen(false);
       peer.on('open', (id) => {
         try {
           const connection = peer.connect(destId);
@@ -75,7 +85,7 @@ export const QrRead = ({
                         ),
                       );
                       connection.open && connection.close({ flush: true });
-                      setOpen(false);
+                      open && setOpen(false);
                       onClose(false, digest);
                     } else {
                       const client = new SuiClient({
@@ -88,27 +98,31 @@ export const QrRead = ({
                         });
                       connection.send(makeMessage(MessageType.STEP_2, digest2));
                       connection.open && connection.close({ flush: true });
-                      setOpen(false);
+                      open && setOpen(false);
                       onClose(!!errors, `${errors}` || digest2);
                     }
                   }
                   break;
 
                 default:
+                  onEvent({
+                    variant: 'error',
+                    message: `Unknown message type: ${message.type}`,
+                  });
                   connection.open && connection.close({ flush: true });
-                  setOpen(false);
+                  open && setOpen(false);
                   onClose(true, `Unknown message type: ${message.type}`);
               }
             } catch (error) {
               connection.open && connection.close({ flush: true });
-              setOpen(false);
+              open && setOpen(false);
               onClose(true, `${error}`);
             }
           });
 
           connection.on('error', (err) => {
             connection.open && connection.close({ flush: true });
-            setOpen(false);
+            open && setOpen(false);
             onClose(true, `Connection error: ${err.message}`);
           });
         } catch (error) {
@@ -131,16 +145,34 @@ export const QrRead = ({
   return (
     <DlgRoot open={open}>
       <DlgPortal>
-        <DlgOverlay
+        <DlgOverlay mode={mode} />
+        <DlgContent
           mode={mode}
-          onClick={() => {
-            setOpen(false);
-            onClose(true, 'User closed');
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
           }}
-        />
-        <DlgContent mode={mode}>
-          <DlgTitle mode={mode}>{option.title}</DlgTitle>
-          <div style={{ position: 'relative', width: '100%' }}>
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <DlgTitle mode={mode}>{option.title}</DlgTitle>
+            <DlgClose
+              mode={mode}
+              onClick={() => {
+                setOpen(false);
+                onClose(true, 'User closed');
+              }}
+            >
+              <Cross2Icon />
+            </DlgClose>
+          </div>
+          <div
+            style={{ position: 'relative', width: '100%', marginTop: '12px' }}
+          >
             <Scanner
               styles={{
                 container: { width: '256px', height: '256px' },

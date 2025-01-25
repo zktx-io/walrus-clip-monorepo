@@ -4,11 +4,15 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { toBase64 } from '@mysten/sui/utils';
 import { generateRandomness } from '@mysten/sui/zklogin';
+import { Cross2Icon } from '@radix-ui/react-icons';
 import Peer from 'peerjs';
 import { QRCode } from 'react-qrcode-logo';
 
 import {
+  DlgButton,
+  DlgClose,
   DlgContent,
+  DlgDescription,
   DlgDescription2,
   DlgOverlay,
   DlgPortal,
@@ -23,6 +27,7 @@ import {
   makeMessage,
   MessageType,
   NETWORK,
+  NotiVariant,
   parseMessage,
 } from '../utils/types';
 
@@ -38,6 +43,7 @@ export const QrShow = ({
   network,
   sponsored,
   icon,
+  onEvent,
   onClose,
 }: {
   mode?: 'dark' | 'light';
@@ -45,6 +51,7 @@ export const QrShow = ({
   network: NETWORK;
   sponsored?: string;
   icon: string;
+  onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onClose: (error: boolean, message: string) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
@@ -62,6 +69,11 @@ export const QrShow = ({
           switch (message.type) {
             case MessageType.STEP_0:
               {
+                onEvent({
+                  variant: 'info',
+                  message: 'Connecting...',
+                });
+                setOpen(false);
                 const client = new SuiClient({
                   url: getFullnodeUrl(network),
                 });
@@ -98,6 +110,10 @@ export const QrShow = ({
             case MessageType.STEP_2:
               {
                 if (sponsored !== undefined) {
+                  onEvent({
+                    variant: 'info',
+                    message: 'Executing sponsored transaction...',
+                  });
                   const { signature, digest } = JSON.parse(message.value);
                   await executeSponsoredTransaction(
                     sponsored,
@@ -105,37 +121,41 @@ export const QrShow = ({
                     signature,
                   );
                   connection.open && connection.close({ flush: true });
-                  setOpen(false);
+                  open && setOpen(false);
                   onClose(false, digest);
                 } else {
                   connection.open && connection.close({ flush: true });
-                  setOpen(false);
+                  open && setOpen(false);
                   onClose(false, message.value);
                 }
               }
               break;
 
             default:
+              onEvent({
+                variant: 'error',
+                message: `Unknown message type: ${message.type}`,
+              });
               connection.open && connection.close({ flush: true });
-              setOpen(false);
+              open && setOpen(false);
               onClose(true, `Unknown message type: ${message.type}`);
           }
         } catch (error) {
           connection.open && connection.close({ flush: true });
-          setOpen(false);
+          open && setOpen(false);
           onClose(true, `Unknown error: ${error}`);
         }
       });
 
       connection.on('error', (err) => {
         connection.open && connection.close({ flush: true });
-        setOpen(false);
+        open && setOpen(false);
         onClose(true, `Connection error: ${err.message}`);
       });
     });
 
     peer.on('error', (err) => {
-      setOpen(false);
+      open && setOpen(false);
       onClose(true, `Peer error: ${err.message}`);
     });
 
@@ -148,15 +168,31 @@ export const QrShow = ({
   return (
     <DlgRoot open={open}>
       <DlgPortal>
-        <DlgOverlay
+        <DlgOverlay mode={mode} />
+        <DlgContent
           mode={mode}
-          onClick={() => {
-            setOpen(false);
-            onClose(true, 'User closed');
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
           }}
-        />
-        <DlgContent mode={mode}>
-          <DlgTitle mode={mode}>{option.title}</DlgTitle>
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <DlgTitle mode={mode}>{option.title}</DlgTitle>
+            <DlgClose
+              mode={mode}
+              onClick={() => {
+                setOpen(false);
+                onClose(true, 'User closed');
+              }}
+            >
+              <Cross2Icon />
+            </DlgClose>
+          </div>
           <QRCode
             value={peerId}
             logoImage={icon}

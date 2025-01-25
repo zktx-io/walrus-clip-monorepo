@@ -36,6 +36,8 @@ export interface Message {
   value: string;
 }
 
+export type NotiVariant = 'success' | 'warning' | 'info' | 'error';
+
 export const makeMessage = (type: MessageType, value: string): string => {
   return JSON.stringify({ type, value });
 };

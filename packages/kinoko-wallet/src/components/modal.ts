@@ -124,6 +124,48 @@ export const DlgDescription2 = styled(Dialog.DialogDescription, {
   },
 });
 
+export const DlgClose = styled('button', {
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  borderRadius: '50%',
+  padding: '0px',
+  height: '24px',
+  width: '24px',
+  outline: 'none',
+  border: 'none',
+  variants: {
+    mode: {
+      light: {
+        color: '#0005119e',
+        backgroundColor: '#ffffff00',
+        '&:hover': {
+          cursor: 'pointer',
+          backgroundColor: '#afafaf8a',
+        },
+        '&:disabled': {
+          cursor: 'default',
+          color: '#00082f46',
+          backgroundColor: '#0101370f',
+        },
+      },
+      dark: {
+        color: '#f1f7ffb5',
+        backgroundColor: '#19191900',
+        '&:hover': {
+          cursor: 'pointer',
+          backgroundColor: '#afafaf8a',
+        },
+        '&:disabled': {
+          cursor: 'default',
+          color: '#daf0ff5c',
+          backgroundColor: '#deeeff14',
+        },
+      },
+    },
+  },
+});
+
 export const DlgButton = styled('button', {
   height: '32px',
   paddingLeft: '12px',

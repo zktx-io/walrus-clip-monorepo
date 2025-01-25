@@ -21,7 +21,7 @@ import {
   setAccountData,
 } from './utils/localStorage';
 import { signAndExecuteSponsoredTransaction } from './utils/sponsoredTransaction';
-import { NETWORK } from './utils/types';
+import { NETWORK, NotiVariant } from './utils/types';
 import { TIME_OUT, WalletStandard } from './utils/walletStandard';
 
 interface IKinokoWalletContext {
@@ -32,9 +32,14 @@ interface IKinokoWalletContext {
     title: string,
     description: string,
     transaction: Transaction,
+    onEvent: (data: { variant: NotiVariant; message: string }) => void,
     isSponsored?: boolean,
   ) => Promise<string>;
-  withdraw: (title: string, description: string) => Promise<string>;
+  withdraw: (
+    title: string,
+    description: string,
+    onEvent: (data: { variant: NotiVariant; message: string }) => void,
+  ) => Promise<string>;
   signAndExecuteSponsoredTransaction: (input: {
     transaction: Transaction;
     chain: IdentifierString;
@@ -135,7 +140,7 @@ export const KinokoWallet = ({
         login,
         isLoggedIn,
         isScannerEnabled,
-        deposit: (title, description, transaction, isSponsored) => {
+        deposit: (title, description, transaction, onEvent, isSponsored) => {
           return new Promise((resolve, reject) => {
             const container = document.createElement('div');
             document.body.appendChild(container);
@@ -150,6 +155,7 @@ export const KinokoWallet = ({
                 network={network}
                 sponsored={isSponsored ? sponsored : undefined}
                 icon={icon}
+                onEvent={onEvent}
                 onClose={(error, message) => {
                   setTimeout(() => {
                     root.unmount();
@@ -165,7 +171,7 @@ export const KinokoWallet = ({
             );
           });
         },
-        withdraw: (title, description) => {
+        withdraw: (title, description, onEvent) => {
           const account = getAccountData();
           if (account) {
             return new Promise((resolve, reject) => {
@@ -179,6 +185,7 @@ export const KinokoWallet = ({
                     description,
                   }}
                   account={account}
+                  onEvent={onEvent}
                   onClose={(error, message) => {
                     setTimeout(() => {
                       root.unmount();
