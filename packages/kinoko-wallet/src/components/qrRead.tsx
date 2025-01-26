@@ -181,12 +181,12 @@ export const QrRead = ({
               formats={['qr_code']}
               onScan={(result) => {
                 if (result[0].format === 'qr_code') {
-                  const schema = result[0].rawValue.split('-');
+                  const schema = result[0].rawValue.replace(/::/g, '-');
                   if (
                     schema[0] === 'sui' &&
                     schema[1] === account.nonce.network
                   ) {
-                    setDestId(result[0].rawValue);
+                    setDestId(result[0].rawValue.replace('::', '-'));
                     setSponsored(schema.length === 4);
                   } else if (schema[0] !== 'sui') {
                     setError('Invalid chain');
