@@ -56,11 +56,11 @@ export const QrShow = ({
 }) => {
   const [open, setOpen] = useState<boolean>(true);
   const peerId = sponsored
-    ? `sui-${network}-s-${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}`
-    : `sui-${network}-${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}`;
+    ? `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::s`
+    : `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}`;
 
   useEffect(() => {
-    const peer = new Peer(peerId);
+    const peer = new Peer(peerId.replace(/::/g, '-'));
 
     peer.on('connection', (connection) => {
       connection.on('data', async (data) => {
