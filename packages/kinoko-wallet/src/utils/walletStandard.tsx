@@ -230,7 +230,7 @@ export class WalletStandard implements Wallet {
     account: IAccount,
     bytes: Uint8Array,
   ): Promise<{ bytes: string; signature: string }> => {
-    const privateKey = await this.#openPasswordModal2(account);
+    const privateKey = await WalletStandard.#openPasswordModal2(account);
     const keypair = Ed25519Keypair.fromSecretKey(fromBase64(privateKey));
     const { signature: userSignature } = await keypair.signTransaction(bytes);
     const zkLoginSignature = getZkLoginSignature({
@@ -319,6 +319,25 @@ export class WalletStandard implements Wallet {
   };
 
   #signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message }) => {
-    throw new Error('Not implemented: signPersonalMessage');
+    const account = getAccountData();
+    if (account) {
+      const privateKey = await WalletStandard.#openPasswordModal2(account);
+      const keypair = Ed25519Keypair.fromSecretKey(fromBase64(privateKey));
+      const { signature: userSignature } =
+        await keypair.signPersonalMessage(message);
+      const zkLoginSignature = getZkLoginSignature({
+        inputs: {
+          ...JSON.parse(account.zkAddress.proof),
+          addressSeed: account.zkAddress.addressSeed,
+        },
+        maxEpoch: account.nonce.expiration,
+        userSignature,
+      });
+      return {
+        bytes: toBase64(message),
+        signature: zkLoginSignature,
+      };
+    }
+    throw new Error('account error');
   };
 }
