@@ -35,7 +35,7 @@ export const Home = () => {
 
   const onLogin = async () => {
     await login();
-  }
+  };
 
   const onSignAndExcuteTx = async () => {
     if (account) {
@@ -101,14 +101,10 @@ export const Home = () => {
           ),
         ],
       });
-      const { digest } = await pay(
-        'Bill',
-        'Please scan the QR code to pay.',
-        {
-          transaction,
-          isSponsored: true,
-        },
-      );
+      const { digest } = await pay('Bill', 'Please scan the QR code to pay.', {
+        transaction,
+        isSponsored: true,
+      });
       enqueueSnackbar(digest, {
         variant: 'success',
       });
@@ -121,10 +117,7 @@ export const Home = () => {
 
   const onShowPay = async () => {
     try {
-      const { digest } = await pay(
-        'Pay',
-        'Please scan the QR code to pay.',
-      );
+      const { digest } = await pay('Pay', 'Please scan the QR code to pay.');
       enqueueSnackbar(digest, {
         variant: 'success',
       });
@@ -175,9 +168,6 @@ export const Home = () => {
             <div
               style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
             >
-              <button onClick={onLogin}>
-                Login
-              </button>
               <button onClick={onSignAndExcuteTx}>
                 Sign And Excute Sponsored Transaction
               </button>
@@ -193,7 +183,10 @@ export const Home = () => {
                   Pay
                 </button>
               </div>
-              <button onClick={handleDisconnect}>Disconnect</button>
+              <div style={{ width: '100%', display: 'flex', gap: '8px' }}>
+                <button style={{ width: '100%' }} onClick={onLogin}>Login</button>
+                <button style={{ width: '100%' }} onClick={handleDisconnect}>Disconnect</button>
+              </div>
             </div>
           </div>
         ) : (
