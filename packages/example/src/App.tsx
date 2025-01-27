@@ -48,7 +48,7 @@ function App() {
       network={activeNetwork}
       enokey={ENOKI_KEY!}
       sponsored={SPONSORED_URL}
-      callbackNonce={callbackNonce}
+      // callbackNonce={callbackNonce}
       onEvent={(notification) => {
         enqueueSnackbar(notification.message, {
           variant: notification.variant,
