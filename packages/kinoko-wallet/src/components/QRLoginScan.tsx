@@ -57,12 +57,12 @@ export const QRLoginScan = ({
       setOpen(false);
       peer.on('open', (id) => {
         try {
-          const connection = peer.connect(destId);
+          const connection = peer.connect(destId.replace(/::/g, '-'));
           const encoder = new TextEncoder();
           connection.on('open', async () => {
             const { signature } = await WalletStandard.Sign(
               zkLogin,
-              encoder.encode(destId.replace('-', '::')),
+              encoder.encode(destId),
               false,
             );
             const publicKey = toZkLoginPublicIdentifier(
@@ -181,7 +181,7 @@ export const QRLoginScan = ({
                     schema[1] === network &&
                     schema[3] === 'login'
                   ) {
-                    setDestId(schema.join('-'));
+                    setDestId(schema.join('::'));
                   } else {
                     if (schema[0] !== 'sui') {
                       setError('Invalid chain');

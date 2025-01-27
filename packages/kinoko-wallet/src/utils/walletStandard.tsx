@@ -25,7 +25,12 @@ import mitt, { type Emitter } from 'mitt';
 import ReactDOM from 'react-dom/client';
 
 import { createNonce } from './createNonce';
-import { disconnect, getAccountData, setZkLoginData } from './localStorage';
+import {
+  disconnect,
+  getAccountData,
+  setAccountData,
+  setZkLoginData,
+} from './localStorage';
 import { IZkLogin, NETWORK, NotiVariant } from './types';
 import { decryptText } from './utils';
 import { Password } from '../components/password';
@@ -163,11 +168,14 @@ export class WalletStandard implements Wallet {
         icon={this.#icon}
         network={this.#network}
         onEvent={this.#onEvent}
-        onClose={() => {
+        onClose={(result) => {
           setTimeout(() => {
             root.unmount();
             document.body.removeChild(container);
           }, TIME_OUT);
+          if (!!result) {
+            setAccountData(result);
+          }
         }}
       />,
     );

@@ -61,6 +61,11 @@ export const QRPayCode = ({
     const peer = new Peer(peerId.replace(/::/g, '-'));
 
     peer.on('connection', (connection) => {
+      onEvent({
+        variant: 'info',
+        message: 'Connecting...',
+      });
+      setOpen(false);
       connection.on('data', async (data) => {
         try {
           const message = parseMessage(data as string);
@@ -72,9 +77,8 @@ export const QRPayCode = ({
               {
                 onEvent({
                   variant: 'info',
-                  message: 'Connecting...',
+                  message: 'create sponsored transaction...',
                 });
-                setOpen(false);
                 option.transaction.setSenderIfNotSet(message.value);
                 const txBytes = await option.transaction.build({
                   client,

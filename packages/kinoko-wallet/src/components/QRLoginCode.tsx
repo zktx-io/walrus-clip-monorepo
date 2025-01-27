@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { fromBase64 } from '@mysten/sui/utils';
 import {
   generateRandomness,
   ZkLoginPublicIdentifier,
@@ -37,7 +38,7 @@ export const QRLoginCode = ({
   network: NETWORK;
   icon: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  onClose: (result: string | { address: string; network: NETWORK }) => void;
+  onClose: (result?: { address: string; network: NETWORK }) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
   const peerId = `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::login`;
@@ -46,6 +47,11 @@ export const QRLoginCode = ({
     const peer = new Peer(peerId.replace(/::/g, '-'));
 
     peer.on('connection', (connection) => {
+      onEvent({
+        variant: 'info',
+        message: 'Connecting...',
+      });
+      setOpen(false);
       connection.on('data', async (data) => {
         try {
           const message = parseMessage(data as string);
@@ -54,10 +60,8 @@ export const QRLoginCode = ({
               {
                 onEvent({
                   variant: 'info',
-                  message: 'Connecting...',
+                  message: 'verifing...',
                 });
-                setOpen(false);
-
                 try {
                   const client = new SuiGraphQLClient({
                     url: `https://sui-${network}.mystenlabs.com/graphql`,
@@ -69,22 +73,31 @@ export const QRLoginCode = ({
                   }: { address: string; publicKey: string; signature: string } =
                     JSON.parse(message.value);
                   const zkLoginPublicIdentifier = new ZkLoginPublicIdentifier(
-                    publicKey,
+                    fromBase64(publicKey),
                     { client },
                   );
                   const encoder = new TextEncoder();
                   const result =
                     await zkLoginPublicIdentifier.verifyPersonalMessage(
                       encoder.encode(peerId),
-                      signature,
+                      fromBase64(signature),
                     );
-
                   if (result) {
                     connection.send(makeMessage(MessageType.STEP_1, 'OK'));
+                    onEvent({
+                      variant: 'success',
+                      message: 'verification success',
+                    });
                     onClose({ address, network });
                   } else {
-                    connection.send(makeMessage(MessageType.STEP_1, 'FAIL'));
-                    onClose('verifyPersonalMessage failed');
+                    connection.send(
+                      makeMessage(MessageType.STEP_1, 'verification failed'),
+                    );
+                    onEvent({
+                      variant: 'error',
+                      message: 'verification failed',
+                    });
+                    onClose();
                   }
                 } catch (error) {
                   connection.send(
@@ -104,25 +117,41 @@ export const QRLoginCode = ({
               });
               connection.open && connection.close({ flush: true });
               open && setOpen(false);
-              onClose(`Unknown message type: ${message.type}`);
+              onEvent({
+                variant: 'error',
+                message: `Unknown message type: ${message.type}`,
+              });
+              onClose();
           }
         } catch (error) {
           connection.open && connection.close({ flush: true });
           open && setOpen(false);
-          onClose(`Unknown error: ${error}`);
+          onEvent({
+            variant: 'error',
+            message: `Unknown error: ${error}`,
+          });
+          onClose();
         }
       });
 
       connection.on('error', (err) => {
         connection.open && connection.close({ flush: true });
         open && setOpen(false);
-        onClose(`Connection error: ${err.message}`);
+        onEvent({
+          variant: 'error',
+          message: `Connection error: ${err.message}`,
+        });
+        onClose();
       });
     });
 
     peer.on('error', (err) => {
       open && setOpen(false);
-      onClose(`Peer error: ${err.message}`);
+      onEvent({
+        variant: 'error',
+        message: `Peer error: ${err.message}`,
+      });
+      onClose();
     });
 
     return () => {
@@ -153,7 +182,11 @@ export const QRLoginCode = ({
               mode={mode}
               onClick={() => {
                 setOpen(false);
-                onClose('User closed');
+                onEvent({
+                  variant: 'error',
+                  message: 'Login canceled',
+                });
+                onClose();
               }}
             >
               <Cross2Icon />
