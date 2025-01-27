@@ -4,6 +4,7 @@ import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
 import { getFullnodeUrl } from '@mysten/sui/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { KinokoWallet } from '@zktx.io/kinoko-wallet';
+import { enqueueSnackbar } from 'notistack';
 
 import './App.css';
 import '@mysten/dapp-kit/dist/index.css';
@@ -34,7 +35,7 @@ function App() {
     'testnet' | 'mainnet' | 'devnet'
   >(NETWORK);
 
-  const zkLoginHandle = (nonce: string) => {
+  const callbackNonce = (nonce: string) => {
     if (nonce && CLIENT_ID) {
       window.location.replace(getProviderUrl(nonce, CLIENT_ID));
     }
@@ -47,7 +48,12 @@ function App() {
       network={activeNetwork}
       enokey={ENOKI_KEY!}
       sponsored={SPONSORED_URL}
-      zkLogin={zkLoginHandle}
+      callbackNonce={callbackNonce}
+      onEvent={(notification) => {
+        enqueueSnackbar(notification.message, {
+          variant: notification.variant,
+        });
+      }}
     >
       <SuiClientProvider
         networks={{

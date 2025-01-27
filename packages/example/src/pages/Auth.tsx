@@ -9,7 +9,7 @@ export const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { isLoggedIn, login } = useKinokoWallet();
+  const { isLoggedIn, updateJwt } = useKinokoWallet();
   const wallets = useWallets();
   const { mutate: connect } = useConnectWallet();
 
@@ -25,7 +25,7 @@ export const Auth = () => {
         }
         const wallet = wallets.find((w) => w.name === WALLET_NAME);
         if (wallet) {
-          await login(jwt);
+          await updateJwt(jwt);
           connect(
             { wallet },
             {
@@ -38,7 +38,7 @@ export const Auth = () => {
       }
     };
     init();
-  }, [location, navigate, isLoggedIn, login, wallets, connect]);
+  }, [location, navigate, isLoggedIn, updateJwt, wallets, connect]);
 
   return (
     <>

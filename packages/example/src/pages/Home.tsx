@@ -5,6 +5,7 @@ import {
   useCurrentAccount,
   useCurrentWallet,
   useDisconnectWallet,
+  // useSignAndExecuteTransaction,
   useSuiClient,
 } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
@@ -16,13 +17,12 @@ export const Home = () => {
   const { connectionStatus } = useCurrentWallet();
   const account = useCurrentAccount();
   const client = useSuiClient();
+
   const { mutate: disconnect } = useDisconnectWallet();
-  const {
-    isScannerEnabled,
-    signAndExecuteSponsoredTransaction,
-    deposit,
-    withdraw,
-  } = useKinokoWallet();
+  // const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+
+  const { login, isScannerEnabled, signAndExecuteSponsoredTransaction, pay } =
+    useKinokoWallet();
 
   const [address, setAddress] = useState<string | undefined>(undefined);
   const [balance, setBalance] = useState<string | undefined>(undefined);
@@ -32,6 +32,10 @@ export const Home = () => {
     setBalance(undefined);
     disconnect();
   };
+
+  const onLogin = async () => {
+    await login();
+  }
 
   const onSignAndExcuteTx = async () => {
     if (account) {
@@ -97,18 +101,15 @@ export const Home = () => {
           ),
         ],
       });
-      const hash = await deposit(
+      const { digest } = await pay(
         'Bill',
-        'Please scan the QR code to deposit.',
-        transaction,
-        (notification) => {
-          enqueueSnackbar(notification.message, {
-            variant: notification.variant,
-          });
+        'Please scan the QR code to pay.',
+        {
+          transaction,
+          isSponsored: true,
         },
-        true,
       );
-      enqueueSnackbar(`${hash}`, {
+      enqueueSnackbar(digest, {
         variant: 'success',
       });
     } catch (error) {
@@ -120,16 +121,11 @@ export const Home = () => {
 
   const onShowPay = async () => {
     try {
-      const hash = await withdraw(
+      const { digest } = await pay(
         'Pay',
-        'Please scan the QR code to withdraw.',
-        (notification) => {
-          enqueueSnackbar(notification.message, {
-            variant: notification.variant,
-          });
-        },
+        'Please scan the QR code to pay.',
       );
-      enqueueSnackbar(`${hash}`, {
+      enqueueSnackbar(digest, {
         variant: 'success',
       });
     } catch (error) {
@@ -179,6 +175,9 @@ export const Home = () => {
             <div
               style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
             >
+              <button onClick={onLogin}>
+                Login
+              </button>
               <button onClick={onSignAndExcuteTx}>
                 Sign And Excute Sponsored Transaction
               </button>
