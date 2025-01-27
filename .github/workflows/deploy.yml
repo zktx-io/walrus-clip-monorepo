@@ -40,6 +40,7 @@ jobs:
           object-id: '0xe15bc83bb0ae8d32188611fcc38d9068adc9530390e3b5f157a5dbdcb219378f'
           network: 'testnet'
           epochs: 180
+          wal-exchange-enabled: false
         env:
           SUI_ADDRESS: ${{ vars.SUI_ADDRESS }}
           SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
