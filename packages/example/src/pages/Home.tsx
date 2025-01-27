@@ -184,8 +184,12 @@ export const Home = () => {
                 </button>
               </div>
               <div style={{ width: '100%', display: 'flex', gap: '8px' }}>
-                <button style={{ width: '100%' }} onClick={onLogin}>Login (QR)</button>
-                <button style={{ width: '100%' }} onClick={handleDisconnect}>Disconnect</button>
+                <button style={{ width: '100%' }} onClick={onLogin}>
+                  Login (QR)
+                </button>
+                <button style={{ width: '100%' }} onClick={handleDisconnect}>
+                  Disconnect
+                </button>
               </div>
             </div>
           </div>
