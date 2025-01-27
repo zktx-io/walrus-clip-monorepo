@@ -34,7 +34,7 @@ jobs:
           npm run build
 
       - name: Deploy Example to Walrus
-        uses: zktx-io/walrus-sites-ga@v0.3.0
+        uses: zktx-io/walrus-sites-ga@v0.3.4
         with:
           site-path: '/tmp/example/dist'
           object-id: '0xe15bc83bb0ae8d32188611fcc38d9068adc9530390e3b5f157a5dbdcb219378f'
