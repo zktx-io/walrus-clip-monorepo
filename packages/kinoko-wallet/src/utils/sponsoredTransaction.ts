@@ -69,10 +69,10 @@ export const signAndExecuteSponsoredTransaction = async (
   effects: string;
 }> => {
   const account = getAccountData();
-  if (!!account) {
-    if (account.nonce.network === input.chain.split(':')[1]) {
+  if (!!account && !!account.zkLogin) {
+    if (account.network === input.chain.split(':')[1]) {
       const client = new SuiClient({
-        url: getFullnodeUrl(account.nonce.network),
+        url: getFullnodeUrl(account.network),
       });
       const txBytes = await input.transaction.build({
         client,
@@ -81,13 +81,14 @@ export const signAndExecuteSponsoredTransaction = async (
       const { bytes: sponsoredTxBuytes, digest } =
         await createSponsoredTransaction(
           url,
-          account.nonce.network,
-          account.zkAddress.address,
+          account.network,
+          account.address,
           txBytes,
         );
-      const { signature } = await WalletStandard.SignTransaction(
-        account,
+      const { signature } = await WalletStandard.Sign(
+        account.zkLogin,
         fromBase64(sponsoredTxBuytes),
+        true,
       );
       await executeSponsoredTransaction(url, digest, signature);
 

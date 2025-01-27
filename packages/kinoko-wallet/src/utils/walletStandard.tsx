@@ -25,11 +25,12 @@ import mitt, { type Emitter } from 'mitt';
 import ReactDOM from 'react-dom/client';
 
 import { createNonce } from './createNonce';
-import { disconnect, getAccountData, setNonceData } from './localStorage';
-import { IAccount, NETWORK } from './types';
+import { disconnect, getAccountData, setZkLoginData } from './localStorage';
+import { IZkLogin, NETWORK, NotiVariant } from './types';
 import { decryptText } from './utils';
 import { Password } from '../components/password';
 import { Password2 } from '../components/password2';
+import { QRLoginCode } from '../components/QRLoginCode';
 
 type WalletEventsMap = {
   [E in keyof StandardEventsListeners]: Parameters<
@@ -46,11 +47,13 @@ export class WalletStandard implements Wallet {
 
   #accounts: ReadonlyWalletAccount[] = [];
 
-  #zkLoginCallback?: (nonce: string) => void;
   #name: string;
   #icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
+
+  #zkLoginNonceCallback?: (nonce: string) => void;
   #network: NETWORK;
   #epochOffset?: number;
+  #onEvent: (data: { variant: NotiVariant; message: string }) => void;
 
   get version() {
     return this.#version;
@@ -73,18 +76,20 @@ export class WalletStandard implements Wallet {
   }
 
   constructor(
-    zkLogin: (nonce: string) => void,
     name: string,
     icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`,
     network: NETWORK,
+    onEvent: (data: { variant: NotiVariant; message: string }) => void,
+    callbackNonce?: (nonce: string) => void,
     epochOffset?: number,
   ) {
     this.#events = mitt();
     this.#name = name;
     this.#icon = icon;
     this.#network = network;
+    this.#onEvent = onEvent;
     this.#epochOffset = epochOffset;
-    this.#zkLoginCallback = zkLogin;
+    this.#zkLoginNonceCallback = callbackNonce;
   }
 
   get features(): StandardConnectFeature &
@@ -119,7 +124,7 @@ export class WalletStandard implements Wallet {
     };
   }
 
-  #openPasswordModal() {
+  #openZkLoginModal() {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = ReactDOM.createRoot(container);
@@ -130,26 +135,45 @@ export class WalletStandard implements Wallet {
             root.unmount();
             document.body.removeChild(container);
           }, TIME_OUT);
-          this.#zkLoginCallback!('');
+          this.#zkLoginNonceCallback!('');
         }}
         onConfirm={async (password: string) => {
           setTimeout(() => {
             root.unmount();
             document.body.removeChild(container);
           }, TIME_OUT);
-          const { nonce, data } = await createNonce(
+          const { nonce, network, data } = await createNonce(
             password,
             this.#network,
             this.#epochOffset,
           );
-          setNonceData(data);
-          this.#zkLoginCallback!(nonce);
+          setZkLoginData({ network, zkLogin: data });
+          this.#zkLoginNonceCallback!(nonce);
         }}
       />,
     );
   }
 
-  static #openPasswordModal2(account: IAccount): Promise<string> {
+  #openQrLoginModal() {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+    root.render(
+      <QRLoginCode
+        icon={this.#icon}
+        network={this.#network}
+        onEvent={this.#onEvent}
+        onClose={() => {
+          setTimeout(() => {
+            root.unmount();
+            document.body.removeChild(container);
+          }, TIME_OUT);
+        }}
+      />,
+    );
+  }
+
+  static #openPasswordModal(zkLogin: IZkLogin): Promise<string> {
     return new Promise((resolve, reject) => {
       const container = document.createElement('div');
       document.body.appendChild(container);
@@ -168,7 +192,7 @@ export class WalletStandard implements Wallet {
               root.unmount();
               document.body.removeChild(container);
             }, TIME_OUT);
-            const { iv, encrypted } = account.nonce.keypair.privateKey;
+            const { iv, encrypted } = zkLogin.keypair.privateKey;
             const privateKey = await decryptText(password, encrypted, iv);
             if (privateKey) {
               resolve(privateKey);
@@ -191,7 +215,7 @@ export class WalletStandard implements Wallet {
     if (account) {
       this.#accounts = [
         new ReadonlyWalletAccount({
-          address: account?.zkAddress.address,
+          address: account?.address,
           publicKey: new Uint8Array(),
           chains: [`sui:${this.#network}`],
           features: [
@@ -211,8 +235,12 @@ export class WalletStandard implements Wallet {
 
   #connect: StandardConnectMethod = async (input) => {
     const account = getAccountData();
-    if (!account && this.#zkLoginCallback) {
-      this.#openPasswordModal();
+    if (!account) {
+      if (this.#zkLoginNonceCallback) {
+        this.#openZkLoginModal();
+      } else {
+        this.#openQrLoginModal();
+      }
       return { accounts: [] };
     } else {
       await this.#connected();
@@ -226,19 +254,22 @@ export class WalletStandard implements Wallet {
     return Promise.resolve();
   };
 
-  static SignTransaction = async (
-    account: IAccount,
+  static Sign = async (
+    zkLogin: IZkLogin,
     bytes: Uint8Array,
+    isTransaction: boolean,
   ): Promise<{ bytes: string; signature: string }> => {
-    const privateKey = await WalletStandard.#openPasswordModal2(account);
+    const privateKey = await WalletStandard.#openPasswordModal(zkLogin);
     const keypair = Ed25519Keypair.fromSecretKey(fromBase64(privateKey));
-    const { signature: userSignature } = await keypair.signTransaction(bytes);
+    const { signature: userSignature } = await (isTransaction
+      ? keypair.signTransaction(bytes)
+      : keypair.signPersonalMessage(bytes));
     const zkLoginSignature = getZkLoginSignature({
       inputs: {
-        ...JSON.parse(account.zkAddress.proof),
-        addressSeed: account.zkAddress.addressSeed,
+        ...JSON.parse(zkLogin.proofInfo.proof),
+        addressSeed: zkLogin.proofInfo.addressSeed,
       },
-      maxEpoch: account.nonce.expiration,
+      maxEpoch: zkLogin.expiration,
       userSignature,
     });
 
@@ -253,16 +284,17 @@ export class WalletStandard implements Wallet {
     chain,
   }) => {
     const account = getAccountData();
-    if (account && chain === `sui:${this.#network}`) {
+    if (account && !!account.zkLogin && chain === `sui:${this.#network}`) {
       const client = new SuiClient({
-        url: getFullnodeUrl(account.nonce.network),
+        url: getFullnodeUrl(account.network),
       });
       const tx = await transaction.toJSON();
       const txBytes = await Transaction.from(tx).build({ client });
 
-      const { bytes, signature } = await WalletStandard.SignTransaction(
-        account,
+      const { bytes, signature } = await WalletStandard.Sign(
+        account.zkLogin,
         txBytes,
+        true,
       );
       return {
         bytes,
@@ -280,17 +312,18 @@ export class WalletStandard implements Wallet {
     chain,
   }) => {
     const account = getAccountData();
-    if (account && chain === `sui:${this.#network}`) {
+    if (account && !!account.zkLogin && chain === `sui:${this.#network}`) {
       const client = new SuiClient({
-        url: getFullnodeUrl(account.nonce.network),
+        url: getFullnodeUrl(account.network),
       });
       const tx = await transaction.toJSON();
       const txBytes = await Transaction.from(tx).build({
         client,
       });
-      const { bytes, signature } = await WalletStandard.SignTransaction(
-        account,
+      const { bytes, signature } = await WalletStandard.Sign(
+        account.zkLogin,
         txBytes,
+        true,
       );
       const { digest, errors } = await client.executeTransactionBlock({
         transactionBlock: bytes,
@@ -320,22 +353,15 @@ export class WalletStandard implements Wallet {
 
   #signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message }) => {
     const account = getAccountData();
-    if (account) {
-      const privateKey = await WalletStandard.#openPasswordModal2(account);
-      const keypair = Ed25519Keypair.fromSecretKey(fromBase64(privateKey));
-      const { signature: userSignature } =
-        await keypair.signPersonalMessage(message);
-      const zkLoginSignature = getZkLoginSignature({
-        inputs: {
-          ...JSON.parse(account.zkAddress.proof),
-          addressSeed: account.zkAddress.addressSeed,
-        },
-        maxEpoch: account.nonce.expiration,
-        userSignature,
-      });
+    if (account && !!account.zkLogin) {
+      const { signature } = await WalletStandard.Sign(
+        account.zkLogin,
+        message,
+        false,
+      );
       return {
         bytes: toBase64(message),
-        signature: zkLoginSignature,
+        signature,
       };
     }
     throw new Error('account error');

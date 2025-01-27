@@ -6,7 +6,7 @@ import {
 } from '@mysten/sui/zklogin';
 
 import { getEnokiSalt } from './getEnokiSalt';
-import { ENOKI_URL, INonce, NETWORK } from './types';
+import { ENOKI_URL, IZkLogin, NETWORK } from './types';
 
 const getProverUrl = (network: NETWORK): string => {
   switch (network) {
@@ -19,7 +19,8 @@ const getProverUrl = (network: NETWORK): string => {
 
 export const createProof = async (
   key: string,
-  { network, expiration, randomness, keypair }: INonce,
+  network: NETWORK,
+  { expiration, randomness, keypair }: IZkLogin,
   jwt: string,
 ): Promise<{ address: string; proof: string; salt: string }> => {
   try {

@@ -12,12 +12,13 @@ import { IdentifierString, registerWallet } from '@mysten/wallet-standard';
 import { decodeJwt } from 'jose';
 import ReactDOM from 'react-dom/client';
 
-import { QrRead } from './components/qrRead';
-import { QrShow } from './components/qrShow';
+import { QRLoginScan } from './components/QRLoginScan';
+import { QRPayCode } from './components/QRPayCode';
+import { QRPayScan } from './components/QRPayScan';
 import { createProof } from './utils/createProof';
 import {
   getAccountData,
-  getNonceData,
+  getZkLoginData,
   setAccountData,
 } from './utils/localStorage';
 import { signAndExecuteSponsoredTransaction } from './utils/sponsoredTransaction';
@@ -25,21 +26,15 @@ import { NETWORK, NotiVariant } from './utils/types';
 import { TIME_OUT, WalletStandard } from './utils/walletStandard';
 
 interface IKinokoWalletContext {
-  login: (jwt: string) => Promise<void>;
+  updateJwt: (jwt: string) => Promise<void>;
   isLoggedIn: () => boolean;
   isScannerEnabled: boolean;
-  deposit: (
+  login: () => Promise<void>;
+  pay: (
     title: string,
     description: string,
-    transaction: Transaction,
-    onEvent: (data: { variant: NotiVariant; message: string }) => void,
-    isSponsored?: boolean,
-  ) => Promise<string>;
-  withdraw: (
-    title: string,
-    description: string,
-    onEvent: (data: { variant: NotiVariant; message: string }) => void,
-  ) => Promise<string>;
+    data?: { transaction: Transaction; isSponsored?: boolean },
+  ) => Promise<{ digest: string; effects: string }>;
   signAndExecuteSponsoredTransaction: (input: {
     transaction: Transaction;
     chain: IdentifierString;
@@ -62,7 +57,8 @@ export const KinokoWallet = ({
   enokey,
   sponsored,
   epochOffset,
-  zkLogin,
+  callbackNonce,
+  onEvent,
   children,
 }: {
   name: string;
@@ -71,19 +67,29 @@ export const KinokoWallet = ({
   enokey: string;
   sponsored?: string;
   epochOffset?: number;
-  zkLogin: (nonce: string) => void;
+  callbackNonce?: (nonce: string) => void;
+  onEvent: (data: { variant: NotiVariant; message: string }) => void;
   children: React.ReactNode;
 }) => {
   const initialized = useRef<boolean>(false);
   const [isScannerEnabled, setIsScannerEnabled] =
     React.useState<boolean>(false);
 
-  const login = useCallback(
+  const updateJwt = useCallback(
     async (jwt: string): Promise<void> => {
-      const nonce = getNonceData();
-      if (nonce) {
-        const decodedJwt = decodeJwt(jwt) as { sub?: string; aud?: string };
-        const { address, proof, salt } = await createProof(enokey, nonce, jwt);
+      const data = getZkLoginData();
+      if (data) {
+        const decodedJwt = decodeJwt(jwt) as {
+          sub?: string;
+          aud?: string;
+          iss?: string;
+        };
+        const { address, proof, salt } = await createProof(
+          enokey,
+          data.network,
+          data.zkLogin,
+          jwt,
+        );
         const addressSeed = genAddressSeed(
           BigInt(salt),
           'sub',
@@ -91,8 +97,19 @@ export const KinokoWallet = ({
           decodedJwt.aud as string,
         ).toString();
         setAccountData({
-          nonce,
-          zkAddress: { address, addressSeed, proof, jwt },
+          zkLogin: {
+            expiration: data.zkLogin.expiration,
+            randomness: data.zkLogin.randomness,
+            keypair: data.zkLogin.keypair,
+            proofInfo: {
+              addressSeed,
+              proof,
+              jwt,
+              iss: decodedJwt.iss!,
+            },
+          },
+          network: data.network,
+          address: address,
         });
       } else {
         throw new Error('Nonce not found');
@@ -110,10 +127,26 @@ export const KinokoWallet = ({
     if (!initialized.current) {
       initialized.current = true;
       registerWallet(
-        new WalletStandard(zkLogin, name, icon, network, epochOffset),
+        new WalletStandard(
+          name,
+          icon,
+          network,
+          onEvent,
+          callbackNonce,
+          epochOffset,
+        ),
       );
     }
-  }, [name, icon, network, enokey, epochOffset, zkLogin, sponsored]);
+  }, [
+    name,
+    icon,
+    network,
+    enokey,
+    epochOffset,
+    callbackNonce,
+    sponsored,
+    onEvent,
+  ]);
 
   useEffect(() => {
     const test = async () => {
@@ -137,71 +170,103 @@ export const KinokoWallet = ({
   return (
     <KinokoWalletContext.Provider
       value={{
-        login,
+        updateJwt,
         isLoggedIn,
         isScannerEnabled,
-        deposit: (title, description, transaction, onEvent, isSponsored) => {
-          return new Promise((resolve, reject) => {
-            const container = document.createElement('div');
-            document.body.appendChild(container);
-            const root = ReactDOM.createRoot(container);
-            root.render(
-              <QrShow
-                option={{
-                  title,
-                  description,
-                  transaction,
-                }}
-                network={network}
-                sponsored={isSponsored ? sponsored : undefined}
-                icon={icon}
-                onEvent={onEvent}
-                onClose={(error, message) => {
-                  setTimeout(() => {
-                    root.unmount();
-                    document.body.removeChild(container);
-                  }, TIME_OUT);
-                  if (error) {
-                    reject(new Error(message));
-                  } else {
-                    resolve(message);
-                  }
-                }}
-              />,
-            );
-          });
-        },
-        withdraw: (title, description, onEvent) => {
+        login: async () => {
           const account = getAccountData();
-          if (account) {
+          if (account && !!account.zkLogin) {
             return new Promise((resolve, reject) => {
               const container = document.createElement('div');
               document.body.appendChild(container);
               const root = ReactDOM.createRoot(container);
               root.render(
-                <QrRead
-                  option={{
-                    title,
-                    description,
-                  }}
-                  account={account}
+                <QRLoginScan
+                  network={network}
+                  address={account.address}
+                  zkLogin={account.zkLogin!}
                   onEvent={onEvent}
-                  onClose={(error, message) => {
+                  onClose={(result) => {
                     setTimeout(() => {
                       root.unmount();
                       document.body.removeChild(container);
                     }, TIME_OUT);
-                    if (error) {
-                      reject(new Error(message));
+                    if (result !== undefined) {
+                      reject(new Error(result));
                     } else {
-                      resolve(message);
+                      resolve(result);
                     }
                   }}
                 />,
               );
             });
           }
-          throw new Error('Account not found');
+        },
+        pay: (title, description, data) => {
+          if (data) {
+            return new Promise((resolve, reject) => {
+              const container = document.createElement('div');
+              document.body.appendChild(container);
+              const root = ReactDOM.createRoot(container);
+              root.render(
+                <QRPayCode
+                  option={{
+                    title,
+                    description,
+                    transaction: data.transaction,
+                  }}
+                  network={network}
+                  sponsored={data.isSponsored ? sponsored : undefined}
+                  icon={icon}
+                  onEvent={onEvent}
+                  onClose={(result) => {
+                    setTimeout(() => {
+                      root.unmount();
+                      document.body.removeChild(container);
+                    }, TIME_OUT);
+                    if (typeof result === 'string') {
+                      reject(new Error(result));
+                    } else {
+                      resolve(result);
+                    }
+                  }}
+                />,
+              );
+            });
+          } else {
+            const account = getAccountData();
+            if (account && !!account.zkLogin) {
+              return new Promise((resolve, reject) => {
+                const container = document.createElement('div');
+                document.body.appendChild(container);
+                const root = ReactDOM.createRoot(container);
+                root.render(
+                  <QRPayScan
+                    option={{
+                      title,
+                      description,
+                    }}
+                    network={network}
+                    address={account.address}
+                    zkLogin={account.zkLogin!}
+                    onEvent={onEvent}
+                    onClose={(result) => {
+                      setTimeout(() => {
+                        root.unmount();
+                        document.body.removeChild(container);
+                      }, TIME_OUT);
+                      if (typeof result === 'string') {
+                        reject(new Error(result));
+                      } else {
+                        resolve(result);
+                      }
+                    }}
+                  />,
+                );
+              });
+            }
+            throw new Error('Account not found');
+          }
         },
         signAndExecuteSponsoredTransaction: sponsored
           ? (input) => signAndExecuteSponsoredTransaction(sponsored, input)

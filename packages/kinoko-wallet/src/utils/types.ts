@@ -2,10 +2,9 @@ export const ENOKI_URL = 'https://api.enoki.mystenlabs.com/v1';
 
 export type NETWORK = 'mainnet' | 'testnet' | 'devnet';
 
-export interface INonce {
+export interface IZkLogin {
   expiration: number;
   randomness: string;
-  network: NETWORK;
   keypair: {
     publicKey: string;
     privateKey: {
@@ -13,16 +12,18 @@ export interface INonce {
       encrypted: string;
     };
   };
+  proofInfo: {
+    addressSeed: string;
+    proof: string;
+    iss: string;
+    jwt: string;
+  };
 }
 
 export interface IAccount {
-  nonce: INonce;
-  zkAddress: {
-    address: string;
-    addressSeed: string;
-    proof: string;
-    jwt: string;
-  };
+  network: NETWORK;
+  address: string;
+  zkLogin?: IZkLogin;
 }
 
 export enum MessageType {

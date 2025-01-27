@@ -4,7 +4,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { toBase64 } from '@mysten/sui/utils';
 import { generateNonce, generateRandomness } from '@mysten/sui/zklogin';
 
-import { INonce, NETWORK } from './types';
+import { IZkLogin, NETWORK } from './types';
 import { encryptText } from './utils';
 
 export const createNonce = async (
@@ -13,7 +13,8 @@ export const createNonce = async (
   epochOffset?: number,
 ): Promise<{
   nonce: string;
-  data: INonce;
+  network: NETWORK;
+  data: IZkLogin;
 }> => {
   try {
     const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
@@ -33,16 +34,22 @@ export const createNonce = async (
     );
     return {
       nonce,
+      network,
       data: {
         expiration,
         randomness,
-        network,
         keypair: {
           publicKey: ephemeralKeyPair.getPublicKey().toBase64(),
           privateKey: {
             iv,
             encrypted,
           },
+        },
+        proofInfo: {
+          addressSeed: '',
+          proof: '',
+          jwt: '',
+          iss: '',
         },
       },
     };

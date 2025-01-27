@@ -9,10 +9,8 @@ import Peer from 'peerjs';
 import { QRCode } from 'react-qrcode-logo';
 
 import {
-  DlgButton,
   DlgClose,
   DlgContent,
-  DlgDescription,
   DlgDescription2,
   DlgOverlay,
   DlgPortal,
@@ -31,13 +29,13 @@ import {
   parseMessage,
 } from '../utils/types';
 
-export interface IDepositOption {
+interface IQRPayCodeOption {
   title?: string;
   description?: string;
   transaction: Transaction;
 }
 
-export const QrShow = ({
+export const QRPayCode = ({
   mode = 'light',
   option,
   network,
@@ -47,17 +45,17 @@ export const QrShow = ({
   onClose,
 }: {
   mode?: 'dark' | 'light';
-  option: IDepositOption;
+  option: IQRPayCodeOption;
   network: NETWORK;
   sponsored?: string;
   icon: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  onClose: (error: boolean, message: string) => void;
+  onClose: (result: string | { digest: string; effects: string }) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
   const peerId = sponsored
-    ? `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::s`
-    : `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}`;
+    ? `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::ts`
+    : `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::tx`;
 
   useEffect(() => {
     const peer = new Peer(peerId.replace(/::/g, '-'));
@@ -66,6 +64,9 @@ export const QrShow = ({
       connection.on('data', async (data) => {
         try {
           const message = parseMessage(data as string);
+          const client = new SuiClient({
+            url: getFullnodeUrl(network),
+          });
           switch (message.type) {
             case MessageType.STEP_0:
               {
@@ -74,9 +75,6 @@ export const QrShow = ({
                   message: 'Connecting...',
                 });
                 setOpen(false);
-                const client = new SuiClient({
-                  url: getFullnodeUrl(network),
-                });
                 option.transaction.setSenderIfNotSet(message.value);
                 const txBytes = await option.transaction.build({
                   client,
@@ -122,11 +120,24 @@ export const QrShow = ({
                   );
                   connection.open && connection.close({ flush: true });
                   open && setOpen(false);
-                  onClose(false, digest);
+
+                  const { rawEffects } = await client.waitForTransaction({
+                    digest,
+                    options: {
+                      showRawEffects: true,
+                    },
+                  });
+
+                  onClose({
+                    digest,
+                    effects: rawEffects
+                      ? toBase64(new Uint8Array(rawEffects))
+                      : '',
+                  });
                 } else {
                   connection.open && connection.close({ flush: true });
                   open && setOpen(false);
-                  onClose(false, message.value);
+                  onClose(message.value);
                 }
               }
               break;
@@ -138,25 +149,25 @@ export const QrShow = ({
               });
               connection.open && connection.close({ flush: true });
               open && setOpen(false);
-              onClose(true, `Unknown message type: ${message.type}`);
+              onClose(`Unknown message type: ${message.type}`);
           }
         } catch (error) {
           connection.open && connection.close({ flush: true });
           open && setOpen(false);
-          onClose(true, `Unknown error: ${error}`);
+          onClose(`Unknown error: ${error}`);
         }
       });
 
       connection.on('error', (err) => {
         connection.open && connection.close({ flush: true });
         open && setOpen(false);
-        onClose(true, `Connection error: ${err.message}`);
+        onClose(`Connection error: ${err.message}`);
       });
     });
 
     peer.on('error', (err) => {
       open && setOpen(false);
-      onClose(true, `Peer error: ${err.message}`);
+      onClose(`Peer error: ${err.message}`);
     });
 
     return () => {
@@ -187,7 +198,7 @@ export const QrShow = ({
               mode={mode}
               onClick={() => {
                 setOpen(false);
-                onClose(true, 'User closed');
+                onClose('User closed');
               }}
             >
               <Cross2Icon />

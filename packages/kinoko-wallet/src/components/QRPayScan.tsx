@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { fromBase64 } from '@mysten/sui/utils';
+import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { generateRandomness } from '@mysten/sui/zklogin';
 import { Cross2Icon } from '@radix-ui/react-icons';
 import { Scanner } from '@yudiel/react-qr-scanner';
@@ -17,31 +17,36 @@ import {
   DlgTitle,
 } from './modal';
 import {
-  IAccount,
+  IZkLogin,
   makeMessage,
   MessageType,
+  NETWORK,
   NotiVariant,
   parseMessage,
 } from '../utils/types';
 import { WalletStandard } from '../utils/walletStandard';
 
-export interface IWithdrawOption {
+interface IQRPayScanOption {
   title?: string;
   description?: string;
 }
 
-export const QrRead = ({
+export const QRPayScan = ({
   mode = 'light',
   option,
-  account,
+  network,
+  address,
+  zkLogin,
   onEvent,
   onClose,
 }: {
   mode?: 'dark' | 'light';
-  option: IWithdrawOption;
-  account: IAccount;
+  option: IQRPayScanOption;
+  network: NETWORK;
+  address: string;
+  zkLogin: IZkLogin;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  onClose: (error: boolean, message: string) => void;
+  onClose: (result: string | { digest: string; effects: string }) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
   const [destId, setDestId] = useState<string | undefined>(undefined);
@@ -61,21 +66,23 @@ export const QrRead = ({
         try {
           const connection = peer.connect(destId);
           connection.on('open', () => {
-            connection.send(
-              makeMessage(MessageType.STEP_0, account.zkAddress.address),
-            );
+            connection.send(makeMessage(MessageType.STEP_0, address));
           });
 
           connection.on('data', async (data) => {
             try {
               const message = parseMessage(data as string);
+              const client = new SuiClient({
+                url: getFullnodeUrl(network),
+              });
               switch (message.type) {
                 case MessageType.STEP_1:
                   {
                     const { bytes, digest } = JSON.parse(message.value);
-                    const { signature } = await WalletStandard.SignTransaction(
-                      account,
+                    const { signature } = await WalletStandard.Sign(
+                      zkLogin,
                       fromBase64(bytes),
+                      true,
                     );
                     if (sponsored) {
                       connection.send(
@@ -86,11 +93,21 @@ export const QrRead = ({
                       );
                       connection.open && connection.close({ flush: true });
                       open && setOpen(false);
-                      onClose(false, digest);
-                    } else {
-                      const client = new SuiClient({
-                        url: getFullnodeUrl(account.nonce.network),
+
+                      const { rawEffects } = await client.waitForTransaction({
+                        digest,
+                        options: {
+                          showRawEffects: true,
+                        },
                       });
+
+                      onClose({
+                        digest,
+                        effects: rawEffects
+                          ? toBase64(new Uint8Array(rawEffects))
+                          : '',
+                      });
+                    } else {
                       const { digest: digest2, errors } =
                         await client.executeTransactionBlock({
                           transactionBlock: bytes,
@@ -99,7 +116,23 @@ export const QrRead = ({
                       connection.send(makeMessage(MessageType.STEP_2, digest2));
                       connection.open && connection.close({ flush: true });
                       open && setOpen(false);
-                      onClose(!!errors, `${errors}` || digest2);
+
+                      if (!!errors) {
+                        onClose(errors.toString());
+                      } else {
+                        const { rawEffects } = await client.waitForTransaction({
+                          digest: digest2,
+                          options: {
+                            showRawEffects: true,
+                          },
+                        });
+                        onClose({
+                          digest: digest2,
+                          effects: rawEffects
+                            ? toBase64(new Uint8Array(rawEffects))
+                            : '',
+                        });
+                      }
                     }
                   }
                   break;
@@ -111,28 +144,28 @@ export const QrRead = ({
                   });
                   connection.open && connection.close({ flush: true });
                   open && setOpen(false);
-                  onClose(true, `Unknown message type: ${message.type}`);
+                  onClose(`Unknown message type: ${message.type}`);
               }
             } catch (error) {
               connection.open && connection.close({ flush: true });
               open && setOpen(false);
-              onClose(true, `${error}`);
+              onClose(`${error}`);
             }
           });
 
           connection.on('error', (err) => {
             connection.open && connection.close({ flush: true });
             open && setOpen(false);
-            onClose(true, `Connection error: ${err.message}`);
+            onClose(`Connection error: ${err.message}`);
           });
         } catch (error) {
-          onClose(true, `Failed to establish connection: ${error}`);
+          onClose(`Failed to establish connection: ${error}`);
         }
       });
 
       peer.on('error', (err) => {
         setOpen(false);
-        onClose(true, `Peer error: ${err.message}`);
+        onClose(`Peer error: ${err.message}`);
       });
 
       return () => {
@@ -164,7 +197,7 @@ export const QrRead = ({
               mode={mode}
               onClick={() => {
                 setOpen(false);
-                onClose(true, 'User closed');
+                onClose('User closed');
               }}
             >
               <Cross2Icon />
@@ -181,23 +214,28 @@ export const QrRead = ({
               formats={['qr_code']}
               onScan={(result) => {
                 if (result[0].format === 'qr_code') {
-                  const schema = result[0].rawValue.replace(/::/g, '-');
+                  const schema = result[0].rawValue.split('::');
                   if (
                     schema[0] === 'sui' &&
-                    schema[1] === account.nonce.network
+                    schema[1] === network &&
+                    (schema[3] === 'ts' || schema[3] === 'tx')
                   ) {
-                    setDestId(result[0].rawValue.replace('::', '-'));
-                    setSponsored(schema.length === 4);
-                  } else if (schema[0] !== 'sui') {
-                    setError('Invalid chain');
-                  } else if (schema[1] !== account.nonce.network) {
-                    setError('Invalid network');
+                    setDestId(schema.join('-'));
+                    setSponsored(schema[3] == 'ts');
+                  } else {
+                    if (schema[0] !== 'sui') {
+                      setError('Invalid chain');
+                    } else if (schema[1] !== network) {
+                      setError('Invalid network');
+                    } else {
+                      setError('invalid type');
+                    }
                   }
                 }
               }}
               onError={(error) => {
                 setOpen(false);
-                onClose(true, `${error}`);
+                onClose(`${error}`);
               }}
             />
           </div>

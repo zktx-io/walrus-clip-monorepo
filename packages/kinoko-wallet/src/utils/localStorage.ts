@@ -1,11 +1,16 @@
-import { IAccount, INonce } from './types';
+import { IAccount, IZkLogin, NETWORK } from './types';
 
-export const getNonceData = (): undefined | INonce => {
+export const getZkLoginData = ():
+  | undefined
+  | { network: NETWORK; zkLogin: IZkLogin } => {
   const data = localStorage.getItem('nonce');
   return data ? JSON.parse(data) : undefined;
 };
 
-export const setNonceData = (data: INonce) => {
+export const setZkLoginData = (data: {
+  network: NETWORK;
+  zkLogin: IZkLogin;
+}) => {
   localStorage.setItem('nonce', JSON.stringify(data));
 };
 
