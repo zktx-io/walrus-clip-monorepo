@@ -36,6 +36,7 @@ import { decryptText } from './utils';
 import { Password } from '../components/password';
 import { Password2 } from '../components/password2';
 import { QRLoginCode } from '../components/QRLoginCode';
+import { QRPayCode } from '../components/QRPayCode';
 
 type WalletEventsMap = {
   [E in keyof StandardEventsListeners]: Parameters<
@@ -59,6 +60,7 @@ export class WalletStandard implements Wallet {
   #network: NETWORK;
   #epochOffset?: number;
   #onEvent: (data: { variant: NotiVariant; message: string }) => void;
+  #sponsored: string | undefined;
 
   get version() {
     return this.#version;
@@ -84,17 +86,21 @@ export class WalletStandard implements Wallet {
     name: string,
     icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`,
     network: NETWORK,
+    sponsored: string,
     onEvent: (data: { variant: NotiVariant; message: string }) => void,
-    callbackNonce?: (nonce: string) => void,
-    epochOffset?: number,
+    zklogin?: {
+      callbackNonce?: (nonce: string) => void;
+      epochOffset?: number;
+    },
   ) {
     this.#events = mitt();
     this.#name = name;
     this.#icon = icon;
     this.#network = network;
+    this.#sponsored = sponsored === '' ? undefined : sponsored;
     this.#onEvent = onEvent;
-    this.#epochOffset = epochOffset;
-    this.#zkLoginNonceCallback = callbackNonce;
+    this.#epochOffset = zklogin?.epochOffset;
+    this.#zkLoginNonceCallback = zklogin?.callbackNonce;
   }
 
   get features(): StandardConnectFeature &
@@ -175,6 +181,7 @@ export class WalletStandard implements Wallet {
           }, TIME_OUT);
           if (!!result) {
             setAccountData(result);
+            this.#connected();
           }
         }}
       />,
@@ -223,7 +230,7 @@ export class WalletStandard implements Wallet {
     if (account) {
       this.#accounts = [
         new ReadonlyWalletAccount({
-          address: account?.address,
+          address: account.address,
           publicKey: new Uint8Array(),
           chains: [`sui:${this.#network}`],
           features: [
@@ -287,27 +294,84 @@ export class WalletStandard implements Wallet {
     };
   };
 
+  pay = async (
+    title: string,
+    description: string,
+    data: { transaction: Transaction; isSponsored?: boolean },
+  ): Promise<{
+    bytes: string;
+    signature: string;
+    digest: string;
+    effects: string;
+  }> => {
+    return new Promise((resolve, reject) => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = ReactDOM.createRoot(container);
+      root.render(
+        <QRPayCode
+          option={{
+            title,
+            description,
+            transaction: data.transaction,
+          }}
+          network={this.#network}
+          sponsored={data.isSponsored ? this.#sponsored : undefined}
+          icon={this.icon}
+          onEvent={this.#onEvent}
+          onClose={(result) => {
+            setTimeout(() => {
+              root.unmount();
+              document.body.removeChild(container);
+            }, TIME_OUT);
+            if (!!result) {
+              resolve(result);
+            } else {
+              reject();
+            }
+          }}
+        />,
+      );
+    });
+  };
+
   #signTransaction: SuiSignTransactionMethod = async ({
     transaction,
     chain,
   }) => {
     const account = getAccountData();
-    if (account && !!account.zkLogin && chain === `sui:${this.#network}`) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(account.network),
-      });
-      const tx = await transaction.toJSON();
-      const txBytes = await Transaction.from(tx).build({ client });
+    if (!!account) {
+      if (!!account.zkLogin && chain === `sui:${this.#network}`) {
+        const client = new SuiClient({
+          url: getFullnodeUrl(account.network),
+        });
+        const tx = await transaction.toJSON();
+        const txBytes = await Transaction.from(tx).build({ client });
 
-      const { bytes, signature } = await WalletStandard.Sign(
-        account.zkLogin,
-        txBytes,
-        true,
-      );
-      return {
-        bytes,
-        signature,
-      };
+        const { bytes, signature } = await WalletStandard.Sign(
+          account.zkLogin,
+          txBytes,
+          true,
+        );
+        return {
+          bytes,
+          signature,
+        };
+      } else {
+        const tx = await transaction.toJSON();
+        const { bytes, signature } = await this.pay(
+          'Sign Transaction',
+          'Please scan the QR code to sign.',
+          {
+            transaction: Transaction.from(tx),
+            isSponsored: false,
+          },
+        );
+        return {
+          bytes,
+          signature,
+        };
+      }
     }
     if (!account) {
       throw new Error('account error');
@@ -320,38 +384,56 @@ export class WalletStandard implements Wallet {
     chain,
   }) => {
     const account = getAccountData();
-    if (account && !!account.zkLogin && chain === `sui:${this.#network}`) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(account.network),
-      });
-      const tx = await transaction.toJSON();
-      const txBytes = await Transaction.from(tx).build({
-        client,
-      });
-      const { bytes, signature } = await WalletStandard.Sign(
-        account.zkLogin,
-        txBytes,
-        true,
-      );
-      const { digest, errors } = await client.executeTransactionBlock({
-        transactionBlock: bytes,
-        signature: signature,
-      });
-      if (errors) {
-        throw new Error(errors.join(', '));
+    if (!!account) {
+      if (!!account.zkLogin && chain === `sui:${this.#network}`) {
+        const client = new SuiClient({
+          url: getFullnodeUrl(account.network),
+        });
+        const tx = await transaction.toJSON();
+        const txBytes = await Transaction.from(tx).build({
+          client,
+        });
+        const { bytes, signature } = await WalletStandard.Sign(
+          account.zkLogin,
+          txBytes,
+          true,
+        );
+        const { digest, errors } = await client.executeTransactionBlock({
+          transactionBlock: bytes,
+          signature: signature,
+        });
+        if (errors) {
+          throw new Error(errors.join(', '));
+        }
+        const { rawEffects } = await client.waitForTransaction({
+          digest,
+          options: {
+            showRawEffects: true,
+          },
+        });
+        return {
+          digest,
+          bytes,
+          signature,
+          effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
+        };
+      } else {
+        const tx = await transaction.toJSON();
+        const { bytes, signature, digest, effects } = await this.pay(
+          'Sign and Execute Transaction',
+          'Please scan the QR code to sign.',
+          {
+            transaction: Transaction.from(tx),
+            isSponsored: false,
+          },
+        );
+        return {
+          digest,
+          bytes,
+          signature,
+          effects,
+        };
       }
-      const { rawEffects } = await client.waitForTransaction({
-        digest,
-        options: {
-          showRawEffects: true,
-        },
-      });
-      return {
-        digest,
-        bytes,
-        signature,
-        effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
-      };
     }
     if (!account) {
       throw new Error('account error');
@@ -361,16 +443,20 @@ export class WalletStandard implements Wallet {
 
   #signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message }) => {
     const account = getAccountData();
-    if (account && !!account.zkLogin) {
-      const { signature } = await WalletStandard.Sign(
-        account.zkLogin,
-        message,
-        false,
-      );
-      return {
-        bytes: toBase64(message),
-        signature,
-      };
+    if (!!account) {
+      if (!!account.zkLogin) {
+        const { signature } = await WalletStandard.Sign(
+          account.zkLogin,
+          message,
+          false,
+        );
+        return {
+          bytes: toBase64(message),
+          signature,
+        };
+      } else {
+        //
+      }
     }
     throw new Error('account error');
   };

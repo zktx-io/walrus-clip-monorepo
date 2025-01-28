@@ -4,6 +4,7 @@ import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { fromBase64 } from '@mysten/sui/utils';
 import {
   generateRandomness,
+  toZkLoginPublicIdentifier,
   ZkLoginPublicIdentifier,
 } from '@mysten/sui/zklogin';
 import { Cross2Icon } from '@radix-ui/react-icons';
@@ -20,28 +21,161 @@ import {
   DlgTitle,
 } from './modal';
 import {
+  IZkLogin,
   makeMessage,
-  MessageType,
   NETWORK,
   NotiVariant,
   parseMessage,
 } from '../utils/types';
+import { WalletStandard } from '../utils/walletStandard';
+
+enum MessageType {
+  STEP_0 = 'LOGIN_STEP_0',
+  STEP_1 = 'LOGIN_STEP_1',
+}
+
+export const connectQRLogin = ({
+  destId,
+  address,
+  zkLogin,
+  setOpen,
+  onClose,
+  onEvent,
+}: {
+  destId: string;
+  address: string;
+  zkLogin: IZkLogin;
+  setOpen: (open: boolean) => void;
+  onClose: () => void;
+  onEvent: (data: { variant: NotiVariant; message: string }) => void;
+}) => {
+  const randomness = generateRandomness();
+  const peer = new Peer(randomness);
+
+  onEvent({ variant: 'info', message: 'Connecting...' });
+  setOpen(false);
+
+  peer.on('open', (id) => {
+    try {
+      const connection = peer.connect(destId.replace(/::/g, '-'));
+      const encoder = new TextEncoder();
+
+      connection.on('open', async () => {
+        try {
+          const { signature } = await WalletStandard.Sign(
+            zkLogin,
+            encoder.encode(destId),
+            false,
+          );
+          const publicKey = toZkLoginPublicIdentifier(
+            BigInt(zkLogin.proofInfo.addressSeed),
+            zkLogin.proofInfo.iss,
+          ).toSuiPublicKey();
+
+          connection.send(
+            makeMessage(
+              MessageType.STEP_0,
+              JSON.stringify({ address, publicKey, signature }),
+            ),
+          );
+        } catch (error) {
+          onEvent({ variant: 'error', message: `${error}` });
+          onClose();
+        }
+      });
+
+      connection.on('data', (data) => {
+        try {
+          const message = parseMessage(data as string);
+          switch (message.type) {
+            case MessageType.STEP_1:
+              if (message.value === 'OK') {
+                onEvent({ variant: 'success', message: 'Connected' });
+              } else {
+                onEvent({ variant: 'error', message: message.value });
+              }
+              onClose();
+              break;
+
+            default:
+              onEvent({
+                variant: 'error',
+                message: `Unknown message type: ${message.type}`,
+              });
+              connection.open && connection.close({ flush: true });
+              onEvent({
+                variant: 'error',
+                message: `Unknown message type: ${message.type}`,
+              });
+              onClose();
+          }
+        } catch (error) {
+          connection.open && connection.close({ flush: true });
+          onEvent({
+            variant: 'error',
+            message: `${error}`,
+          });
+          onClose();
+        }
+      });
+
+      connection.on('error', (err) => {
+        connection.open && connection.close({ flush: true });
+        onEvent({
+          variant: 'error',
+          message: `Connection error: ${err.message}`,
+        });
+        onClose();
+      });
+    } catch (error) {
+      onEvent({
+        variant: 'error',
+        message: `Failed to establish connection: ${error}`,
+      });
+      onClose();
+    }
+  });
+
+  peer.on('error', (err) => {
+    onEvent({
+      variant: 'error',
+      message: `Peer error: ${err.message}`,
+    });
+    onClose();
+    onClose();
+  });
+
+  return peer;
+};
 
 export const QRLoginCode = ({
   mode = 'light',
   network,
   icon,
-  onEvent,
   onClose,
+  onEvent,
 }: {
   mode?: 'dark' | 'light';
   network: NETWORK;
   icon: string;
-  onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onClose: (result?: { address: string; network: NETWORK }) => void;
+  onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
   const peerId = `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::login`;
+
+  const handleClose = (
+    error?: string,
+    result?: { address: string; network: NETWORK },
+  ) => {
+    error &&
+      onEvent({
+        variant: 'error',
+        message: error,
+      });
+    open && setOpen(false);
+    onClose(result);
+  };
 
   useEffect(() => {
     const peer = new Peer(peerId.replace(/::/g, '-'));
@@ -88,70 +222,40 @@ export const QRLoginCode = ({
                       variant: 'success',
                       message: 'verification success',
                     });
-                    onClose({ address, network });
+                    handleClose(undefined, { address, network });
                   } else {
                     connection.send(
                       makeMessage(MessageType.STEP_1, 'verification failed'),
                     );
-                    onEvent({
-                      variant: 'error',
-                      message: 'verification failed',
-                    });
-                    onClose();
+                    handleClose('verification failed');
                   }
                 } catch (error) {
                   connection.send(
-                    makeMessage(
-                      MessageType.STEP_1,
-                      JSON.stringify(`error: ${error}`),
-                    ),
+                    makeMessage(MessageType.STEP_1, `error: ${error}`),
                   );
+                  handleClose(`error: ${error}`);
                 }
               }
               break;
 
             default:
-              onEvent({
-                variant: 'error',
-                message: `Unknown message type: ${message.type}`,
-              });
               connection.open && connection.close({ flush: true });
-              open && setOpen(false);
-              onEvent({
-                variant: 'error',
-                message: `Unknown message type: ${message.type}`,
-              });
-              onClose();
+              handleClose(`Unknown message type: ${message.type}`);
           }
         } catch (error) {
           connection.open && connection.close({ flush: true });
-          open && setOpen(false);
-          onEvent({
-            variant: 'error',
-            message: `Unknown error: ${error}`,
-          });
-          onClose();
+          handleClose(`Unknown error: ${error}`);
         }
       });
 
       connection.on('error', (err) => {
         connection.open && connection.close({ flush: true });
-        open && setOpen(false);
-        onEvent({
-          variant: 'error',
-          message: `Connection error: ${err.message}`,
-        });
-        onClose();
+        handleClose(`Connection error: ${err.message}`);
       });
     });
 
     peer.on('error', (err) => {
-      open && setOpen(false);
-      onEvent({
-        variant: 'error',
-        message: `Peer error: ${err.message}`,
-      });
-      onClose();
+      handleClose(`Peer error: ${err.message}`);
     });
 
     return () => {
@@ -181,11 +285,11 @@ export const QRLoginCode = ({
             <DlgClose
               mode={mode}
               onClick={() => {
-                setOpen(false);
                 onEvent({
                   variant: 'error',
                   message: 'Login canceled',
                 });
+                setOpen(false);
                 onClose();
               }}
             >

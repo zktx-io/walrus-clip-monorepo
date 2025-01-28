@@ -26,24 +26,13 @@ export interface IAccount {
   zkLogin?: IZkLogin;
 }
 
-export enum MessageType {
-  STEP_0 = 'STEP_0',
-  STEP_1 = 'STEP_1',
-  STEP_2 = 'STEP_2',
-}
-
-export interface Message {
-  type: MessageType;
-  value: string;
-}
-
 export type NotiVariant = 'success' | 'warning' | 'info' | 'error';
 
-export const makeMessage = (type: MessageType, value: string): string => {
+export const makeMessage = (type: string, value: string): string => {
   return JSON.stringify({ type, value });
 };
 
-export const parseMessage = (data: string): Message => {
+export const parseMessage = (data: string): { type: string; value: string } => {
   try {
     const message = JSON.parse(data);
     if (!message.type || !message.value) {

@@ -69,41 +69,45 @@ export const signAndExecuteSponsoredTransaction = async (
   effects: string;
 }> => {
   const account = getAccountData();
-  if (!!account && !!account.zkLogin) {
-    if (account.network === input.chain.split(':')[1]) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(account.network),
-      });
-      const txBytes = await input.transaction.build({
-        client,
-        onlyTransactionKind: true,
-      });
-      const { bytes: sponsoredTxBuytes, digest } =
-        await createSponsoredTransaction(
-          url,
-          account.network,
-          account.address,
-          txBytes,
+  if (!!account) {
+    if (!!account.zkLogin) {
+      if (account.network === input.chain.split(':')[1]) {
+        const client = new SuiClient({
+          url: getFullnodeUrl(account.network),
+        });
+        const txBytes = await input.transaction.build({
+          client,
+          onlyTransactionKind: true,
+        });
+        const { bytes: sponsoredTxBuytes, digest } =
+          await createSponsoredTransaction(
+            url,
+            account.network,
+            account.address,
+            txBytes,
+          );
+        const { signature } = await WalletStandard.Sign(
+          account.zkLogin,
+          fromBase64(sponsoredTxBuytes),
+          true,
         );
-      const { signature } = await WalletStandard.Sign(
-        account.zkLogin,
-        fromBase64(sponsoredTxBuytes),
-        true,
-      );
-      await executeSponsoredTransaction(url, digest, signature);
+        await executeSponsoredTransaction(url, digest, signature);
 
-      const { rawEffects } = await client.waitForTransaction({
-        digest,
-        options: {
-          showRawEffects: true,
-        },
-      });
-      return {
-        digest,
-        bytes: toBase64(txBytes),
-        signature,
-        effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
-      };
+        const { rawEffects } = await client.waitForTransaction({
+          digest,
+          options: {
+            showRawEffects: true,
+          },
+        });
+        return {
+          digest,
+          bytes: toBase64(txBytes),
+          signature,
+          effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
+        };
+      }
+    } else {
+      //
     }
     throw new Error('Chain error');
   }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { toBase64 } from '@mysten/sui/utils';
+import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { generateRandomness } from '@mysten/sui/zklogin';
 import { Cross2Icon } from '@radix-ui/react-icons';
 import Peer from 'peerjs';
@@ -22,18 +22,170 @@ import {
   executeSponsoredTransaction,
 } from '../utils/sponsoredTransaction';
 import {
+  IZkLogin,
   makeMessage,
-  MessageType,
   NETWORK,
   NotiVariant,
   parseMessage,
 } from '../utils/types';
+import { WalletStandard } from '../utils/walletStandard';
 
-interface IQRPayCodeOption {
-  title?: string;
-  description?: string;
-  transaction: Transaction;
+enum MessageType {
+  STEP_0 = 'PAY_STEP_0',
+  STEP_1 = 'PAY_STEP_1',
+  STEP_2 = 'PAY_STEP_2',
 }
+
+export const connectQRPay = ({
+  destId,
+  network,
+  address,
+  zkLogin,
+  setOpen,
+  onClose,
+  onEvent,
+}: {
+  destId: string;
+  network: NETWORK;
+  address: string;
+  zkLogin: IZkLogin;
+  setOpen: (open: boolean) => void;
+  onClose: (result?: {
+    bytes: string;
+    signature: string;
+    digest: string;
+    effects: string;
+  }) => void;
+  onEvent: (data: { variant: NotiVariant; message: string }) => void;
+}) => {
+  const randomness = generateRandomness();
+  const peer = new Peer(randomness);
+
+  onEvent({
+    variant: 'info',
+    message: 'Connecting...',
+  });
+  setOpen(false);
+  peer.on('open', (id) => {
+    try {
+      const connection = peer.connect(destId);
+      connection.on('open', () => {
+        connection.send(makeMessage(MessageType.STEP_0, address));
+      });
+
+      connection.on('data', async (data) => {
+        try {
+          const message = parseMessage(data as string);
+          const client = new SuiClient({
+            url: getFullnodeUrl(network),
+          });
+          switch (message.type) {
+            case MessageType.STEP_1:
+              {
+                const { bytes, digest } = JSON.parse(message.value);
+                const { signature } = await WalletStandard.Sign(
+                  zkLogin,
+                  fromBase64(bytes),
+                  true,
+                );
+                if (!!digest) {
+                  connection.send(
+                    makeMessage(
+                      MessageType.STEP_2,
+                      JSON.stringify({ txBytes: bytes, signature, digest }),
+                    ),
+                  );
+                  connection.open && connection.close({ flush: true });
+                  const { rawEffects } = await client.waitForTransaction({
+                    digest,
+                    options: {
+                      showRawEffects: true,
+                    },
+                  });
+                  onClose({
+                    bytes,
+                    signature,
+                    digest,
+                    effects: rawEffects
+                      ? toBase64(new Uint8Array(rawEffects))
+                      : '',
+                  });
+                } else {
+                  connection.send(
+                    makeMessage(
+                      MessageType.STEP_2,
+                      JSON.stringify({ signature, txBytes: bytes }),
+                    ),
+                  );
+                  const digest = await Transaction.from(
+                    fromBase64(bytes),
+                  ).getDigest({ client });
+                  const { rawEffects } = await client.waitForTransaction({
+                    digest,
+                    options: {
+                      showRawEffects: true,
+                    },
+                  });
+                  onClose({
+                    bytes,
+                    signature,
+                    digest,
+                    effects: rawEffects
+                      ? toBase64(new Uint8Array(rawEffects))
+                      : '',
+                  });
+                }
+              }
+              break;
+
+            default:
+              onEvent({
+                variant: 'error',
+                message: `Unknown message type: ${message.type}`,
+              });
+              connection.open && connection.close({ flush: true });
+              onEvent({
+                variant: 'error',
+                message: `Unknown message type: ${message.type}`,
+              });
+              onClose();
+          }
+        } catch (error) {
+          connection.open && connection.close({ flush: true });
+          onEvent({
+            variant: 'error',
+            message: `${error}`,
+          });
+          onClose();
+        }
+      });
+
+      connection.on('error', (err) => {
+        connection.open && connection.close({ flush: true });
+        onEvent({
+          variant: 'error',
+          message: `Connection error: ${err.message}`,
+        });
+        onClose();
+      });
+    } catch (error) {
+      onEvent({
+        variant: 'error',
+        message: `Failed to establish connection: ${error}`,
+      });
+      onClose();
+    }
+  });
+
+  peer.on('error', (err) => {
+    onEvent({
+      variant: 'error',
+      message: `Peer error: ${err.message}`,
+    });
+  });
+
+  return peer;
+};
 
 export const QRPayCode = ({
   mode = 'light',
@@ -45,17 +197,42 @@ export const QRPayCode = ({
   onClose,
 }: {
   mode?: 'dark' | 'light';
-  option: IQRPayCodeOption;
+  option: {
+    title?: string;
+    description?: string;
+    transaction: Transaction;
+  };
   network: NETWORK;
   sponsored?: string;
   icon: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  onClose: (result: string | { digest: string; effects: string }) => void;
+  onClose: (result?: {
+    bytes: string;
+    signature: string;
+    digest: string;
+    effects: string;
+  }) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
-  const peerId = sponsored
-    ? `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::ts`
-    : `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::tx`;
+  const peerId = `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::transaction`;
+
+  const handleClose = (
+    error?: string,
+    result?: {
+      bytes: string;
+      signature: string;
+      digest: string;
+      effects: string;
+    },
+  ) => {
+    error &&
+      onEvent({
+        variant: 'error',
+        message: error,
+      });
+    open && setOpen(false);
+    onClose(result);
+  };
 
   useEffect(() => {
     const peer = new Peer(peerId.replace(/::/g, '-'));
@@ -111,67 +288,80 @@ export const QRPayCode = ({
 
             case MessageType.STEP_2:
               {
+                connection.open && connection.close({ flush: true });
+                onEvent({
+                  variant: 'info',
+                  message:
+                    sponsored !== undefined
+                      ? 'Executing sponsored transaction...'
+                      : 'Executing transaction...',
+                });
+
                 if (sponsored !== undefined) {
-                  onEvent({
-                    variant: 'info',
-                    message: 'Executing sponsored transaction...',
-                  });
-                  const { signature, digest } = JSON.parse(message.value);
+                  const { digest, signature, txBytes } = JSON.parse(
+                    message.value,
+                  );
                   await executeSponsoredTransaction(
                     sponsored,
                     digest,
                     signature,
                   );
-                  connection.open && connection.close({ flush: true });
-                  open && setOpen(false);
-
                   const { rawEffects } = await client.waitForTransaction({
                     digest,
                     options: {
                       showRawEffects: true,
                     },
                   });
-
-                  onClose({
+                  handleClose(undefined, {
+                    bytes: txBytes,
+                    signature,
                     digest,
                     effects: rawEffects
                       ? toBase64(new Uint8Array(rawEffects))
                       : '',
                   });
                 } else {
-                  connection.open && connection.close({ flush: true });
-                  open && setOpen(false);
-                  onClose(message.value);
+                  const { signature, txBytes } = JSON.parse(message.value);
+                  const { digest } = await client.executeTransactionBlock({
+                    transactionBlock: txBytes,
+                    signature,
+                  });
+                  const { rawEffects } = await client.waitForTransaction({
+                    digest,
+                    options: {
+                      showRawEffects: true,
+                    },
+                  });
+                  handleClose(undefined, {
+                    bytes: txBytes,
+                    signature,
+                    digest,
+                    effects: rawEffects
+                      ? toBase64(new Uint8Array(rawEffects))
+                      : '',
+                  });
                 }
               }
               break;
 
             default:
-              onEvent({
-                variant: 'error',
-                message: `Unknown message type: ${message.type}`,
-              });
               connection.open && connection.close({ flush: true });
-              open && setOpen(false);
-              onClose(`Unknown message type: ${message.type}`);
+              handleClose(`Unknown message type: ${message.type}`);
           }
         } catch (error) {
           connection.open && connection.close({ flush: true });
-          open && setOpen(false);
-          onClose(`Unknown error: ${error}`);
+          handleClose(`Unknown error: ${error}`);
         }
       });
 
       connection.on('error', (err) => {
         connection.open && connection.close({ flush: true });
-        open && setOpen(false);
-        onClose(`Connection error: ${err.message}`);
+        handleClose(`Connection error: ${err.message}`);
       });
     });
 
     peer.on('error', (err) => {
-      open && setOpen(false);
-      onClose(`Peer error: ${err.message}`);
+      handleClose(`Peer error: ${err.message}`);
     });
 
     return () => {
@@ -201,8 +391,7 @@ export const QRPayCode = ({
             <DlgClose
               mode={mode}
               onClick={() => {
-                setOpen(false);
-                onClose('User closed');
+                handleClose('User closed');
               }}
             >
               <Cross2Icon />
