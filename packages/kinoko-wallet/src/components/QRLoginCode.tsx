@@ -71,7 +71,6 @@ export const connectQRLogin = ({
             BigInt(zkLogin.proofInfo.addressSeed),
             zkLogin.proofInfo.iss,
           ).toSuiPublicKey();
-
           connection.send(
             makeMessage(
               MessageType.STEP_0,
