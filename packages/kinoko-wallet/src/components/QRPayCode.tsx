@@ -68,11 +68,10 @@ export const connectQRPay = ({
   setOpen(false);
   peer.on('open', (id) => {
     try {
-      const connection = peer.connect(destId);
+      const connection = peer.connect(destId.replace(/::/g, '-'));
       connection.on('open', () => {
         connection.send(makeMessage(MessageType.STEP_0, address));
       });
-
       connection.on('data', async (data) => {
         try {
           const message = parseMessage(data as string);
@@ -101,6 +100,10 @@ export const connectQRPay = ({
                     options: {
                       showRawEffects: true,
                     },
+                  });
+                  onEvent({
+                    variant: 'success',
+                    message: 'Transaction executed',
                   });
                   onClose({
                     bytes,
