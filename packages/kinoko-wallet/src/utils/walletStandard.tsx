@@ -135,63 +135,67 @@ export class WalletStandard implements Wallet {
     };
   }
 
-  #openZkLoginModal() {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = ReactDOM.createRoot(container);
-    root.render(
-      <Password
-        onClose={() => {
-          setTimeout(() => {
-            root.unmount();
-            document.body.removeChild(container);
-            document.body.style.pointerEvents = '';
-          }, TIME_OUT);
-          this.#disconnect();
-        }}
-        onConfirm={async (password: string) => {
-          setTimeout(() => {
-            root.unmount();
-            document.body.removeChild(container);
-            document.body.style.pointerEvents = '';
-          }, TIME_OUT);
-          const { nonce, network, data } = await createNonce(
-            password,
-            this.#network,
-            this.#epochOffset,
-          );
-          setZkLoginData({ network, zkLogin: data });
-          this.#zkLoginNonceCallback!(nonce);
-        }}
-        onEvent={this.#onEvent}
-      />,
-    );
+  #openZkLoginModal(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = ReactDOM.createRoot(container);
+      root.render(
+        <Password
+          onClose={() => {
+            setTimeout(() => {
+              root.unmount();
+              document.body.removeChild(container);
+              document.body.style.pointerEvents = '';
+            }, TIME_OUT);
+            reject(new Error('rejected'));
+          }}
+          onConfirm={async (password: string) => {
+            setTimeout(() => {
+              root.unmount();
+              document.body.removeChild(container);
+              document.body.style.pointerEvents = '';
+            }, TIME_OUT);
+            const { nonce, network, data } = await createNonce(
+              password,
+              this.#network,
+              this.#epochOffset,
+            );
+            setZkLoginData({ network, zkLogin: data });
+            resolve(nonce);
+          }}
+          onEvent={this.#onEvent}
+        />,
+      );
+    });
   }
 
-  #openQrLoginModal() {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = ReactDOM.createRoot(container);
-    root.render(
-      <QRLoginCode
-        icon={this.#icon}
-        network={this.#network}
-        onEvent={this.#onEvent}
-        onClose={(result) => {
-          setTimeout(() => {
-            root.unmount();
-            document.body.removeChild(container);
-            document.body.style.pointerEvents = '';
-          }, TIME_OUT);
-          if (!!result) {
-            setAccountData(result);
-            this.#connected();
-          } else {
-            this.#disconnect();
-          }
-        }}
-      />,
-    );
+  #openQrLoginModal(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = ReactDOM.createRoot(container);
+      root.render(
+        <QRLoginCode
+          icon={this.#icon}
+          network={this.#network}
+          onEvent={this.#onEvent}
+          onClose={(result) => {
+            setTimeout(() => {
+              root.unmount();
+              document.body.removeChild(container);
+              document.body.style.pointerEvents = '';
+            }, TIME_OUT);
+            if (!!result) {
+              setAccountData(result);
+              resolve();
+            } else {
+              reject(new Error('rejected'));
+            }
+          }}
+        />,
+      );
+    });
   }
 
   #openPasswordModal(zkLogin: IZkLogin): Promise<string> {
@@ -259,14 +263,13 @@ export class WalletStandard implements Wallet {
     const account = getAccountData();
     if (!account) {
       if (this.#zkLoginNonceCallback) {
-        this.#openZkLoginModal();
+        const nonce = await this.#openZkLoginModal();
+        this.#zkLoginNonceCallback(nonce);
       } else {
-        this.#openQrLoginModal();
+        await this.#openQrLoginModal();
       }
-      return { accounts: [] };
-    } else {
-      await this.#connected();
     }
+    await this.#connected();
     return { accounts: this.accounts };
   };
 
