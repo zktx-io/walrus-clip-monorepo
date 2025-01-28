@@ -146,7 +146,7 @@ export class WalletStandard implements Wallet {
             root.unmount();
             document.body.removeChild(container);
           }, TIME_OUT);
-          this.#zkLoginNonceCallback!('');
+          this.#disconnect();
         }}
         onConfirm={async (password: string) => {
           setTimeout(() => {
@@ -161,6 +161,7 @@ export class WalletStandard implements Wallet {
           setZkLoginData({ network, zkLogin: data });
           this.#zkLoginNonceCallback!(nonce);
         }}
+        onEvent={this.#onEvent}
       />,
     );
   }
@@ -182,13 +183,15 @@ export class WalletStandard implements Wallet {
           if (!!result) {
             setAccountData(result);
             this.#connected();
+          } else {
+            this.#disconnect();
           }
         }}
       />,
     );
   }
 
-  static #openPasswordModal(zkLogin: IZkLogin): Promise<string> {
+  #openPasswordModal(zkLogin: IZkLogin): Promise<string> {
     return new Promise((resolve, reject) => {
       const container = document.createElement('div');
       document.body.appendChild(container);
@@ -215,6 +218,7 @@ export class WalletStandard implements Wallet {
               reject(new Error('Password Error.'));
             }
           }}
+          onEvent={this.#onEvent}
         />,
       );
     });
@@ -269,12 +273,12 @@ export class WalletStandard implements Wallet {
     return Promise.resolve();
   };
 
-  static Sign = async (
+  sign = async (
     zkLogin: IZkLogin,
     bytes: Uint8Array,
     isTransaction: boolean,
   ): Promise<{ bytes: string; signature: string }> => {
-    const privateKey = await WalletStandard.#openPasswordModal(zkLogin);
+    const privateKey = await this.#openPasswordModal(zkLogin);
     const keypair = Ed25519Keypair.fromSecretKey(fromBase64(privateKey));
     const { signature: userSignature } = await (isTransaction
       ? keypair.signTransaction(bytes)
@@ -346,7 +350,7 @@ export class WalletStandard implements Wallet {
         const tx = await transaction.toJSON();
         const txBytes = await Transaction.from(tx).build({ client });
 
-        const { bytes, signature } = await WalletStandard.Sign(
+        const { bytes, signature } = await this.sign(
           account.zkLogin,
           txBytes,
           true,
@@ -391,7 +395,7 @@ export class WalletStandard implements Wallet {
         const txBytes = await Transaction.from(tx).build({
           client,
         });
-        const { bytes, signature } = await WalletStandard.Sign(
+        const { bytes, signature } = await this.sign(
           account.zkLogin,
           txBytes,
           true,
@@ -443,11 +447,7 @@ export class WalletStandard implements Wallet {
     const account = getAccountData();
     if (!!account) {
       if (!!account.zkLogin) {
-        const { signature } = await WalletStandard.Sign(
-          account.zkLogin,
-          message,
-          false,
-        );
+        const { signature } = await this.sign(account.zkLogin, message, false);
         return {
           bytes: toBase64(message),
           signature,

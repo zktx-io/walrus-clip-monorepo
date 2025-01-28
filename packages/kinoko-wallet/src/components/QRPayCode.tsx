@@ -37,6 +37,7 @@ enum MessageType {
 }
 
 export const connectQRPay = ({
+  wallet,
   destId,
   network,
   address,
@@ -45,6 +46,7 @@ export const connectQRPay = ({
   onClose,
   onEvent,
 }: {
+  wallet: WalletStandard;
   destId: string;
   network: NETWORK;
   address: string;
@@ -82,7 +84,7 @@ export const connectQRPay = ({
             case MessageType.STEP_1:
               {
                 const { bytes, digest } = JSON.parse(message.value);
-                const { signature } = await WalletStandard.Sign(
+                const { signature } = await wallet.sign(
                   zkLogin,
                   fromBase64(bytes),
                   true,

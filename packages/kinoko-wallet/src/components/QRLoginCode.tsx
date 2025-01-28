@@ -35,6 +35,7 @@ enum MessageType {
 }
 
 export const connectQRLogin = ({
+  wallet,
   destId,
   address,
   zkLogin,
@@ -42,6 +43,7 @@ export const connectQRLogin = ({
   onClose,
   onEvent,
 }: {
+  wallet: WalletStandard;
   destId: string;
   address: string;
   zkLogin: IZkLogin;
@@ -62,7 +64,7 @@ export const connectQRLogin = ({
 
       connection.on('open', async () => {
         try {
-          const { signature } = await WalletStandard.Sign(
+          const { signature } = await wallet.sign(
             zkLogin,
             encoder.encode(destId),
             false,
@@ -140,7 +142,6 @@ export const connectQRLogin = ({
       variant: 'error',
       message: `Peer error: ${err.message}`,
     });
-    onClose();
     onClose();
   });
 
@@ -284,12 +285,7 @@ export const QRLoginCode = ({
             <DlgClose
               mode={mode}
               onClick={() => {
-                onEvent({
-                  variant: 'error',
-                  message: 'Login canceled',
-                });
-                setOpen(false);
-                onClose();
+                handleClose('Login canceled');
               }}
             >
               <Cross2Icon />

@@ -57,6 +57,7 @@ export const executeSponsoredTransaction = async (
 };
 
 export const signAndExecuteSponsoredTransaction = async (
+  wallet: WalletStandard,
   url: string,
   input: {
     transaction: Transaction;
@@ -86,7 +87,7 @@ export const signAndExecuteSponsoredTransaction = async (
             account.address,
             txBytes,
           );
-        const { signature } = await WalletStandard.Sign(
+        const { signature } = await wallet.sign(
           account.zkLogin,
           fromBase64(sponsoredTxBuytes),
           true,
@@ -107,7 +108,20 @@ export const signAndExecuteSponsoredTransaction = async (
         };
       }
     } else {
-      //
+      const { digest, bytes, signature, effects } = await wallet.pay(
+        'Bill',
+        'Please scan the QR code to pay.',
+        {
+          transaction: input.transaction,
+          isSponsored: true,
+        },
+      );
+      return {
+        digest,
+        bytes,
+        signature,
+        effects,
+      };
     }
     throw new Error('Chain error');
   }

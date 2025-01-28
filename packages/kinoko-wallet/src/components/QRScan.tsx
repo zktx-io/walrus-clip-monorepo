@@ -16,9 +16,11 @@ import {
 import { connectQRLogin } from './QRLoginCode';
 import { connectQRPay } from './QRPayCode';
 import { IZkLogin, NETWORK, NotiVariant } from '../utils/types';
+import { WalletStandard } from '../utils/walletStandard';
 
 export const QRScan = ({
   mode = 'light',
+  wallet,
   network,
   address,
   zkLogin,
@@ -26,6 +28,7 @@ export const QRScan = ({
   onClose,
 }: {
   mode?: 'dark' | 'light';
+  wallet: WalletStandard;
   network: NETWORK;
   address: string;
   zkLogin: IZkLogin;
@@ -45,6 +48,7 @@ export const QRScan = ({
     if (!!destId && !!type) {
       if (type === 'login') {
         peer = connectQRLogin({
+          wallet,
           destId,
           address,
           zkLogin,
@@ -57,6 +61,7 @@ export const QRScan = ({
         });
       } else {
         peer = connectQRPay({
+          wallet,
           destId,
           network,
           address,
@@ -75,7 +80,7 @@ export const QRScan = ({
         peer.destroy();
       }
     };
-  }, [address, destId, network, onClose, onEvent, type, zkLogin]);
+  }, [address, destId, network, onClose, onEvent, type, wallet, zkLogin]);
 
   const handleClose = (error: string) => {
     error &&

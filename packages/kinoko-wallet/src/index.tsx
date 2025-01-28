@@ -177,12 +177,13 @@ export const KinokoWallet = ({
         scan: async () => {
           return new Promise((resolve, reject) => {
             const account = getAccountData();
-            if (account && !!account.zkLogin) {
+            if (account && !!account.zkLogin && wallet) {
               const container = document.createElement('div');
               document.body.appendChild(container);
               const root = ReactDOM.createRoot(container);
               root.render(
                 <QRScan
+                  wallet={wallet}
                   network={network}
                   address={account.address}
                   zkLogin={account.zkLogin}
@@ -210,11 +211,13 @@ export const KinokoWallet = ({
           }
           throw new Error('Wallet not initialized');
         },
-        signAndExecuteSponsoredTransaction: sponsored
-          ? (input) => signAndExecuteSponsoredTransaction(sponsored, input)
-          : () => {
-              throw new Error('Sponsored transaction not configured');
-            },
+        signAndExecuteSponsoredTransaction:
+          sponsored && wallet
+            ? (input) =>
+                signAndExecuteSponsoredTransaction(wallet, sponsored, input)
+            : () => {
+                throw new Error('Sponsored transaction not configured');
+              },
       }}
     >
       {children}
