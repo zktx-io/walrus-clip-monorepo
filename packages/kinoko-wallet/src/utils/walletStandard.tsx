@@ -145,6 +145,7 @@ export class WalletStandard implements Wallet {
           setTimeout(() => {
             root.unmount();
             document.body.removeChild(container);
+            document.body.style.pointerEvents = '';
           }, TIME_OUT);
           this.#disconnect();
         }}
@@ -152,6 +153,7 @@ export class WalletStandard implements Wallet {
           setTimeout(() => {
             root.unmount();
             document.body.removeChild(container);
+            document.body.style.pointerEvents = '';
           }, TIME_OUT);
           const { nonce, network, data } = await createNonce(
             password,
@@ -179,6 +181,7 @@ export class WalletStandard implements Wallet {
           setTimeout(() => {
             root.unmount();
             document.body.removeChild(container);
+            document.body.style.pointerEvents = '';
           }, TIME_OUT);
           if (!!result) {
             setAccountData(result);
@@ -270,6 +273,7 @@ export class WalletStandard implements Wallet {
   #disconnect: StandardDisconnectMethod = (): Promise<void> => {
     disconnect();
     this.#accounts = [];
+    this.#events.emit('change', { accounts: this.accounts });
     return Promise.resolve();
   };
 
