@@ -21,7 +21,7 @@ export const Home = () => {
   const { mutate: disconnect } = useDisconnectWallet();
   // const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
-  const { login, isScannerEnabled, signAndExecuteSponsoredTransaction, pay } =
+  const { scan, isScannerEnabled, signAndExecuteSponsoredTransaction, pay } =
     useKinokoWallet();
 
   const [address, setAddress] = useState<string | undefined>(undefined);
@@ -31,10 +31,6 @@ export const Home = () => {
     setAddress(undefined);
     setBalance(undefined);
     disconnect();
-  };
-
-  const onLogin = async () => {
-    await login();
   };
 
   const onSignAndExcuteTx = async () => {
@@ -115,19 +111,6 @@ export const Home = () => {
     }
   };
 
-  const onShowPay = async () => {
-    try {
-      const { digest } = await pay('Pay', 'Please scan the QR code to pay.');
-      enqueueSnackbar(digest, {
-        variant: 'success',
-      });
-    } catch (error) {
-      enqueueSnackbar(`${error}`, {
-        variant: 'error',
-      });
-    }
-  };
-
   useEffect(() => {
     if (connectionStatus === 'connected' && account) {
       setAddress(account.address);
@@ -168,10 +151,10 @@ export const Home = () => {
             <div
               style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
             >
-              <button onClick={onSignAndExcuteTx}>
-                Sign And Excute Sponsored Transaction
-              </button>
               <div style={{ width: '100%', display: 'flex', gap: '8px' }}>
+                <button style={{ width: '100%' }} onClick={onSignAndExcuteTx}>
+                  Sponsored Transaction
+                </button>
                 <button
                   disabled={!isScannerEnabled}
                   style={{ width: '100%' }}
@@ -179,13 +162,10 @@ export const Home = () => {
                 >
                   Bill
                 </button>
-                <button style={{ width: '100%' }} onClick={onShowPay}>
-                  Pay
-                </button>
               </div>
               <div style={{ width: '100%', display: 'flex', gap: '8px' }}>
-                <button style={{ width: '100%' }} onClick={onLogin}>
-                  Login (QR)
+                <button style={{ width: '100%' }} onClick={scan}>
+                  Scan
                 </button>
                 <button style={{ width: '100%' }} onClick={handleDisconnect}>
                   Disconnect

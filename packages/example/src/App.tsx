@@ -46,9 +46,11 @@ function App() {
       name={WALLET_NAME}
       icon={ICON}
       network={activeNetwork}
-      enokey={ENOKI_KEY!}
       sponsored={SPONSORED_URL}
-      callbackNonce={callbackNonce}
+      zklogin={{
+        enokey: ENOKI_KEY!,
+        callbackNonce: callbackNonce,
+      }}
       onEvent={(notification) => {
         enqueueSnackbar(notification.message, {
           variant: notification.variant,
