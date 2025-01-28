@@ -304,7 +304,7 @@ export class WalletStandard implements Wallet {
     digest: string;
     effects: string;
   }> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const container = document.createElement('div');
       document.body.appendChild(container);
       const root = ReactDOM.createRoot(container);
@@ -326,8 +326,6 @@ export class WalletStandard implements Wallet {
             }, TIME_OUT);
             if (!!result) {
               resolve(result);
-            } else {
-              reject();
             }
           }}
         />,
