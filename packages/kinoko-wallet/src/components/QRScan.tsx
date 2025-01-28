@@ -130,7 +130,7 @@ export const QRScan = ({
                     schema[1] === network &&
                     (schema[3] === 'transaction' || schema[3] === 'login')
                   ) {
-                    setDestId(schema.join('-'));
+                    setDestId(schema.join('::'));
                     setType(schema[3]);
                   } else {
                     if (schema[0] !== 'sui') {
