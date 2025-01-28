@@ -40,7 +40,12 @@ export const Password2 = ({
             onClose();
           }}
         />
-        <DlgContent mode={mode}>
+        <DlgContent
+          mode={mode}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+          }}
+        >
           <DlgTitle mode={mode}>Sign</DlgTitle>
           <DlgDescription mode={mode}>
             Please confirm your password to proceed.
