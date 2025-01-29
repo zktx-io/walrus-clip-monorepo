@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import { Cross2Icon } from '@radix-ui/react-icons';
-import { Scanner } from '@yudiel/react-qr-scanner';
+import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
 import Peer from 'peerjs';
 
 import {
@@ -43,9 +43,48 @@ export const QRScan = ({
     undefined,
   );
 
+  const handleClose = useCallback(
+    (error: string) => {
+      if (error) {
+        onEvent({
+          variant: 'error',
+          message: error,
+        });
+      }
+      setOpen(false);
+      onClose();
+    },
+    [onClose, onEvent],
+  );
+
+  const handleScan = useCallback(
+    (result: IDetectedBarcode[]) => {
+      if (result[0].format === 'qr_code') {
+        const schema = result[0].rawValue.split('::');
+        if (
+          schema[0] === 'sui' &&
+          schema[1] === network &&
+          (schema[3] === 'transaction' || schema[3] === 'login')
+        ) {
+          setDestId(schema.join('::'));
+          setType(schema[3]);
+        } else {
+          if (schema[0] !== 'sui') {
+            setError('Invalid chain');
+          } else if (schema[1] !== network) {
+            setError('Invalid network');
+          } else {
+            setError('invalid type');
+          }
+        }
+      }
+    },
+    [network],
+  );
+
   useEffect(() => {
     let peer: Peer | undefined = undefined;
-    if (!!destId && !!type) {
+    if (!!wallet && !!destId && !!type) {
       if (type === 'login') {
         peer = connectQRLogin({
           wallet,
@@ -80,16 +119,7 @@ export const QRScan = ({
         peer.destroy();
       }
     };
-  }, [address, destId, network, onClose, onEvent, type, wallet, zkLogin]);
-
-  const handleClose = (error: string) => {
-    error &&
-      onEvent({
-        variant: 'error',
-        message: error,
-      });
-    open && setOpen(false);
-  };
+  }, [wallet, destId, type, network, address, zkLogin, onEvent, onClose]);
 
   return (
     <DlgRoot open={open}>
@@ -127,29 +157,8 @@ export const QRScan = ({
                 video: { width: '256px', height: '256px' },
               }}
               formats={['qr_code']}
-              onScan={(result) => {
-                if (result[0].format === 'qr_code') {
-                  const schema = result[0].rawValue.split('::');
-                  if (
-                    schema[0] === 'sui' &&
-                    schema[1] === network &&
-                    (schema[3] === 'transaction' || schema[3] === 'login')
-                  ) {
-                    setDestId(schema.join('::'));
-                    setType(schema[3]);
-                  } else {
-                    if (schema[0] !== 'sui') {
-                      setError('Invalid chain');
-                    } else if (schema[1] !== network) {
-                      setError('Invalid network');
-                    } else {
-                      setError('invalid type');
-                    }
-                  }
-                }
-              }}
+              onScan={handleScan}
               onError={(error) => {
-                setOpen(false);
                 handleClose(`${error}`);
               }}
             />
