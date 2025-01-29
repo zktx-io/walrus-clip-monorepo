@@ -32,6 +32,7 @@ import { WalletStandard } from '../utils/walletStandard';
 enum MessageType {
   STEP_0 = 'LOGIN_STEP_0',
   STEP_1 = 'LOGIN_STEP_1',
+  REJECT = 'REJECT',
 }
 
 export const connectQRLogin = ({
