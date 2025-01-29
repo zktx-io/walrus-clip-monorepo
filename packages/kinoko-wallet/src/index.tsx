@@ -21,7 +21,7 @@ import {
 } from './utils/localStorage';
 import { signAndExecuteSponsoredTransaction } from './utils/sponsoredTransaction';
 import { NETWORK, NotiVariant } from './utils/types';
-import { TIME_OUT, WalletStandard } from './utils/walletStandard';
+import { cleanup, WalletStandard } from './utils/walletStandard';
 
 interface IKinokoWalletContext {
   updateJwt: (jwt: string) => Promise<void>;
@@ -189,10 +189,7 @@ export const KinokoWallet = ({
                   zkLogin={account.zkLogin}
                   onEvent={onEvent}
                   onClose={(result) => {
-                    setTimeout(() => {
-                      root.unmount();
-                      document.body.removeChild(container);
-                    }, TIME_OUT);
+                    cleanup(container, root);
                     if (result) {
                       resolve(result);
                     }
