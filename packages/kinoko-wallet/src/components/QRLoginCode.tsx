@@ -32,7 +32,6 @@ import { WalletStandard } from '../utils/walletStandard';
 enum MessageType {
   STEP_0 = 'LOGIN_STEP_0',
   STEP_1 = 'LOGIN_STEP_1',
-  REJECT = 'REJECT',
 }
 
 export const connectQRLogin = ({
@@ -57,6 +56,14 @@ export const connectQRLogin = ({
 
   onEvent({ variant: 'info', message: 'Connecting...' });
   setOpen(false);
+
+  const handleClose = (error: string) => {
+    onEvent({
+      variant: 'error',
+      message: error,
+    });
+    onClose();
+  };
 
   peer.on('open', (id) => {
     try {
@@ -100,50 +107,26 @@ export const connectQRLogin = ({
               break;
 
             default:
-              onEvent({
-                variant: 'error',
-                message: `Unknown message type: ${message.type}`,
-              });
               connection.open && connection.close({ flush: true });
-              onEvent({
-                variant: 'error',
-                message: `Unknown message type: ${message.type}`,
-              });
-              onClose();
+              handleClose(`Unknown message type: ${message.type}`);
           }
         } catch (error) {
           connection.open && connection.close({ flush: true });
-          onEvent({
-            variant: 'error',
-            message: `${error}`,
-          });
-          onClose();
+          handleClose(`${error}`);
         }
       });
 
       connection.on('error', (err) => {
         connection.open && connection.close({ flush: true });
-        onEvent({
-          variant: 'error',
-          message: `Connection error: ${err.message}`,
-        });
-        onClose();
+        handleClose(`Connection error: ${err.message}`);
       });
     } catch (error) {
-      onEvent({
-        variant: 'error',
-        message: `Failed to establish connection: ${error}`,
-      });
-      onClose();
+      handleClose(`Failed to establish connection: ${error}`);
     }
   });
 
   peer.on('error', (err) => {
-    onEvent({
-      variant: 'error',
-      message: `Peer error: ${err.message}`,
-    });
-    onClose();
+    handleClose(`Peer error: ${err.message}`);
   });
 
   return peer;
@@ -180,6 +163,7 @@ export const QRLoginCode = ({
 
   useEffect(() => {
     const peer = new Peer(peerId.replace(/::/g, '-'));
+    let step = '';
 
     peer.on('connection', (connection) => {
       onEvent({
@@ -190,6 +174,7 @@ export const QRLoginCode = ({
       connection.on('data', async (data) => {
         try {
           const message = parseMessage(data as string);
+          step = message.type;
           switch (message.type) {
             case MessageType.STEP_0:
               {
@@ -252,6 +237,11 @@ export const QRLoginCode = ({
       connection.on('error', (err) => {
         connection.open && connection.close({ flush: true });
         handleClose(`Connection error: ${err.message}`);
+      });
+
+      connection.on('close', () => {
+        step !== MessageType.STEP_1 &&
+          handleClose('Connection closed by the remote peer.');
       });
     });
 
