@@ -294,10 +294,10 @@ export const QRLoginCode = ({
           <QRCode
             value={peerId}
             logoImage={icon}
-            logoPadding={10}
+            logoPadding={5}
             size={256}
             qrStyle="dots"
-            style={{ width: '100%' }}
+            style={{ width: '100%', height: '100%' }}
           />
           <DlgDescription2 mode={mode}>
             Please scan the QR code to log in.
