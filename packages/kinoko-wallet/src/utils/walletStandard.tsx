@@ -44,7 +44,14 @@ type WalletEventsMap = {
   >[0];
 };
 
-export const TIME_OUT = 300;
+const TIME_OUT = 300;
+
+export const cleanup = (container: HTMLDivElement, root: ReactDOM.Root) => {
+  setTimeout(() => {
+    root.unmount();
+    document.body.removeChild(container);
+  }, TIME_OUT);
+};
 
 export class WalletStandard implements Wallet {
   readonly #events: Emitter<WalletEventsMap>;
@@ -143,19 +150,11 @@ export class WalletStandard implements Wallet {
       root.render(
         <Password
           onClose={() => {
-            setTimeout(() => {
-              root.unmount();
-              document.body.removeChild(container);
-              document.body.style.pointerEvents = '';
-            }, TIME_OUT);
+            cleanup(container, root);
             reject(new Error('rejected'));
           }}
           onConfirm={async (password: string) => {
-            setTimeout(() => {
-              root.unmount();
-              document.body.removeChild(container);
-              document.body.style.pointerEvents = '';
-            }, TIME_OUT);
+            cleanup(container, root);
             const { nonce, network, data } = await createNonce(
               password,
               this.#network,
@@ -181,11 +180,7 @@ export class WalletStandard implements Wallet {
           network={this.#network}
           onEvent={this.#onEvent}
           onClose={(result) => {
-            setTimeout(() => {
-              root.unmount();
-              document.body.removeChild(container);
-              document.body.style.pointerEvents = '';
-            }, TIME_OUT);
+            cleanup(container, root);
             if (!!result) {
               setAccountData(result);
               resolve();
@@ -206,17 +201,11 @@ export class WalletStandard implements Wallet {
       root.render(
         <Password2
           onClose={() => {
-            setTimeout(() => {
-              root.unmount();
-              document.body.removeChild(container);
-            }, TIME_OUT);
+            cleanup(container, root);
             reject(new Error('rejected'));
           }}
           onConfirm={async (password: string) => {
-            setTimeout(() => {
-              root.unmount();
-              document.body.removeChild(container);
-            }, TIME_OUT);
+            cleanup(container, root);
             const { iv, encrypted } = zkLogin.keypair.privateKey;
             const privateKey = await decryptText(password, encrypted, iv);
             if (privateKey) {
@@ -331,10 +320,7 @@ export class WalletStandard implements Wallet {
           icon={this.icon}
           onEvent={this.#onEvent}
           onClose={(result) => {
-            setTimeout(() => {
-              root.unmount();
-              document.body.removeChild(container);
-            }, TIME_OUT);
+            cleanup(container, root);
             if (!!result) {
               resolve(result);
             }
