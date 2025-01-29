@@ -32,10 +32,6 @@ export const Password2 = ({
         <DlgOverlay
           mode={mode}
           onClick={() => {
-            onEvent({
-              variant: 'error',
-              message: 'Password confirmation cancelled',
-            });
             setOpen(false);
             onClose();
           }}
