@@ -34,6 +34,7 @@ enum MessageType {
   STEP_0 = 'PAY_STEP_0',
   STEP_1 = 'PAY_STEP_1',
   STEP_2 = 'PAY_STEP_2',
+  REJECT = 'REJECT',
 }
 
 export const connectQRPay = ({
@@ -405,10 +406,10 @@ export const QRPayCode = ({
           <QRCode
             value={peerId}
             logoImage={icon}
-            logoPadding={10}
+            logoPadding={5}
             size={256}
             qrStyle="dots"
-            style={{ width: '100%' }}
+            style={{ width: '100%', height: '100%' }}
           />
           <DlgDescription2 mode={mode}>{option.description}</DlgDescription2>
         </DlgContent>
