@@ -66,13 +66,13 @@ export default function Kiosk() {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            className="p-4 border rounded-lg shadow-md hover:bg-gray-100 hover:text-black flex flex-col items-center"
+            className="p-4 border rounded-lg shadow-md hover:bg-gray-100 hover:text-black flex flex-col items-center transition-all duration-300"
             onClick={() => addToCart(item)}
           >
             <img
               src={item.image}
               alt={item.name}
-              className="w-[829px] object-contain mb-2"
+              className="w-[829px] object-contain mb-2 transform transition-transform duration-300 hover:scale-105"
             />
             <span>{item.name}</span>
             <span>{item.price.toLocaleString()} KRW</span>
@@ -91,7 +91,7 @@ export default function Kiosk() {
                   {item.name} - {item.price.toLocaleString()} KRW
                 </span>
                 <button
-                  className="ml-2 px-2 py-1 bg-red-500 text-white rounded"
+                  className="ml-2 px-2 py-1 bg-red-500 text-white rounded hover:bg-white hover:text-black transition-all duration-300"
                   onClick={() => removeFromCart(index)}
                 >
                   ❌
@@ -105,7 +105,7 @@ export default function Kiosk() {
         </p>
         <button
           disabled={!isScannerEnabled || cart.length === 0}
-          style={{ width: '100%' }}
+          className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-white hover:text-black transition-all duration-300 disabled:bg-gray-300"
           onClick={onShowBill}
         >
           Checkout
