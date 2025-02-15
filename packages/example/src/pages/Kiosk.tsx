@@ -91,7 +91,7 @@ export default function Kiosk() {
                   {item.name} - {item.price.toLocaleString()} KRW
                 </span>
                 <button
-                  className="ml-2 px-2 py-1 cursor-pointer"
+                  className="ml-2 px-2 py-1 cursor-pointer border border-transparent transition-all duration-300 hover:border-red-500 hover:bg-transparent hover:text-red-500"
                   onClick={() => removeFromCart(index)}
                 >
                   ❌
