@@ -66,7 +66,7 @@ export default function Kiosk() {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            className="border rounded-lg shadow-md hover:bg-white hover:text-black flex flex-col items-center transition-all duration-300 overflow-hidden"
+            className="pb-4 border rounded-lg shadow-md hover:bg-white hover:text-black flex flex-col items-center transition-all duration-300 overflow-hidden"
             onClick={() => addToCart(item)}
           >
             <img
