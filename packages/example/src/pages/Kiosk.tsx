@@ -66,7 +66,7 @@ export default function Kiosk() {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            className="pb-4 border rounded-lg shadow-md hover:bg-white hover:text-black flex flex-col items-center transition-all duration-300 overflow-hidden"
+            className="pb-4 border rounded-lg shadow-md hover:bg-white hover:text-black flex flex-col items-center transition-all duration-300 overflow-hidden cursor-pointer"
             onClick={() => addToCart(item)}
           >
             <img
@@ -91,7 +91,7 @@ export default function Kiosk() {
                   {item.name} - {item.price.toLocaleString()} KRW
                 </span>
                 <button
-                  className="ml-2 px-2 py-1 bg-red-500 text-white rounded hover:bg-white hover:text-black transition-all duration-300"
+                  className="ml-2 px-2 py-1 cursor-pointer"
                   onClick={() => removeFromCart(index)}
                 >
                   ❌
@@ -105,7 +105,7 @@ export default function Kiosk() {
         </p>
         <button
           disabled={!isScannerEnabled || cart.length === 0}
-          className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-white hover:text-black transition-all duration-300 disabled:bg-gray-300"
+          className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-white hover:text-black transition-all duration-300 disabled:bg-gray-300 cursor-pointer"
           onClick={onShowBill}
         >
           Checkout
