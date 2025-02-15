@@ -14,6 +14,7 @@ import { Auth } from './pages/Auth';
 import { ICON, WALLET_NAME } from './utils/config';
 import { getProviderUrl } from './utils/getProviderUrl';
 import { NETWORK } from './utils/config';
+import Kiosk from './pages/Kiosk';
 
 const router = createBrowserRouter([
   {
@@ -23,6 +24,10 @@ const router = createBrowserRouter([
   {
     path: '/auth',
     element: <Auth />,
+  },
+  {
+    path: 'kiosk',
+    element: <Kiosk />,
   },
 ]);
 

@@ -123,51 +123,38 @@ export const Home = () => {
   }, [connectionStatus, account, client]);
 
   return (
-    <>
-      <img src={'/logo-sui.svg'} className="logo" alt="logo" />
-      <h1>Kinoko Wallet</h1>
-      <h2>Home</h2>
-      <div>
+    <div className="flex flex-col items-center p-4">
+      <img src={'/logo-sui.svg'} className="w-32 h-32 mb-4" alt="logo" />
+      <h1 className="text-3xl font-bold">Kinoko Wallet</h1>
+      <h2 className="text-xl text-gray-600">Home</h2>
+      <div className="w-full max-w-md p-4 rounded-lg shadow-md mt-4">
         {connectionStatus === 'connected' ? (
-          <div>
-            <h3>Connected</h3>
-            <div>
-              <p style={{ marginBottom: '0px', fontSize: '24px' }}>Address</p>
-              <p
-                style={{
-                  marginTop: '0px',
-                  fontSize: '16px',
-                  wordBreak: 'break-all',
-                  textAlign: 'center',
-                }}
-              >
-                {address || 'n/a'}
-              </p>
-              <p style={{ marginBottom: '0px', fontSize: '24px' }}>Balance</p>
-              <p style={{ marginTop: '0px', fontSize: '16px' }}>
-                {balance || 'n/a'}
-              </p>
+          <div className="flex flex-col items-center">
+            <h3 className="text-xl font-bold text-green-600">Connected</h3>
+            <div className="w-full text-center">
+              <p className="text-lg font-bold mb-1">Address</p>
+              <p className="text-sm break-all text-center">{address || 'n/a'}</p>
+              <p className="text-lg font-bold mt-2 mb-1">Balance</p>
+              <p className="text-sm">{balance || 'n/a'}</p>
             </div>
-            <div
-              style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
-            >
-              <div style={{ width: '100%', display: 'flex', gap: '8px' }}>
-                <button style={{ width: '100%' }} onClick={onSignAndExcuteTx}>
+            <div className="flex flex-col gap-2 w-full mt-4">
+              <div className="flex gap-2 w-full">
+                <button className="w-full bg-blue-500 text-white py-2 rounded-lg" onClick={onSignAndExcuteTx}>
                   Sponsored Transaction
                 </button>
                 <button
                   disabled={!isScannerEnabled}
-                  style={{ width: '100%' }}
+                  className="w-full bg-gray-500 text-white py-2 rounded-lg disabled:bg-gray-300"
                   onClick={onShowBill}
                 >
                   Bill
                 </button>
               </div>
-              <div style={{ width: '100%', display: 'flex', gap: '8px' }}>
-                <button style={{ width: '100%' }} onClick={scan}>
+              <div className="flex gap-2 w-full">
+                <button className="w-full bg-blue-500 text-white py-2 rounded-lg" onClick={scan}>
                   Scan
                 </button>
-                <button style={{ width: '100%' }} onClick={handleDisconnect}>
+                <button className="w-full bg-red-500 text-white py-2 rounded-lg" onClick={handleDisconnect}>
                   Disconnect
                 </button>
               </div>
@@ -177,6 +164,7 @@ export const Home = () => {
           <ConnectButton />
         )}
       </div>
-    </>
+    </div>
   );
+
 };

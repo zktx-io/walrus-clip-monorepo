@@ -41,10 +41,10 @@ export const Auth = () => {
   }, [location, navigate, isLoggedIn, updateJwt, wallets, connect]);
 
   return (
-    <>
-      <img src={'/logo-sui.svg'} className="logo" alt="logo" />
-      <h1>Kinoko Wallet</h1>
-      <h2>Login</h2>
-    </>
+    <div className="flex flex-col items-center p-4">
+      <img src={'/logo-sui.svg'} className="w-32 h-32 mb-4" alt="logo" />
+      <h1 className="text-3xl font-bold">Kinoko Wallet</h1>
+      <h2 className="text-xl text-gray-600">Auth</h2>
+    </div>
   );
 };
