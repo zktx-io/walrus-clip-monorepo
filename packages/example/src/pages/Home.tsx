@@ -133,28 +133,39 @@ export const Home = () => {
             <h3 className="text-xl font-bold text-green-600">Connected</h3>
             <div className="w-full text-center">
               <p className="text-lg font-bold mb-1">Address</p>
-              <p className="text-sm break-all text-center">{address || 'n/a'}</p>
+              <p className="text-sm break-all text-center">
+                {address || 'n/a'}
+              </p>
               <p className="text-lg font-bold mt-2 mb-1">Balance</p>
               <p className="text-sm">{balance || 'n/a'}</p>
             </div>
             <div className="flex flex-col gap-2 w-full mt-4">
               <div className="flex gap-2 w-full">
-                <button className="w-full bg-blue-500 text-white py-2 rounded-lg" onClick={onSignAndExcuteTx}>
+                <button
+                  className="w-full bg-blue-500 text-white py-2 rounded-lg"
+                  onClick={onSignAndExcuteTx}
+                >
                   Sponsored Transaction
                 </button>
                 <button
                   disabled={!isScannerEnabled}
-                  className="w-full bg-gray-500 text-white py-2 rounded-lg disabled:bg-gray-300"
+                  className="w-full bg-blue-500 text-white py-2 rounded-lg disabled:bg-gray-300"
                   onClick={onShowBill}
                 >
                   Bill
                 </button>
               </div>
               <div className="flex gap-2 w-full">
-                <button className="w-full bg-blue-500 text-white py-2 rounded-lg" onClick={scan}>
+                <button
+                  className="w-full bg-blue-500 text-white py-2 rounded-lg"
+                  onClick={scan}
+                >
                   Scan
                 </button>
-                <button className="w-full bg-red-500 text-white py-2 rounded-lg" onClick={handleDisconnect}>
+                <button
+                  className="w-full bg-red-500 text-white py-2 rounded-lg"
+                  onClick={handleDisconnect}
+                >
                   Disconnect
                 </button>
               </div>
@@ -166,5 +177,4 @@ export const Home = () => {
       </div>
     </div>
   );
-
 };

@@ -66,7 +66,7 @@ export default function Kiosk() {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            className="p-4 border rounded-lg shadow-md hover:bg-gray-100 flex flex-col items-center"
+            className="p-4 border rounded-lg shadow-md hover:bg-gray-100 hover:text-black flex flex-col items-center"
             onClick={() => addToCart(item)}
           >
             <img
@@ -87,7 +87,9 @@ export default function Kiosk() {
           <ul>
             {cart.map((item, index) => (
               <li key={index} className="flex justify-between items-center">
-                <span>{item.name} - {item.price.toLocaleString()} KRW</span>
+                <span>
+                  {item.name} - {item.price.toLocaleString()} KRW
+                </span>
                 <button
                   className="ml-2 px-2 py-1 bg-red-500 text-white rounded"
                   onClick={() => removeFromCart(index)}
