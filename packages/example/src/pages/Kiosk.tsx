@@ -66,13 +66,13 @@ export default function Kiosk() {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            className="p-4 border rounded-lg shadow-md hover:bg-gray-100 hover:text-black flex flex-col items-center transition-all duration-300"
+            className="border rounded-lg shadow-md hover:bg-white hover:text-black flex flex-col items-center transition-all duration-300 overflow-hidden"
             onClick={() => addToCart(item)}
           >
             <img
               src={item.image}
               alt={item.name}
-              className="w-[829px] object-contain mb-2 transform transition-transform duration-300 hover:scale-105"
+              className="w-[829px] object-contain mb-4 transform transition-transform duration-300 hover:scale-105"
             />
             <span>{item.name}</span>
             <span>{item.price.toLocaleString()} KRW</span>
