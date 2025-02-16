@@ -36,8 +36,8 @@ export const GameBoy = () => {
         const res = await fetch(
           `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${id}`,
         );
-        const data = await res.bytes();
-        await loadROM(data);
+        const data = await res.arrayBuffer();
+        await loadROM(new Uint8Array(data));
       } catch (error) {
         enqueueSnackbar(`${error}`, { variant: 'error' });
       }
@@ -88,7 +88,7 @@ export const GameBoy = () => {
     }
 
     try {
-      await WasmBoy.loadROM(new Uint8Array(rom));
+      await WasmBoy.loadROM(rom);
       await WasmBoy.play();
     } catch (error) {
       enqueueSnackbar(`ROM: ${error}`, { variant: 'error' });
