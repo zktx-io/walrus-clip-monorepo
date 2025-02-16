@@ -12,6 +12,7 @@ import { IdentifierString, registerWallet } from '@mysten/wallet-standard';
 import { decodeJwt } from 'jose';
 import ReactDOM from 'react-dom/client';
 
+import { ActionDrawer } from './components/ActionDrawer';
 import { QRScan } from './components/QRScan';
 import { createProof } from './utils/createProof';
 import {
@@ -25,7 +26,7 @@ import { cleanup, WalletStandard } from './utils/walletStandard';
 
 interface IKinokoWalletContext {
   updateJwt: (jwt: string) => Promise<void>;
-  isLoggedIn: () => boolean;
+  isConnected: boolean;
   isScannerEnabled: boolean;
   scan: () => Promise<
     | undefined
@@ -81,6 +82,7 @@ export const KinokoWallet = ({
   const [wallet, setWallet] = React.useState<WalletStandard | undefined>(
     undefined,
   );
+  const [isConnected, setIsConnected] = React.useState<boolean>(false);
 
   const updateJwt = useCallback(
     async (jwt: string): Promise<void> => {
@@ -118,6 +120,7 @@ export const KinokoWallet = ({
           network: data.network,
           address: address,
         });
+        setIsConnected(true);
       } else {
         throw new Error('Nonce not found');
       }
@@ -125,10 +128,34 @@ export const KinokoWallet = ({
     [zklogin],
   );
 
-  const isLoggedIn = useCallback((): boolean => {
-    const data = getAccountData();
-    return !!data;
-  }, []);
+  const scan = useCallback((): Promise<
+    { digest: string; effects: string } | undefined
+  > => {
+    return new Promise((resolve) => {
+      const account = getAccountData();
+      if (account && !!account.zkLogin && wallet) {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = ReactDOM.createRoot(container);
+        root.render(
+          <QRScan
+            wallet={wallet}
+            network={network}
+            address={account.address}
+            zkLogin={account.zkLogin}
+            onEvent={onEvent}
+            onClose={(result) => {
+              cleanup(container, root);
+              resolve(result || undefined);
+            }}
+          />,
+        );
+      } else {
+        onEvent({ variant: 'error', message: 'Account not found' });
+        resolve(undefined);
+      }
+    });
+  }, [wallet, network, onEvent]);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -146,6 +173,7 @@ export const KinokoWallet = ({
       );
       setWallet(kinoko);
       registerWallet(kinoko);
+      setIsConnected(!!getAccountData());
     }
   }, [name, icon, network, onEvent, zklogin, sponsored]);
 
@@ -172,36 +200,9 @@ export const KinokoWallet = ({
     <KinokoWalletContext.Provider
       value={{
         updateJwt,
-        isLoggedIn,
+        isConnected,
         isScannerEnabled,
-        scan: async () => {
-          return new Promise((resolve, reject) => {
-            const account = getAccountData();
-            if (account && !!account.zkLogin && wallet) {
-              const container = document.createElement('div');
-              document.body.appendChild(container);
-              const root = ReactDOM.createRoot(container);
-              root.render(
-                <QRScan
-                  wallet={wallet}
-                  network={network}
-                  address={account.address}
-                  zkLogin={account.zkLogin}
-                  onEvent={onEvent}
-                  onClose={(result) => {
-                    cleanup(container, root);
-                    if (result) {
-                      resolve(result);
-                    }
-                    resolve(undefined);
-                  }}
-                />,
-              );
-            } else {
-              reject(new Error('Account not found'));
-            }
-          });
-        },
+        scan,
         pay: (title, description, data) => {
           if (wallet) {
             return wallet.pay(title, description, data);
@@ -217,6 +218,17 @@ export const KinokoWallet = ({
               },
       }}
     >
+      <ActionDrawer
+        isConnected={isConnected}
+        scan={scan}
+        onLogout={() => {
+          if (wallet) {
+            wallet.logout();
+            setIsConnected(false);
+            onEvent({ variant: 'success', message: 'Logged out' });
+          }
+        }}
+      />
       {children}
     </KinokoWalletContext.Provider>
   );

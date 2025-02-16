@@ -288,7 +288,7 @@ export const QRLoginCode = ({
             logoPadding={5}
             size={256}
             qrStyle="dots"
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: '256px', height: '256px' }}
           />
           <DlgDescription2 mode={mode}>
             Please scan the QR code to log in.

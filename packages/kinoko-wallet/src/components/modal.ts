@@ -26,11 +26,12 @@ const contentShow = keyframes({
 });
 
 export const DlgOverlay = styled(Dialog.Overlay, {
-  zIndex: 2147483647,
+  zIndex: 2147483645,
   pointerEvents: 'none',
   position: 'fixed',
   inset: 0,
   animation: `${overlayShow} 150ms cubic-bezier(0.16, 1, 0.3, 1)`,
+  backdropFilter: 'blur(4px)',
   variants: {
     mode: {
       light: {
@@ -44,14 +45,13 @@ export const DlgOverlay = styled(Dialog.Overlay, {
 });
 
 export const DlgContent = styled(Dialog.DialogContent, {
-  zIndex: 2147483647,
+  zIndex: 2147483645,
   pointerEvents: 'none',
   borderRadius: '6px',
   position: 'fixed',
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: '250px',
   maxWidth: '450px',
   maxHeight: '85vh',
   padding: '25px',

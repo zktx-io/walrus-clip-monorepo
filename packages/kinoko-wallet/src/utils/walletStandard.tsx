@@ -263,10 +263,16 @@ export class WalletStandard implements Wallet {
   };
 
   #disconnect: StandardDisconnectMethod = (): Promise<void> => {
-    disconnect();
-    this.#accounts = [];
-    this.#events.emit('change', { accounts: this.accounts });
+    if (this.#accounts.length > 0) {
+      disconnect();
+      this.#accounts = [];
+      this.#events.emit('change', { accounts: undefined });
+    }
     return Promise.resolve();
+  };
+
+  logout = () => {
+    this.#disconnect();
   };
 
   sign = async (

@@ -9,7 +9,7 @@ export const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { isLoggedIn, updateJwt } = useKinokoWallet();
+  const { isConnected, updateJwt } = useKinokoWallet();
   const wallets = useWallets();
   const { mutate: connect } = useConnectWallet();
 
@@ -19,7 +19,7 @@ export const Auth = () => {
         const { id_token: jwt } = queryString.parse(location.hash) as {
           id_token: string;
         };
-        if (isLoggedIn() || !jwt) {
+        if (isConnected || !jwt) {
           navigate('/');
           return;
         }
@@ -38,7 +38,7 @@ export const Auth = () => {
       }
     };
     init();
-  }, [location, navigate, isLoggedIn, updateJwt, wallets, connect]);
+  }, [location, navigate, updateJwt, wallets, connect, isConnected]);
 
   return (
     <div className="flex flex-col items-center p-4">

@@ -17,7 +17,7 @@ const menuItems: Item[] = [
   { id: 4, name: 'Coke (Medium)', price: 2000, image: '/items/mac-4.jpeg' },
 ];
 
-export default function Kiosk() {
+export const Kiosk = () => {
   const [cart, setCart] = useState<Item[]>([]);
   const { isScannerEnabled, pay } = useKinokoWallet();
 
@@ -33,7 +33,7 @@ export default function Kiosk() {
     return cart.reduce((acc, item) => acc + item.price, 0);
   };
 
-  const onShowBill = async () => {
+  const onShowPay = async () => {
     try {
       const transaction = new Transaction();
       transaction.moveCall({
@@ -45,13 +45,14 @@ export default function Kiosk() {
           ),
         ],
       });
-      const { digest } = await pay('Bill', 'Please scan the QR code to pay.', {
+      const { digest } = await pay('Pay', 'Please scan the QR code to pay.', {
         transaction,
         isSponsored: true,
       });
       enqueueSnackbar(digest, {
         variant: 'success',
       });
+      setCart([]);
     } catch (error) {
       enqueueSnackbar(`${error}`, {
         variant: 'error',
@@ -106,11 +107,11 @@ export default function Kiosk() {
         <button
           disabled={!isScannerEnabled || cart.length === 0}
           className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-white hover:text-black transition-all duration-300 disabled:bg-gray-300 cursor-pointer"
-          onClick={onShowBill}
+          onClick={onShowPay}
         >
           Checkout
         </button>
       </div>
     </div>
   );
-}
+};

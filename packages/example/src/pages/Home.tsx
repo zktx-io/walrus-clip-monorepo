@@ -14,24 +14,23 @@ import { enqueueSnackbar } from 'notistack';
 import { NETWORK } from '../utils/config';
 
 export const Home = () => {
-  const { connectionStatus } = useCurrentWallet();
+  const { connectionStatus, currentWallet } = useCurrentWallet();
   const account = useCurrentAccount();
   const client = useSuiClient();
 
   const { mutate: disconnect } = useDisconnectWallet();
   // const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
-  const { scan, isScannerEnabled, signAndExecuteSponsoredTransaction, pay } =
-    useKinokoWallet();
+  const {
+    isConnected,
+    /* scan,*/
+    isScannerEnabled,
+    signAndExecuteSponsoredTransaction,
+    pay,
+  } = useKinokoWallet();
 
   const [address, setAddress] = useState<string | undefined>(undefined);
   const [balance, setBalance] = useState<string | undefined>(undefined);
-
-  const handleDisconnect = () => {
-    setAddress(undefined);
-    setBalance(undefined);
-    disconnect();
-  };
 
   const onSignAndExcuteTx = async () => {
     if (account) {
@@ -120,7 +119,17 @@ export const Home = () => {
         })
         .then(({ totalBalance }) => setBalance(totalBalance));
     }
-  }, [connectionStatus, account, client]);
+  }, [connectionStatus, account, client, isConnected]);
+
+  useEffect(() => {
+    if (
+      connectionStatus === 'connected' &&
+      !isConnected &&
+      currentWallet.name === 'Kinoko Wallet'
+    ) {
+      disconnect();
+    }
+  }, [isConnected, connectionStatus, disconnect, currentWallet?.name]);
 
   return (
     <div className="flex flex-col items-center p-4">
@@ -153,20 +162,6 @@ export const Home = () => {
                   onClick={onShowBill}
                 >
                   Bill
-                </button>
-              </div>
-              <div className="flex gap-2 w-full">
-                <button
-                  className="w-full bg-blue-500 text-white py-2 rounded-lg"
-                  onClick={scan}
-                >
-                  Scan
-                </button>
-                <button
-                  className="w-full bg-red-500 text-white py-2 rounded-lg"
-                  onClick={handleDisconnect}
-                >
-                  Disconnect
                 </button>
               </div>
             </div>

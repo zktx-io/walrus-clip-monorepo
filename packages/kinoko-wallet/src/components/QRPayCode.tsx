@@ -398,7 +398,7 @@ export const QRPayCode = ({
             logoPadding={5}
             size={256}
             qrStyle="dots"
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: '256px', height: '256px' }}
           />
           <DlgDescription2 mode={mode}>{option.description}</DlgDescription2>
         </DlgContent>
