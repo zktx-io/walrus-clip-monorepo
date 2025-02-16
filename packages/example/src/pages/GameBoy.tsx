@@ -1,5 +1,7 @@
+import { useRef, useEffect } from 'react';
+
 import { enqueueSnackbar } from 'notistack';
-import React, { useRef, useEffect } from 'react';
+import queryString from 'query-string';
 import { WasmBoy } from 'wasmboy';
 
 const OPTION = {
@@ -26,6 +28,34 @@ const OPTION = {
 
 export const GameBoy = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const initialized = useRef<boolean>(false);
+
+  useEffect(() => {
+    const loadGame = async (id: string) => {
+      try {
+        const res = await fetch(
+          `https://aggregator.walrus-testnet.walrus.space/v1/blobs/${id}`,
+        );
+        const data = await res.bytes();
+        await loadROM(data);
+      } catch (error) {
+        enqueueSnackbar(`${error}`, { variant: 'error' });
+      }
+    };
+
+    const { id } = queryString.parse(location.search) as {
+      id: string;
+    };
+
+    if (!id) {
+      enqueueSnackbar('Missing game id', { variant: 'error' });
+    } else {
+      if (!initialized.current) {
+        initialized.current = true;
+        loadGame(id);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!canvasRef.current) {
@@ -51,17 +81,14 @@ export const GameBoy = () => {
     initWasmBoy();
   }, []);
 
-  const loadROM = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const loadROM = async (rom: Uint8Array) => {
     if (!canvasRef.current) {
       enqueueSnackbar('Canvas not ready', { variant: 'error' });
       return;
     }
 
     try {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      const arrayBuffer = await file.arrayBuffer();
-      await WasmBoy.loadROM(new Uint8Array(arrayBuffer));
+      await WasmBoy.loadROM(new Uint8Array(rom));
       await WasmBoy.play();
     } catch (error) {
       enqueueSnackbar(`ROM: ${error}`, { variant: 'error' });
@@ -75,23 +102,19 @@ export const GameBoy = () => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          width: '500px',
-          height: '500px',
-          margin: '0 auto',
+          width: '320px',
+          height: '288px',
           backgroundColor: 'gray',
         }}
       >
         <canvas
           ref={canvasRef}
           style={{
-            backgroundColor: 'gray',
             width: '100%',
-            height: 'auto',
-            aspectRatio: '1 / 1',
+            height: '100%',
           }}
         />
       </div>
-      <input type="file" onChange={loadROM} style={{ marginTop: '10px' }} />
     </>
   );
 };
