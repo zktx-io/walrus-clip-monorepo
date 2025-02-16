@@ -29,7 +29,7 @@ declare module 'wasmboy' {
     static start(): Promise<void>;
     static pause(): Promise<void>;
     static reset(): Promise<void>;
-    static loadROM(romArrayBuffer: ArrayBuffer | Uint8Array): Promise<void>;
+    static loadROM(romArrayBuffer: Uint8Array): Promise<void>;
     static play(): Promise<void>;
     static stop(): Promise<void>;
 
