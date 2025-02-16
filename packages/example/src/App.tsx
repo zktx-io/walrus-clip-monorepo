@@ -15,6 +15,7 @@ import { ICON, WALLET_NAME } from './utils/config';
 import { getProviderUrl } from './utils/getProviderUrl';
 import { NETWORK } from './utils/config';
 import { Kiosk } from './pages/Kiosk';
+import { GameBoy } from './pages/GameBoy';
 
 const router = createBrowserRouter([
   {
@@ -28,6 +29,10 @@ const router = createBrowserRouter([
   {
     path: 'kiosk',
     element: <Kiosk />,
+  },
+  {
+    path: 'game',
+    element: <GameBoy />,
   },
 ]);
 
