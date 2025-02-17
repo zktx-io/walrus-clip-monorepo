@@ -54,6 +54,11 @@ function App() {
       onEvent={(notification) => {
         enqueueSnackbar(notification.message, {
           variant: notification.variant,
+          style: {
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
         });
       }}
     >

@@ -55,10 +55,20 @@ export const Home = () => {
         });
         enqueueSnackbar(`${result.digest}`, {
           variant: 'success',
+          style: {
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
         });
       } catch (error) {
         enqueueSnackbar(`${error}`, {
           variant: 'error',
+          style: {
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
         });
       }
       /*
@@ -71,11 +81,21 @@ export const Home = () => {
           onSuccess: (result) => {
             enqueueSnackbar(`${result.digest}`, {
               variant: 'success',
+              style: {
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              },
             });
           },
           onError: (error) => {
             enqueueSnackbar(`${error}`, {
               variant: 'error',
+              style: {
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              },
             });
           },
         },
@@ -102,10 +122,20 @@ export const Home = () => {
       });
       enqueueSnackbar(digest, {
         variant: 'success',
+        style: {
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
       });
     } catch (error) {
       enqueueSnackbar(`${error}`, {
         variant: 'error',
+        style: {
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
       });
     }
   };

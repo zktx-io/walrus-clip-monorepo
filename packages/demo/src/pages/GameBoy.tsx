@@ -39,7 +39,14 @@ export const GameBoy = () => {
         const data = await res.arrayBuffer();
         await loadROM(new Uint8Array(data));
       } catch (error) {
-        enqueueSnackbar(`${error}`, { variant: 'error' });
+        enqueueSnackbar(`${error}`, {
+          variant: 'error',
+          style: {
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
+        });
       }
     };
 
@@ -48,7 +55,14 @@ export const GameBoy = () => {
     };
 
     if (!id) {
-      enqueueSnackbar('Missing game id', { variant: 'error' });
+      enqueueSnackbar('Missing game id', {
+        variant: 'error',
+        style: {
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
+      });
     } else {
       if (!initialized.current) {
         initialized.current = true;
@@ -74,7 +88,14 @@ export const GameBoy = () => {
           );
         }
       } catch (error) {
-        enqueueSnackbar(`WasmBoy: ${error}`, { variant: 'error' });
+        enqueueSnackbar(`WasmBoy: ${error}`, {
+          variant: 'error',
+          style: {
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
+        });
       }
     };
 
@@ -83,7 +104,14 @@ export const GameBoy = () => {
 
   const loadROM = async (rom: Uint8Array) => {
     if (!canvasRef.current) {
-      enqueueSnackbar('Canvas not ready', { variant: 'error' });
+      enqueueSnackbar('Canvas not ready', {
+        variant: 'error',
+        style: {
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
+      });
       return;
     }
 
@@ -91,7 +119,14 @@ export const GameBoy = () => {
       await WasmBoy.loadROM(rom);
       await WasmBoy.play();
     } catch (error) {
-      enqueueSnackbar(`ROM: ${error}`, { variant: 'error' });
+      enqueueSnackbar(`ROM: ${error}`, {
+        variant: 'error',
+        style: {
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
+      });
     }
   };
 

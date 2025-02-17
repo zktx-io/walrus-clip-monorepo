@@ -52,11 +52,21 @@ export const Kiosk = () => {
       });
       enqueueSnackbar(digest, {
         variant: 'success',
+        style: {
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
       });
       setCart([]);
     } catch (error) {
       enqueueSnackbar(`${error}`, {
         variant: 'error',
+        style: {
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
       });
     }
   };
