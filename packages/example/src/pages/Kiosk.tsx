@@ -1,7 +1,8 @@
+import { useState } from 'react';
+
 import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
-import { useState } from 'react';
 
 interface Item {
   id: number;
