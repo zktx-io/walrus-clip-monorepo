@@ -166,6 +166,7 @@ export const WalrusWallet = ({
         network,
         sponsored || '',
         onEvent,
+        setIsConnected,
         {
           epochOffset: zklogin?.epochOffset,
           callbackNonce: zklogin?.callbackNonce,

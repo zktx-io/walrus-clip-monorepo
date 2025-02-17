@@ -67,6 +67,7 @@ export class WalletStandard implements Wallet {
   #network: NETWORK;
   #epochOffset?: number;
   #onEvent: (data: { variant: NotiVariant; message: string }) => void;
+  #setIsConnected: (isConnected: boolean) => void;
   #sponsored: string | undefined;
 
   get version() {
@@ -95,6 +96,7 @@ export class WalletStandard implements Wallet {
     network: NETWORK,
     sponsored: string,
     onEvent: (data: { variant: NotiVariant; message: string }) => void,
+    setIsConnected: (isConnected: boolean) => void,
     zklogin?: {
       callbackNonce?: (nonce: string) => void;
       epochOffset?: number;
@@ -106,6 +108,7 @@ export class WalletStandard implements Wallet {
     this.#network = network;
     this.#sponsored = sponsored === '' ? undefined : sponsored;
     this.#onEvent = onEvent;
+    this.#setIsConnected = setIsConnected;
     this.#epochOffset = zklogin?.epochOffset;
     this.#zkLoginNonceCallback = zklogin?.callbackNonce;
   }
@@ -228,6 +231,7 @@ export class WalletStandard implements Wallet {
   #connected = async () => {
     const account = getAccountData();
     if (account) {
+      this.#setIsConnected(true);
       this.#accounts = [
         new ReadonlyWalletAccount({
           address: account.address,
@@ -241,11 +245,13 @@ export class WalletStandard implements Wallet {
         }),
       ];
     } else {
+      this.#setIsConnected(false);
       this.#accounts = [];
     }
     if (this.#accounts.length) {
       this.#events.emit('change', { accounts: this.accounts });
     }
+    await new Promise((resolve) => setTimeout(resolve, 5));
   };
 
   #connect: StandardConnectMethod = async (input) => {
