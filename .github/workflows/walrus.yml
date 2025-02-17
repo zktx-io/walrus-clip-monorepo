@@ -75,8 +75,6 @@ jobs:
       - name: Install dependencies and Build Demo
         if: env.demo_changed == 'true'
         env:
-          VITE_APP_CLIENT_ID: ${{ secrets.VITE_APP_CLIENT_ID }}
-          VITE_APP_ENOKI_KEY: ${{ secrets.VITE_APP_ENOKI_KEY }}
           VITE_APP_SPONSORED_URL: ${{ secrets.VITE_APP_SPONSORED_URL }}
         run: |
           cd /tmp/demo
