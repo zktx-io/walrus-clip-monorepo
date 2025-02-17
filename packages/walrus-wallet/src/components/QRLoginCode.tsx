@@ -240,7 +240,7 @@ export const QRLoginCode = ({
       });
 
       connection.on('close', () => {
-        step !== MessageType.STEP_1 &&
+        step !== MessageType.STEP_0 &&
           handleClose('Connection closed by the remote peer.');
       });
     });
