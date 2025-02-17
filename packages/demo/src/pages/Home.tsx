@@ -134,7 +134,7 @@ export const Home = () => {
   return (
     <div className="flex flex-col items-center p-4">
       <img src={'/logo-sui.svg'} className="w-32 h-32 mb-4" alt="logo" />
-      <h1 className="text-3xl font-bold">Walrus Wallet</h1>
+      <h1 className="text-3xl font-bold">Walrus Wallet - Demo</h1>
       <h2 className="text-xl text-gray-600">Home</h2>
       <div className="w-full max-w-md p-4 rounded-lg shadow-md mt-4">
         {connectionStatus === 'connected' ? (
