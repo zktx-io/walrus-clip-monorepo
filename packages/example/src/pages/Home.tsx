@@ -11,7 +11,7 @@ import {
 import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
-import { NETWORK } from '../utils/config';
+import { NETWORK, WALLET_NAME } from '../utils/config';
 
 export const Home = () => {
   const { connectionStatus, currentWallet } = useCurrentWallet();
@@ -125,7 +125,7 @@ export const Home = () => {
     if (
       connectionStatus === 'connected' &&
       !isConnected &&
-      currentWallet.name === 'Walrus Wallet'
+      currentWallet.name === WALLET_NAME
     ) {
       disconnect();
     }
