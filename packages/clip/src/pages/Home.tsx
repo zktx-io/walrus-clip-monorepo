@@ -151,14 +151,14 @@ export const Home = () => {
             <div className="flex flex-col gap-2 w-full mt-4">
               <div className="flex gap-2 w-full">
                 <button
-                  className="w-full bg-blue-500 text-white py-2 rounded-lg"
+                  className="w-full bg-blue-500 text-white py-2 rounded-lg cursor-pointer"
                   onClick={onSignAndExcuteTx}
                 >
                   Sponsored Transaction
                 </button>
                 <button
                   disabled={!isScannerEnabled}
-                  className="w-full bg-blue-500 text-white py-2 rounded-lg disabled:bg-gray-300"
+                  className="w-full bg-blue-500 text-white py-2 rounded-lg disabled:bg-gray-300 cursor-pointer"
                   onClick={onShowBill}
                 >
                   Bill
