@@ -19,7 +19,7 @@ const menuItems: Item[] = [
 
 export const Kiosk = () => {
   const [cart, setCart] = useState<Item[]>([]);
-  const { isScannerEnabled, pay } = useWalrusWallet();
+  const { pay } = useWalrusWallet();
 
   const addToCart = (item: Item) => {
     setCart((prev) => [...prev, item]);
@@ -105,7 +105,7 @@ export const Kiosk = () => {
           Total: {getTotalPrice().toLocaleString()} KRW
         </p>
         <button
-          disabled={!isScannerEnabled || cart.length === 0}
+          disabled={cart.length === 0}
           className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-white hover:text-black transition-all duration-300 disabled:bg-gray-300 cursor-pointer"
           onClick={onShowPay}
         >
