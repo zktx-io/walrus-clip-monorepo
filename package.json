@@ -14,18 +14,16 @@
   "scripts": {
     "lint": "eslint 'packages/**/*.{js,jsx,ts,tsx}' --fix",
     "format": "prettier --write 'packages/**/*.{js,jsx,ts,tsx,json,css,md}'",
-    "install:example": "cd packages/example && npm i",
-    "install:package": "cd packages/walrus-wallet && npm i",
-    "install:all": "npm run install:package && npm run install:example",
-    "dev": "cd packages/example && npm run dev",
+    "dev:clip": "cd packages/clip && npm run dev",
+    "dev:demo": "cd packages/demo && npm run dev",
     "build": "cd packages/walrus-wallet && npm run build",
     "version:patch": "lerna version patch",
     "version:minor": "lerna version minor"
   },
   "workspaces": [
     "packages/walrus-wallet",
-    "packages/example",
-    "packages/clip"
+    "packages/clip",
+    "packages/demo"
   ],
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.21.0",
