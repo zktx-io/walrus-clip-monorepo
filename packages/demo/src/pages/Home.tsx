@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   ConnectButton,
@@ -14,6 +15,7 @@ import { enqueueSnackbar } from 'notistack';
 import { NETWORK, WALLET_NAME } from '../utils/config';
 
 export const Home = () => {
+  const navigate = useNavigate();
   const { connectionStatus, currentWallet } = useCurrentWallet();
   const account = useCurrentAccount();
   const client = useSuiClient();
@@ -134,7 +136,7 @@ export const Home = () => {
   return (
     <div className="flex flex-col items-center p-4">
       <img src={'/logo-sui.svg'} className="w-32 h-32 mb-4" alt="logo" />
-      <h1 className="text-3xl font-bold">Walrus Wallet - Demo</h1>
+      <h1 className="text-3xl font-bold">Walrus Wallet</h1>
       <h2 className="text-xl text-gray-600">Home</h2>
       <div className="w-full max-w-md p-4 rounded-lg shadow-md mt-4">
         {connectionStatus === 'connected' ? (
@@ -169,6 +171,14 @@ export const Home = () => {
         ) : (
           <ConnectButton />
         )}
+        <div>
+          <button
+            className="px-8 text-white py-2 rounded-lg mt-2 cursor-pointer border-2 border-transparent hover:border-white hover:bg-transparent transition-all"
+            onClick={() => navigate('/kiosk')}
+          >
+            Go to Kiosk
+          </button>
+        </div>
       </div>
     </div>
   );
