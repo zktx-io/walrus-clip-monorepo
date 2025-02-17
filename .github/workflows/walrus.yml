@@ -18,10 +18,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Copy example package to temporary directory
+      - name: Copy clip package to temporary directory
         run: |
-          mkdir -p /tmp/example
-          cp -r ./packages/example/* /tmp/example/
+          mkdir -p /tmp/clip
+          cp -r ./packages/example/* /tmp/clip/
 
       - name: Install dependencies in temporary directory and Build React app
         env:
@@ -29,14 +29,14 @@ jobs:
           VITE_APP_ENOKI_KEY: ${{ secrets.VITE_APP_ENOKI_KEY }}
           VITE_APP_SPONSORED_URL: ${{ secrets.VITE_APP_SPONSORED_URL }}
         run: |
-          cd /tmp/example
+          cd /tmp/clip
           npm install
           npm run build
 
-      - name: Deploy Example to Walrus
+      - name: Deploy Clip to Walrus
         uses: zktx-io/walrus-sites-ga@v0.3.4
         with:
-          site-path: '/tmp/example/dist'
+          site-path: '/tmp/clip/dist'
           object-id: '0xe15bc83bb0ae8d32188611fcc38d9068adc9530390e3b5f157a5dbdcb219378f'
           network: 'testnet'
           epochs: 180
@@ -44,3 +44,16 @@ jobs:
         env:
           SUI_ADDRESS: ${{ vars.SUI_ADDRESS }}
           SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
+
+      - name: Deploy Clip to Walrus
+        uses: zktx-io/walrus-sites-ga@v0.3.4
+        with:
+          site-path: '/tmp/clip/dist'
+          object-id: '0xe15bc83bb0ae8d32188611fcc38d9068adc9530390e3b5f157a5dbdcb219378f'
+          network: 'testnet'
+          epochs: 180
+          wal-exchange-enabled: false
+        env:
+          SUI_ADDRESS: ${{ vars.SUI_ADDRESS }}
+          SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
+  
