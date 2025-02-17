@@ -19,7 +19,7 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - name: publish programmable transaction blocks builder package
+      - name: publish walrus wallet package
         uses: JS-DevTools/npm-publish@v3
         id: walrus-wallet
         with:

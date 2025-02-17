@@ -4,8 +4,10 @@
   "keywords": [
     "sui",
     "zklogin",
+    "wallrus",
     "wallet",
-    "wallet standard"
+    "wallet standard",
+    "customizable"
   ],
   "version": "0.1.0",
   "type": "module",
