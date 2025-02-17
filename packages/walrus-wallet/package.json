@@ -1,5 +1,5 @@
 {
-  "name": "@zktx.io/kinoko-wallet",
+  "name": "@zktx.io/walrus-wallet",
   "description": "Experience Sui Wallet Standard with zkLogin, customizable with your DApp's unique name and icon.",
   "keywords": [
     "sui",
@@ -22,12 +22,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zktx-io/kinoko-wallet-monorepo.git"
+    "url": "git+https://github.com/zktx-io/walrus-clip-monorepo.git"
   },
   "bugs": {
-    "url": "https://github.com/zktx-io/kinoko-wallet-monorepo/issues"
+    "url": "https://github.com/zktx-io/walrus-clip-monorepo/issues"
   },
-  "homepage": "https://github.com/zktx-io/kinoko-wallet-monorepo#readme",
+  "homepage": "https://github.com/zktx-io/walrus-clip-monorepo#readme",
   "files": [
     "dist/"
   ],

@@ -2,14 +2,14 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import queryString from 'query-string';
 import { useConnectWallet, useWallets } from '@mysten/dapp-kit';
-import { useKinokoWallet } from '@zktx.io/kinoko-wallet';
+import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { WALLET_NAME } from '../utils/config';
 
 export const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { isConnected, updateJwt } = useKinokoWallet();
+  const { isConnected, updateJwt } = useWalrusWallet();
   const wallets = useWallets();
   const { mutate: connect } = useConnectWallet();
 
@@ -43,7 +43,7 @@ export const Auth = () => {
   return (
     <div className="flex flex-col items-center p-4">
       <img src={'/logo-sui.svg'} className="w-32 h-32 mb-4" alt="logo" />
-      <h1 className="text-3xl font-bold">Kinoko Wallet</h1>
+      <h1 className="text-3xl font-bold">Walrus Wallet</h1>
       <h2 className="text-xl text-gray-600">Auth</h2>
     </div>
   );

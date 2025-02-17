@@ -9,7 +9,7 @@ import {
   useSuiClient,
 } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
-import { useKinokoWallet } from '@zktx.io/kinoko-wallet';
+import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
 import { NETWORK } from '../utils/config';
 
@@ -27,7 +27,7 @@ export const Home = () => {
     isScannerEnabled,
     signAndExecuteSponsoredTransaction,
     pay,
-  } = useKinokoWallet();
+  } = useWalrusWallet();
 
   const [address, setAddress] = useState<string | undefined>(undefined);
   const [balance, setBalance] = useState<string | undefined>(undefined);
@@ -125,7 +125,7 @@ export const Home = () => {
     if (
       connectionStatus === 'connected' &&
       !isConnected &&
-      currentWallet.name === 'Kinoko Wallet'
+      currentWallet.name === 'Walrus Wallet'
     ) {
       disconnect();
     }
@@ -134,7 +134,7 @@ export const Home = () => {
   return (
     <div className="flex flex-col items-center p-4">
       <img src={'/logo-sui.svg'} className="w-32 h-32 mb-4" alt="logo" />
-      <h1 className="text-3xl font-bold">Kinoko Wallet</h1>
+      <h1 className="text-3xl font-bold">Walrus Wallet</h1>
       <h2 className="text-xl text-gray-600">Home</h2>
       <div className="w-full max-w-md p-4 rounded-lg shadow-md mt-4">
         {connectionStatus === 'connected' ? (

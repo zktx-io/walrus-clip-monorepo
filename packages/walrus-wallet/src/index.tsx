@@ -24,7 +24,7 @@ import { signAndExecuteSponsoredTransaction } from './utils/sponsoredTransaction
 import { NETWORK, NotiVariant } from './utils/types';
 import { cleanup, WalletStandard } from './utils/walletStandard';
 
-interface IKinokoWalletContext {
+interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<void>;
   isConnected: boolean;
   isScannerEnabled: boolean;
@@ -51,11 +51,11 @@ interface IKinokoWalletContext {
   }>;
 }
 
-const KinokoWalletContext = createContext<IKinokoWalletContext | undefined>(
+const WalrusWalletContext = createContext<IWalrusWalletContext | undefined>(
   undefined,
 );
 
-export const KinokoWallet = ({
+export const WalrusWallet = ({
   name,
   icon,
   network,
@@ -160,7 +160,7 @@ export const KinokoWallet = ({
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
-      const kinoko = new WalletStandard(
+      const walletStandard = new WalletStandard(
         name,
         icon,
         network,
@@ -171,8 +171,8 @@ export const KinokoWallet = ({
           callbackNonce: zklogin?.callbackNonce,
         },
       );
-      setWallet(kinoko);
-      registerWallet(kinoko);
+      setWallet(walletStandard);
+      registerWallet(walletStandard);
       setIsConnected(!!getAccountData());
     }
   }, [name, icon, network, onEvent, zklogin, sponsored]);
@@ -197,7 +197,7 @@ export const KinokoWallet = ({
   }, []);
 
   return (
-    <KinokoWalletContext.Provider
+    <WalrusWalletContext.Provider
       value={{
         updateJwt,
         isConnected,
@@ -230,15 +230,15 @@ export const KinokoWallet = ({
         }}
       />
       {children}
-    </KinokoWalletContext.Provider>
+    </WalrusWalletContext.Provider>
   );
 };
 
-export const useKinokoWallet = () => {
-  const context = useContext(KinokoWalletContext);
+export const useWalrusWallet = () => {
+  const context = useContext(WalrusWalletContext);
   if (!context) {
     throw new Error(
-      'useKinokoWallet hook can only be used inside a KinokoWallet provider.',
+      'useWalrusWallet hook can only be used inside a WalrusWallet provider.',
     );
   }
   return context;

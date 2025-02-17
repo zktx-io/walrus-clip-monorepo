@@ -21,10 +21,10 @@ jobs:
 
       - name: publish programmable transaction blocks builder package
         uses: JS-DevTools/npm-publish@v3
-        id: kinoko-wallet
+        id: walrus-wallet
         with:
             access: public
             provenance: true
             token: ${{ secrets.NPM_TOKEN }}
-            package: "packages/kinoko-wallet/package.json"
+            package: "packages/walrus-wallet/package.json"
             strategy: upgrade

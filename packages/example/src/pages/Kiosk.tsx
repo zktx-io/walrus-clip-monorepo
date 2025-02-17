@@ -1,5 +1,5 @@
 import { Transaction } from '@mysten/sui/transactions';
-import { useKinokoWallet } from '@zktx.io/kinoko-wallet';
+import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
 import { useState } from 'react';
 
@@ -19,7 +19,7 @@ const menuItems: Item[] = [
 
 export const Kiosk = () => {
   const [cart, setCart] = useState<Item[]>([]);
-  const { isScannerEnabled, pay } = useKinokoWallet();
+  const { isScannerEnabled, pay } = useWalrusWallet();
 
   const addToCart = (item: Item) => {
     setCart((prev) => [...prev, item]);

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
 import { getFullnodeUrl } from '@mysten/sui/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { KinokoWallet } from '@zktx.io/kinoko-wallet';
+import { WalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
 
 import './App.css';
@@ -52,7 +52,7 @@ function App() {
   };
 
   return (
-    <KinokoWallet
+    <WalrusWallet
       name={WALLET_NAME}
       icon={ICON}
       network={activeNetwork}
@@ -82,7 +82,7 @@ function App() {
           <RouterProvider router={router} />
         </WalletProvider>
       </SuiClientProvider>
-    </KinokoWallet>
+    </WalrusWallet>
   );
 }
 
