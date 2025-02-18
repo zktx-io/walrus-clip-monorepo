@@ -61,4 +61,4 @@ Through these features, Walrus Wallet lowers the entry barriers to Web3, offerin
 
 ## Document
 
-Get started with Walrus Wallet and learn by [Docs](https://docs.zktx.io/walrus-clip/)
+Get started with Walrus Wallet and learn by [Docs](https://docs.zktx.io/walrus-clip/walrus-wallet)
