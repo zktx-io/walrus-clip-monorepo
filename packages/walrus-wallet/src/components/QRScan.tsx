@@ -15,23 +15,17 @@ import {
 } from './modal';
 import { connectQRLogin } from './QRLoginCode';
 import { connectQRPay } from './QRPayCode';
-import { IZkLogin, NETWORK, NotiVariant } from '../utils/types';
+import { NotiVariant } from '../utils/types';
 import { WalletStandard } from '../utils/walletStandard';
 
 export const QRScan = ({
   mode = 'light',
   wallet,
-  network,
-  address,
-  zkLogin,
   onEvent,
   onClose,
 }: {
   mode?: 'dark' | 'light';
   wallet: WalletStandard;
-  network: NETWORK;
-  address: string;
-  zkLogin: IZkLogin;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onClose: (result?: { digest: string; effects: string }) => void;
 }) => {
@@ -59,11 +53,11 @@ export const QRScan = ({
 
   const handleScan = useCallback(
     (result: IDetectedBarcode[]) => {
-      if (result[0].format === 'qr_code') {
+      if (result[0].format === 'qr_code' && wallet.signer) {
         const schema = result[0].rawValue.split('::');
         if (
           schema[0] === 'sui' &&
-          schema[1] === network &&
+          schema[1] === wallet.signer.network &&
           (schema[3] === 'transaction' || schema[3] === 'login')
         ) {
           setDestId(schema.join('::'));
@@ -71,7 +65,7 @@ export const QRScan = ({
         } else {
           if (schema[0] !== 'sui') {
             setError('Invalid chain');
-          } else if (schema[1] !== network) {
+          } else if (schema[1] !== wallet.signer.network) {
             setError('Invalid network');
           } else {
             setError('invalid type');
@@ -79,7 +73,7 @@ export const QRScan = ({
         }
       }
     },
-    [network],
+    [wallet],
   );
 
   useEffect(() => {
@@ -89,8 +83,6 @@ export const QRScan = ({
         peer = connectQRLogin({
           wallet,
           destId,
-          address,
-          zkLogin,
           setOpen,
           onClose: () => {
             setOpen(false);
@@ -102,9 +94,6 @@ export const QRScan = ({
         peer = connectQRPay({
           wallet,
           destId,
-          network,
-          address,
-          zkLogin,
           setOpen,
           onClose: (result) => {
             setOpen(false);
@@ -119,7 +108,7 @@ export const QRScan = ({
         peer.destroy();
       }
     };
-  }, [wallet, destId, type, network, address, zkLogin, onEvent, onClose]);
+  }, [wallet, destId, type, onEvent, onClose]);
 
   return (
     <DlgRoot open={open}>

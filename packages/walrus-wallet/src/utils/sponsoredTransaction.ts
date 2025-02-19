@@ -71,7 +71,7 @@ export const signAndExecuteSponsoredTransaction = async (
 }> => {
   const account = getAccountData();
   if (!!account) {
-    if (!!account.zkLogin) {
+    if (!!wallet.signer) {
       if (account.network === input.chain.split(':')[1]) {
         const client = new SuiClient({
           url: getFullnodeUrl(account.network),
@@ -87,9 +87,8 @@ export const signAndExecuteSponsoredTransaction = async (
             account.address,
             txBytes,
           );
-        const { signature } = await wallet.sign(
+        const { signature } = await wallet.signer.signTransaction(
           fromBase64(sponsoredTxBuytes),
-          true,
         );
         await executeSponsoredTransaction(url, digest, signature);
 

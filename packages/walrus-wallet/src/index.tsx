@@ -22,7 +22,8 @@ import {
 } from './utils/localStorage';
 import { signAndExecuteSponsoredTransaction } from './utils/sponsoredTransaction';
 import { NETWORK, NotiVariant } from './utils/types';
-import { cleanup, WalletStandard } from './utils/walletStandard';
+import { WalletStandard } from './utils/walletStandard';
+import { cleanup } from './utils/zkLoginSigner';
 
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<void>;
@@ -142,9 +143,6 @@ export const WalrusWallet = ({
         root.render(
           <QRScan
             wallet={wallet}
-            network={network}
-            address={account.address}
-            zkLogin={account.zkLogin}
             onEvent={onEvent}
             onClose={(result) => {
               cleanup(container, root);
@@ -157,7 +155,7 @@ export const WalrusWallet = ({
         resolve(undefined);
       }
     });
-  }, [wallet, network, onEvent]);
+  }, [wallet, onEvent]);
 
   useEffect(() => {
     if (!initialized.current) {

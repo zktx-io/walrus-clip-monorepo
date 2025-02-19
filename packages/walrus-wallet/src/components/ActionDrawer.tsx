@@ -50,6 +50,7 @@ export const ActionDrawer = ({
         <DlgOverlay />
         <Dialog.Content
           asChild
+          aria-describedby={undefined}
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <motion.div

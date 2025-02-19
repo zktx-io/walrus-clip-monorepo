@@ -1,10 +1,8 @@
 import React from 'react';
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
-import { fromBase64, toBase64 } from '@mysten/sui/utils';
-import { getZkLoginSignature } from '@mysten/sui/zklogin';
+import { toBase64 } from '@mysten/sui/utils';
 import {
   ReadonlyWalletAccount,
   StandardConnectFeature,
@@ -31,10 +29,9 @@ import {
   setAccountData,
   setZkLoginData,
 } from './localStorage';
-import { IAccount, IZkLogin, NETWORK, NotiVariant } from './types';
-import { decryptText } from './utils';
+import { IAccount, NETWORK, NotiVariant } from './types';
+import { cleanup, ZkLoginSigner } from './zkLoginSigner';
 import { Password } from '../components/password';
-import { Password2 } from '../components/password2';
 import { QRLoginCode } from '../components/QRLoginCode';
 import { QRPayCode } from '../components/QRPayCode';
 
@@ -46,13 +43,6 @@ type WalletEventsMap = {
 
 const TIME_OUT = 300;
 
-export const cleanup = (container: HTMLDivElement, root: ReactDOM.Root) => {
-  setTimeout(() => {
-    root.unmount();
-    document.body.removeChild(container);
-  }, TIME_OUT);
-};
-
 export class WalletStandard implements Wallet {
   readonly #events: Emitter<WalletEventsMap>;
 
@@ -63,13 +53,15 @@ export class WalletStandard implements Wallet {
   #name: string;
   #icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
 
-  #account: IAccount | undefined;
   #network: NETWORK;
   #zkLoginNonceCallback?: (nonce: string) => void;
   #epochOffset?: number;
   #onEvent: (data: { variant: NotiVariant; message: string }) => void;
   #setIsConnected: (isConnected: boolean) => void;
   #sponsored: string | undefined;
+
+  #account: IAccount | undefined;
+  #signer: ZkLoginSigner | undefined;
 
   get version() {
     return this.#version;
@@ -89,6 +81,10 @@ export class WalletStandard implements Wallet {
 
   get accounts() {
     return this.#accounts;
+  }
+
+  get signer() {
+    return this.#signer;
   }
 
   constructor(
@@ -197,33 +193,6 @@ export class WalletStandard implements Wallet {
     });
   }
 
-  #openPasswordModal(zkLogin: IZkLogin): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const container = document.createElement('div');
-      document.body.appendChild(container);
-      const root = ReactDOM.createRoot(container);
-      root.render(
-        <Password2
-          onClose={() => {
-            cleanup(container, root);
-            reject(new Error('rejected'));
-          }}
-          onConfirm={async (password: string) => {
-            cleanup(container, root);
-            const { iv, encrypted } = zkLogin.keypair.privateKey;
-            const privateKey = await decryptText(password, encrypted, iv);
-            if (privateKey) {
-              resolve(privateKey);
-            } else {
-              reject(new Error('Password Error.'));
-            }
-          }}
-          onEvent={this.#onEvent}
-        />,
-      );
-    });
-  }
-
   #on: StandardEventsOnMethod = (event, listener) => {
     this.#events.on(event, listener);
     return () => this.#events.off(event, listener);
@@ -264,6 +233,13 @@ export class WalletStandard implements Wallet {
         await this.#openQrLoginModal();
         this.#account = getAccountData();
       }
+    } else if (this.#account.zkLogin) {
+      this.#signer = new ZkLoginSigner(
+        this.#network,
+        this.#account.zkLogin,
+        this.#account.address,
+        this.#onEvent,
+      );
     }
     await this.#connected();
     return { accounts: this.accounts };
@@ -273,6 +249,8 @@ export class WalletStandard implements Wallet {
     if (this.#accounts.length > 0) {
       disconnect();
       this.#accounts = [];
+      this.#account = undefined;
+      this.#signer = undefined;
       this.#events.emit('change', { accounts: undefined });
     }
     return Promise.resolve();
@@ -280,32 +258,6 @@ export class WalletStandard implements Wallet {
 
   logout = () => {
     this.#disconnect();
-  };
-
-  sign = async (
-    bytes: Uint8Array,
-    isTransaction: boolean,
-  ): Promise<{ bytes: string; signature: string }> => {
-    if (this.#account?.zkLogin) {
-      const privateKey = await this.#openPasswordModal(this.#account.zkLogin);
-      const keypair = Ed25519Keypair.fromSecretKey(fromBase64(privateKey));
-      const { signature: userSignature } = await (isTransaction
-        ? keypair.signTransaction(bytes)
-        : keypair.signPersonalMessage(bytes));
-      const zkLoginSignature = getZkLoginSignature({
-        inputs: {
-          ...JSON.parse(this.#account.zkLogin.proofInfo.proof),
-          addressSeed: this.#account.zkLogin.proofInfo.addressSeed,
-        },
-        maxEpoch: this.#account.zkLogin.expiration,
-        userSignature,
-      });
-      return {
-        bytes: toBase64(bytes),
-        signature: zkLoginSignature,
-      };
-    }
-    throw new Error('account error');
   };
 
   pay = async (
@@ -349,13 +301,14 @@ export class WalletStandard implements Wallet {
     chain,
   }) => {
     if (chain === `sui:${this.#network}`) {
-      if (this.#account?.zkLogin) {
+      if (this.#signer) {
         const client = new SuiClient({
           url: getFullnodeUrl(this.#network),
         });
         const tx = await transaction.toJSON();
         const txBytes = await Transaction.from(tx).build({ client });
-        const { bytes, signature } = await this.sign(txBytes, true);
+        const { bytes, signature } =
+          await this.#signer.signTransaction(txBytes);
         return {
           bytes,
           signature,
@@ -384,7 +337,7 @@ export class WalletStandard implements Wallet {
     chain,
   }) => {
     if (chain === `sui:${this.#network}`) {
-      if (this.#account?.zkLogin) {
+      if (this.#signer) {
         const client = new SuiClient({
           url: getFullnodeUrl(this.#network),
         });
@@ -392,7 +345,8 @@ export class WalletStandard implements Wallet {
         const txBytes = await Transaction.from(tx).build({
           client,
         });
-        const { bytes, signature } = await this.sign(txBytes, true);
+        const { bytes, signature } =
+          await this.#signer.signTransaction(txBytes);
         const { digest, errors } = await client.executeTransactionBlock({
           transactionBlock: bytes,
           signature: signature,
@@ -434,10 +388,13 @@ export class WalletStandard implements Wallet {
   };
 
   #signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message }) => {
-    const { signature } = await this.sign(message, false);
-    return {
-      bytes: toBase64(message),
-      signature,
-    };
+    if (this.#signer) {
+      const { signature } = await this.#signer.signPersonalMessage(message);
+      return {
+        bytes: toBase64(message),
+        signature,
+      };
+    }
+    throw new Error('signer error');
   };
 }

@@ -4,7 +4,6 @@ import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { fromBase64 } from '@mysten/sui/utils';
 import {
   generateRandomness,
-  toZkLoginPublicIdentifier,
   ZkLoginPublicIdentifier,
 } from '@mysten/sui/zklogin';
 import { Cross2Icon } from '@radix-ui/react-icons';
@@ -21,7 +20,6 @@ import {
   DlgTitle,
 } from './modal';
 import {
-  IZkLogin,
   makeMessage,
   NETWORK,
   NotiVariant,
@@ -37,16 +35,12 @@ enum MessageType {
 export const connectQRLogin = ({
   wallet,
   destId,
-  address,
-  zkLogin,
   setOpen,
   onClose,
   onEvent,
 }: {
   wallet: WalletStandard;
   destId: string;
-  address: string;
-  zkLogin: IZkLogin;
   setOpen: (open: boolean) => void;
   onClose: () => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
@@ -66,61 +60,63 @@ export const connectQRLogin = ({
   };
 
   peer.on('open', (id) => {
-    try {
-      const connection = peer.connect(destId.replace(/::/g, '-'));
-      const encoder = new TextEncoder();
+    if (!!wallet.signer) {
+      try {
+        const signer = wallet.signer;
+        const address = signer.toSuiAddress();
+        const connection = peer.connect(destId.replace(/::/g, '-'));
+        const encoder = new TextEncoder();
 
-      connection.on('open', async () => {
-        try {
-          const { signature } = await wallet.sign(
-            encoder.encode(destId),
-            false,
-          );
-          const publicKey = toZkLoginPublicIdentifier(
-            BigInt(zkLogin.proofInfo.addressSeed),
-            zkLogin.proofInfo.iss,
-          ).toSuiPublicKey();
-          connection.send(
-            makeMessage(
-              MessageType.STEP_0,
-              JSON.stringify({ address, publicKey, signature }),
-            ),
-          );
-        } catch (error) {
-          onEvent({ variant: 'error', message: `${error}` });
-          onClose();
-        }
-      });
-
-      connection.on('data', (data) => {
-        try {
-          const message = parseMessage(data as string);
-          switch (message.type) {
-            case MessageType.STEP_1:
-              if (message.value === 'OK') {
-                onEvent({ variant: 'success', message: 'Connected' });
-              } else {
-                onEvent({ variant: 'error', message: message.value });
-              }
-              onClose();
-              break;
-
-            default:
-              connection.open && connection.close({ flush: true });
-              handleClose(`Unknown message type: ${message.type}`);
+        connection.on('open', async () => {
+          try {
+            const { signature } = await signer.signPersonalMessage(
+              encoder.encode(destId),
+            );
+            const publicKey = signer.getPublicKey().toSuiPublicKey();
+            connection.send(
+              makeMessage(
+                MessageType.STEP_0,
+                JSON.stringify({ address, publicKey, signature }),
+              ),
+            );
+          } catch (error) {
+            onEvent({ variant: 'error', message: `${error}` });
+            onClose();
           }
-        } catch (error) {
-          connection.open && connection.close({ flush: true });
-          handleClose(`${error}`);
-        }
-      });
+        });
 
-      connection.on('error', (err) => {
-        connection.open && connection.close({ flush: true });
-        handleClose(`Connection error: ${err.message}`);
-      });
-    } catch (error) {
-      handleClose(`Failed to establish connection: ${error}`);
+        connection.on('data', (data) => {
+          try {
+            const message = parseMessage(data as string);
+            switch (message.type) {
+              case MessageType.STEP_1:
+                if (message.value === 'OK') {
+                  onEvent({ variant: 'success', message: 'Connected' });
+                } else {
+                  onEvent({ variant: 'error', message: message.value });
+                }
+                onClose();
+                break;
+
+              default:
+                connection.open && connection.close({ flush: true });
+                handleClose(`Unknown message type: ${message.type}`);
+            }
+          } catch (error) {
+            connection.open && connection.close({ flush: true });
+            handleClose(`${error}`);
+          }
+        });
+
+        connection.on('error', (err) => {
+          connection.open && connection.close({ flush: true });
+          handleClose(`Connection error: ${err.message}`);
+        });
+      } catch (error) {
+        handleClose(`Failed to establish connection: ${error}`);
+      }
+    } else {
+      handleClose('Wallet signer not initialized');
     }
   });
 
