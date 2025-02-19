@@ -31,7 +31,7 @@ import {
   setAccountData,
   setZkLoginData,
 } from './localStorage';
-import { IZkLogin, NETWORK, NotiVariant } from './types';
+import { IAccount, IZkLogin, NETWORK, NotiVariant } from './types';
 import { decryptText } from './utils';
 import { Password } from '../components/password';
 import { Password2 } from '../components/password2';
@@ -63,6 +63,7 @@ export class WalletStandard implements Wallet {
   #name: string;
   #icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
 
+  #account: IAccount | undefined;
   #network: NETWORK;
   #zkLoginNonceCallback?: (nonce: string) => void;
   #epochOffset?: number;
@@ -229,12 +230,11 @@ export class WalletStandard implements Wallet {
   };
 
   #connected = async () => {
-    const account = getAccountData();
-    if (account) {
+    if (this.#account) {
       this.#setIsConnected(true);
       this.#accounts = [
         new ReadonlyWalletAccount({
-          address: account.address,
+          address: this.#account.address,
           publicKey: new Uint8Array(),
           chains: [`sui:${this.#network}`],
           features: [
@@ -255,13 +255,14 @@ export class WalletStandard implements Wallet {
   };
 
   #connect: StandardConnectMethod = async (input) => {
-    const account = getAccountData();
-    if (!account) {
+    this.#account = getAccountData();
+    if (!this.#account) {
       if (this.#zkLoginNonceCallback) {
         const nonce = await this.#openZkLoginModal();
         this.#zkLoginNonceCallback(nonce);
       } else {
         await this.#openQrLoginModal();
+        this.#account = getAccountData();
       }
     }
     await this.#connected();
@@ -282,28 +283,29 @@ export class WalletStandard implements Wallet {
   };
 
   sign = async (
-    zkLogin: IZkLogin,
     bytes: Uint8Array,
     isTransaction: boolean,
   ): Promise<{ bytes: string; signature: string }> => {
-    const privateKey = await this.#openPasswordModal(zkLogin);
-    const keypair = Ed25519Keypair.fromSecretKey(fromBase64(privateKey));
-    const { signature: userSignature } = await (isTransaction
-      ? keypair.signTransaction(bytes)
-      : keypair.signPersonalMessage(bytes));
-    const zkLoginSignature = getZkLoginSignature({
-      inputs: {
-        ...JSON.parse(zkLogin.proofInfo.proof),
-        addressSeed: zkLogin.proofInfo.addressSeed,
-      },
-      maxEpoch: zkLogin.expiration,
-      userSignature,
-    });
-
-    return {
-      bytes: toBase64(bytes),
-      signature: zkLoginSignature,
-    };
+    if (this.#account?.zkLogin) {
+      const privateKey = await this.#openPasswordModal(this.#account.zkLogin);
+      const keypair = Ed25519Keypair.fromSecretKey(fromBase64(privateKey));
+      const { signature: userSignature } = await (isTransaction
+        ? keypair.signTransaction(bytes)
+        : keypair.signPersonalMessage(bytes));
+      const zkLoginSignature = getZkLoginSignature({
+        inputs: {
+          ...JSON.parse(this.#account.zkLogin.proofInfo.proof),
+          addressSeed: this.#account.zkLogin.proofInfo.addressSeed,
+        },
+        maxEpoch: this.#account.zkLogin.expiration,
+        userSignature,
+      });
+      return {
+        bytes: toBase64(bytes),
+        signature: zkLoginSignature,
+      };
+    }
+    throw new Error('account error');
   };
 
   pay = async (
@@ -346,20 +348,14 @@ export class WalletStandard implements Wallet {
     transaction,
     chain,
   }) => {
-    const account = getAccountData();
-    if (!!account) {
-      if (!!account.zkLogin && chain === `sui:${this.#network}`) {
+    if (chain === `sui:${this.#network}`) {
+      if (this.#account?.zkLogin) {
         const client = new SuiClient({
           url: getFullnodeUrl(this.#network),
         });
         const tx = await transaction.toJSON();
         const txBytes = await Transaction.from(tx).build({ client });
-
-        const { bytes, signature } = await this.sign(
-          account.zkLogin,
-          txBytes,
-          true,
-        );
+        const { bytes, signature } = await this.sign(txBytes, true);
         return {
           bytes,
           signature,
@@ -380,9 +376,6 @@ export class WalletStandard implements Wallet {
         };
       }
     }
-    if (!account) {
-      throw new Error('account error');
-    }
     throw new Error('chain error');
   };
 
@@ -390,9 +383,8 @@ export class WalletStandard implements Wallet {
     transaction,
     chain,
   }) => {
-    const account = getAccountData();
-    if (!!account) {
-      if (!!account.zkLogin && chain === `sui:${this.#network}`) {
+    if (chain === `sui:${this.#network}`) {
+      if (this.#account?.zkLogin) {
         const client = new SuiClient({
           url: getFullnodeUrl(this.#network),
         });
@@ -400,11 +392,7 @@ export class WalletStandard implements Wallet {
         const txBytes = await Transaction.from(tx).build({
           client,
         });
-        const { bytes, signature } = await this.sign(
-          account.zkLogin,
-          txBytes,
-          true,
-        );
+        const { bytes, signature } = await this.sign(txBytes, true);
         const { digest, errors } = await client.executeTransactionBlock({
           transactionBlock: bytes,
           signature: signature,
@@ -442,25 +430,14 @@ export class WalletStandard implements Wallet {
         };
       }
     }
-    if (!account) {
-      throw new Error('account error');
-    }
     throw new Error('chain error');
   };
 
   #signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message }) => {
-    const account = getAccountData();
-    if (!!account) {
-      if (!!account.zkLogin) {
-        const { signature } = await this.sign(account.zkLogin, message, false);
-        return {
-          bytes: toBase64(message),
-          signature,
-        };
-      } else {
-        //
-      }
-    }
-    throw new Error('account error');
+    const { signature } = await this.sign(message, false);
+    return {
+      bytes: toBase64(message),
+      signature,
+    };
   };
 }

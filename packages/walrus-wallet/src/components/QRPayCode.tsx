@@ -91,7 +91,6 @@ export const connectQRPay = ({
               {
                 const { bytes, digest } = JSON.parse(message.value);
                 const { signature } = await wallet.sign(
-                  zkLogin,
                   fromBase64(bytes),
                   true,
                 );

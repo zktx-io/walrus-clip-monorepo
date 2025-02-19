@@ -73,7 +73,6 @@ export const connectQRLogin = ({
       connection.on('open', async () => {
         try {
           const { signature } = await wallet.sign(
-            zkLogin,
             encoder.encode(destId),
             false,
           );

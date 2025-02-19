@@ -88,7 +88,6 @@ export const signAndExecuteSponsoredTransaction = async (
             txBytes,
           );
         const { signature } = await wallet.sign(
-          account.zkLogin,
           fromBase64(sponsoredTxBuytes),
           true,
         );
