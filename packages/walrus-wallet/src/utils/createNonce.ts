@@ -13,7 +13,6 @@ export const createNonce = async (
   epochOffset?: number,
 ): Promise<{
   nonce: string;
-  network: NETWORK;
   data: IZkLogin;
 }> => {
   try {
@@ -34,7 +33,6 @@ export const createNonce = async (
     );
     return {
       nonce,
-      network,
       data: {
         expiration,
         randomness,

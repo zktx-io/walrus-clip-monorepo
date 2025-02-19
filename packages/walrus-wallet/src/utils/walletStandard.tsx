@@ -63,8 +63,8 @@ export class WalletStandard implements Wallet {
   #name: string;
   #icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
 
-  #zkLoginNonceCallback?: (nonce: string) => void;
   #network: NETWORK;
+  #zkLoginNonceCallback?: (nonce: string) => void;
   #epochOffset?: number;
   #onEvent: (data: { variant: NotiVariant; message: string }) => void;
   #setIsConnected: (isConnected: boolean) => void;
@@ -158,12 +158,12 @@ export class WalletStandard implements Wallet {
           }}
           onConfirm={async (password: string) => {
             cleanup(container, root);
-            const { nonce, network, data } = await createNonce(
+            const { nonce, data } = await createNonce(
               password,
               this.#network,
               this.#epochOffset,
             );
-            setZkLoginData({ network, zkLogin: data });
+            setZkLoginData({ network: this.#network, zkLogin: data });
             resolve(nonce);
           }}
           onEvent={this.#onEvent}
@@ -350,7 +350,7 @@ export class WalletStandard implements Wallet {
     if (!!account) {
       if (!!account.zkLogin && chain === `sui:${this.#network}`) {
         const client = new SuiClient({
-          url: getFullnodeUrl(account.network),
+          url: getFullnodeUrl(this.#network),
         });
         const tx = await transaction.toJSON();
         const txBytes = await Transaction.from(tx).build({ client });
@@ -394,7 +394,7 @@ export class WalletStandard implements Wallet {
     if (!!account) {
       if (!!account.zkLogin && chain === `sui:${this.#network}`) {
         const client = new SuiClient({
-          url: getFullnodeUrl(account.network),
+          url: getFullnodeUrl(this.#network),
         });
         const tx = await transaction.toJSON();
         const txBytes = await Transaction.from(tx).build({
