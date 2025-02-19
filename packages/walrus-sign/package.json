@@ -1,0 +1,49 @@
+{
+  "name": "@zktx.io/walrus-sign",
+  "description": "Experience Sui Wallet Standard with zkLogin, customizable with your DApp's unique name and icon.",
+  "keywords": [
+    "sui",
+    "zklogin",
+    "wallrus",
+    "wallet",
+    "wallet standard",
+    "customizable"
+  ],
+  "version": "0.1.2",
+  "type": "module",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/types/index.d.ts",
+  "author": "daoauth",
+  "license": "ISC",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && rollup -c",
+    "lint": "npm run lint --prefix ../..",
+    "format": "npm run format --prefix ../.."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zktx-io/walrus-clip-monorepo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zktx-io/walrus-clip-monorepo/issues"
+  },
+  "homepage": "https://github.com/zktx-io/walrus-clip-monorepo#readme",
+  "files": [
+    "dist/"
+  ],
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.2",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.21.2",
+    "@noble/hashes": "^1.7.1",
+    "jose": "^5.10.0"
+  }
+}

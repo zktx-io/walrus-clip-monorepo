@@ -16,12 +16,15 @@
     "format": "prettier --write 'packages/**/*.{js,jsx,ts,tsx,json,css,md}'",
     "dev:clip": "cd packages/clip && npm run dev",
     "dev:demo": "cd packages/demo && npm run dev",
-    "build": "cd packages/walrus-wallet && npm run build",
+    "build:sign": "cd packages/walrus-sign && npm run build",
+    "build:wallet": "cd packages/walrus-wallet && npm run build",
+    "build": "npm run build:sign && npm run build:wallet",
     "version:patch": "lerna version patch",
     "version:minor": "lerna version minor"
   },
   "workspaces": [
     "packages/walrus-wallet",
+    "packages/walrus-sign",
     "packages/clip",
     "packages/demo"
   ],
