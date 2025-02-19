@@ -1,0 +1,58 @@
+name: Deploy Walrus Site using Walrus Sites GA
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+  
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check if Clip has changed
+        id: clip_changed
+        run: |
+          if git diff --quiet HEAD^ HEAD -- packages/clip; then
+            echo "clip_changed=false" >> $GITHUB_ENV
+          else
+            echo "clip_changed=true" >> $GITHUB_ENV
+          fi
+
+      - name: Copy Clip package to temporary directory
+        if: env.clip_changed == 'true'
+        run: |
+          mkdir -p /tmp/clip
+          cp -r ./packages/clip/* /tmp/clip/
+
+      - name: Install dependencies and Build Clip
+        if: env.clip_changed == 'true'
+        env:
+          VITE_APP_CLIENT_ID: ${{ secrets.VITE_APP_CLIENT_ID }}
+          VITE_APP_ENOKI_KEY: ${{ secrets.VITE_APP_ENOKI_KEY }}
+          VITE_APP_SPONSORED_URL: ${{ secrets.VITE_APP_SPONSORED_URL }}
+        run: |
+          cd /tmp/clip
+          npm install
+          npm run build
+
+      - name: Deploy Clip to Walrus
+        if: env.clip_changed == 'true'
+        uses: zktx-io/walrus-sites-ga@v0.3.4
+        with:
+          site-path: '/tmp/clip/dist'
+          object-id: '0xe15bc83bb0ae8d32188611fcc38d9068adc9530390e3b5f157a5dbdcb219378f'
+          network: 'testnet'
+          epochs: 180
+          wal-exchange-enabled: false
+        env:
+          SUI_ADDRESS: ${{ vars.SUI_ADDRESS }}
+          SUI_KEYSTORE: ${{ secrets.SUI_KEYSTORE }}
