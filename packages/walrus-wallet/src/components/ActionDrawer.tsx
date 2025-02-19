@@ -15,7 +15,7 @@ export const ActionDrawer = ({
 }: {
   mode?: 'dark' | 'light';
   isConnected: boolean;
-  scan: () => Promise<
+  scan?: () => Promise<
     | undefined
     | {
         digest: string;
@@ -28,7 +28,7 @@ export const ActionDrawer = ({
 
   const handleScan = () => {
     setOpen(false);
-    scan();
+    !!scan && scan();
   };
 
   const handleLogout = () => {
@@ -63,9 +63,11 @@ export const ActionDrawer = ({
               <VisuallyHidden.Root>Action Drawer</VisuallyHidden.Root>
             </DlgTitle>
             <div className="action-buttons">
-              <button className="icon-button" onClick={handleScan}>
-                <CameraIcon className="icon" width={24} height={24} />
-              </button>
+              {!!scan && (
+                <button className="icon-button" onClick={handleScan}>
+                  <CameraIcon className="icon" width={24} height={24} />
+                </button>
+              )}
               <button className="icon-button">
                 <IdCardIcon className="icon" width={24} height={24} />
               </button>

@@ -83,6 +83,7 @@ export const WalrusWallet = ({
     undefined,
   );
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
+  const [isZkLogin, setIsZkLogin] = React.useState<boolean>(false);
 
   const updateJwt = useCallback(
     async (jwt: string): Promise<void> => {
@@ -121,6 +122,7 @@ export const WalrusWallet = ({
           address: address,
         });
         setIsConnected(true);
+        setIsZkLogin(true);
       } else {
         throw new Error('Nonce not found');
       }
@@ -174,7 +176,10 @@ export const WalrusWallet = ({
       );
       setWallet(walletStandard);
       registerWallet(walletStandard);
-      setIsConnected(!!getAccountData());
+
+      const account = getAccountData();
+      setIsConnected(!!account);
+      setIsZkLogin(!!account?.zkLogin);
     }
   }, [name, icon, network, onEvent, zklogin, sponsored]);
 
@@ -221,7 +226,7 @@ export const WalrusWallet = ({
     >
       <ActionDrawer
         isConnected={isConnected}
-        scan={scan}
+        scan={isScannerEnabled && isZkLogin ? scan : undefined}
         onLogout={() => {
           if (wallet) {
             wallet.logout();
