@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import {
   ConnectButton,
@@ -12,6 +11,8 @@ import {
 import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
+import { useNavigate } from 'react-router-dom';
+
 import { NETWORK, WALLET_NAME } from '../utils/config';
 
 export const Home = () => {
@@ -206,7 +207,13 @@ export const Home = () => {
             className="px-8 text-white py-2 rounded-lg mt-2 border-2 border-transparent hover:border-white hover:bg-transparent transition-all cursor-pointer"
             onClick={() => navigate('/kiosk')}
           >
-            Go to Kiosk
+            Go to Kiosk Page
+          </button>
+          <button
+            className="px-8 text-white py-2 rounded-lg mt-2 border-2 border-transparent hover:border-white hover:bg-transparent transition-all cursor-pointer"
+            onClick={() => navigate('/ticket')}
+          >
+            Go to Ticket Page
           </button>
         </div>
       </div>

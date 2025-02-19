@@ -2,18 +2,19 @@ import { useState } from 'react';
 
 import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
 import { getFullnodeUrl } from '@mysten/sui/client';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { WalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import './App.css';
 import '@mysten/dapp-kit/dist/index.css';
 
+import { GameBoy } from './pages/GameBoy';
 import { Home } from './pages/Home';
+import { Kiosk } from './pages/Kiosk';
+import { Ticket } from './pages/Ticket';
 import { ICON, WALLET_NAME } from './utils/config';
 import { NETWORK } from './utils/config';
-import { Kiosk } from './pages/Kiosk';
-import { GameBoy } from './pages/GameBoy';
 
 const router = createBrowserRouter([
   {
@@ -23,6 +24,10 @@ const router = createBrowserRouter([
   {
     path: 'kiosk',
     element: <Kiosk />,
+  },
+  {
+    path: 'ticket',
+    element: <Ticket />,
   },
   {
     path: 'game',
