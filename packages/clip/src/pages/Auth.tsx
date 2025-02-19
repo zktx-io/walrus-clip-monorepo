@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import queryString from 'query-string';
+
 import { useConnectWallet, useWallets } from '@mysten/dapp-kit';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
+import queryString from 'query-string';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import { WALLET_NAME } from '../utils/config';
 
 export const Auth = () => {

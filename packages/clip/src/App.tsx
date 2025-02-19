@@ -2,18 +2,18 @@ import { useState } from 'react';
 
 import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
 import { getFullnodeUrl } from '@mysten/sui/client';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { WalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import './App.css';
 import '@mysten/dapp-kit/dist/index.css';
 
-import { Home } from './pages/Home';
 import { Auth } from './pages/Auth';
+import { Home } from './pages/Home';
 import { ICON, WALLET_NAME } from './utils/config';
-import { getProviderUrl } from './utils/getProviderUrl';
 import { NETWORK } from './utils/config';
+import { getProviderUrl } from './utils/getProviderUrl';
 
 const router = createBrowserRouter([
   {

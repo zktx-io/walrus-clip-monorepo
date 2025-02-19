@@ -11,6 +11,7 @@ import {
 import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
+
 import { NETWORK, WALLET_NAME } from '../utils/config';
 
 export const Home = () => {
