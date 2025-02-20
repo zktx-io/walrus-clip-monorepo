@@ -46,11 +46,11 @@ export const Kiosk = () => {
           ),
         ],
       });
-      const { digest } = await pay('Pay', 'Please scan the QR code to pay.', {
-        transaction,
+      const txResult = await pay('Pay', 'Please scan the QR code to pay.', {
+        transactions: [transaction],
         isSponsored: true,
       });
-      enqueueSnackbar(digest, {
+      enqueueSnackbar(txResult[0].digest, {
         variant: 'success',
         style: {
           whiteSpace: 'nowrap',
