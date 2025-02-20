@@ -44,8 +44,8 @@ export const Auth = () => {
 
   return (
     <div className="flex flex-col items-center p-4">
-      <img src={'/logo-sui.svg'} className="w-32 h-32 mb-4" alt="logo" />
-      <h1 className="text-3xl font-bold">Walrus Wallet</h1>
+      <img src={'/logo-walrus.png'} className="w-32 h-32 mb-4" alt="logo" />
+      <h1 className="text-3xl font-bold">Walrus Clip</h1>
       <h2 className="text-xl text-gray-600">Auth</h2>
     </div>
   );
