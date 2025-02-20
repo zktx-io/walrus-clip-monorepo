@@ -282,20 +282,22 @@ export const QRSignCode = ({
                       : 'Executing transaction...',
                 });
                 const txResult: TxResult[] = [];
-                if (sponsored !== undefined) {
-                  const txs = JSON.parse(message.value) as {
-                    digest: string;
+                const { txs } = JSON.parse(message.value) as {
+                  txs: {
+                    digest?: string;
                     signature: string;
                     bytes: string;
                   }[];
+                };
+                if (sponsored !== undefined) {
                   for (const tx of txs) {
                     await executeSponsoredTransaction(
                       sponsored,
-                      tx.digest,
+                      tx.digest!,
                       tx.signature,
                     );
                     const { rawEffects } = await client.waitForTransaction({
-                      digest: tx.digest,
+                      digest: tx.digest!,
                       options: {
                         showRawEffects: true,
                       },
@@ -303,17 +305,13 @@ export const QRSignCode = ({
                     txResult.push({
                       bytes: tx.bytes,
                       signature: tx.signature,
-                      digest: tx.digest,
+                      digest: tx.digest!,
                       effects: rawEffects
                         ? toBase64(new Uint8Array(rawEffects))
                         : '',
                     });
                   }
                 } else {
-                  const txs = JSON.parse(message.value) as {
-                    signature: string;
-                    bytes: string;
-                  }[];
                   for (const tx of txs) {
                     const { digest } = await client.executeTransactionBlock({
                       transactionBlock: tx.bytes,
