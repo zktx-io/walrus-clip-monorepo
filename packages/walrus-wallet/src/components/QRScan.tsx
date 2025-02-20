@@ -29,7 +29,7 @@ export const QRScan = ({
   mode?: 'dark' | 'light';
   wallet: WalletStandard;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  onClose: (result?: { digest: string; effects: string }) => void;
+  onClose: (result?: { digest: string; effects: string }[]) => void;
 }) => {
   const [title, setTitle] = useState<string>('Scan');
   const [open, setOpen] = useState<boolean>(true);

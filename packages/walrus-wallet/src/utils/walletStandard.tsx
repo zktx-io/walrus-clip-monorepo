@@ -33,7 +33,7 @@ import { IAccount, NETWORK, NotiVariant } from './types';
 import { cleanup, ZkLoginSigner } from './zkLoginSigner';
 import { Password } from '../components/password';
 import { QRLoginCode } from '../components/QRLoginCode';
-import { QRSignCode } from '../components/QRSignCode';
+import { QRSignCode, TxResult } from '../components/QRSignCode';
 
 type WalletEventsMap = {
   [E in keyof StandardEventsListeners]: Parameters<
@@ -263,13 +263,8 @@ export class WalletStandard implements Wallet {
   pay = async (
     title: string,
     description: string,
-    data: { transaction: Transaction; isSponsored?: boolean },
-  ): Promise<{
-    bytes: string;
-    signature: string;
-    digest: string;
-    effects: string;
-  }> => {
+    data: { transactions: Transaction[]; isSponsored?: boolean },
+  ): Promise<TxResult[]> => {
     return new Promise((resolve) => {
       const container = document.createElement('div');
       document.body.appendChild(container);
@@ -279,7 +274,7 @@ export class WalletStandard implements Wallet {
           option={{
             title,
             description,
-            transaction: data.transaction,
+            transactions: data.transactions,
           }}
           network={this.#network}
           sponsored={data.isSponsored ? this.#sponsored : undefined}
@@ -315,17 +310,17 @@ export class WalletStandard implements Wallet {
         };
       } else {
         const tx = await transaction.toJSON();
-        const { bytes, signature } = await this.pay(
+        const txResult = await this.pay(
           'Sign Transaction',
           'Please scan the QR code to sign.',
           {
-            transaction: Transaction.from(tx),
+            transactions: [Transaction.from(tx)],
             isSponsored: false,
           },
         );
         return {
-          bytes,
-          signature,
+          bytes: txResult[0].bytes,
+          signature: txResult[0].signature,
         };
       }
     }
@@ -368,19 +363,19 @@ export class WalletStandard implements Wallet {
         };
       } else {
         const tx = await transaction.toJSON();
-        const { bytes, signature, digest, effects } = await this.pay(
+        const txResult = await this.pay(
           'Sign and Execute Transaction',
           'Please scan the QR code to sign.',
           {
-            transaction: Transaction.from(tx),
+            transactions: [Transaction.from(tx)],
             isSponsored: false,
           },
         );
         return {
-          digest,
-          bytes,
-          signature,
-          effects,
+          digest: txResult[0].digest,
+          bytes: txResult[0].bytes,
+          signature: txResult[0].signature,
+          effects: txResult[0].effects,
         };
       }
     }

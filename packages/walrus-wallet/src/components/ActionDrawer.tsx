@@ -20,7 +20,7 @@ export const ActionDrawer = ({
     | {
         digest: string;
         effects: string;
-      }
+      }[]
   >;
   onLogout: () => void;
 }) => {
