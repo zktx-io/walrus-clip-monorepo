@@ -4,13 +4,7 @@ import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 import { sha256 } from '@noble/hashes/sha256';
 import { SignJWT } from 'jose';
 
-type Network = 'testnet';
-const Publisher: { [key in Network]: string } = {
-  testnet: 'https://publisher.walrus-testnet.walrus.space/v1',
-};
-const Aggregator: { [key in Network]: string } = {
-  testnet: 'https://aggregator.walrus-testnet.walrus.space/v1',
-};
+import { Aggregator, Network, Publisher } from './config';
 
 export class WalrusSign {
   private readonly signer: Signer;
