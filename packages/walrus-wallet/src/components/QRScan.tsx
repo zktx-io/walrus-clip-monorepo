@@ -14,9 +14,11 @@ import {
   DlgTitle,
 } from './modal';
 import { connectQRLogin } from './QRLoginCode';
-import { connectQRPay } from './QRPayCode';
+import { connectQRSign } from './QRSignCode';
 import { NotiVariant } from '../utils/types';
 import { WalletStandard } from '../utils/walletStandard';
+
+type QRScanType = 'login' | 'sign' | 'verification';
 
 export const QRScan = ({
   mode = 'light',
@@ -33,9 +35,7 @@ export const QRScan = ({
   const [open, setOpen] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
   const [destId, setDestId] = useState<string | undefined>(undefined);
-  const [type, setType] = useState<'login' | 'transaction' | undefined>(
-    undefined,
-  );
+  const [type, setType] = useState<QRScanType | undefined>(undefined);
 
   const handleClose = useCallback(
     (error: string) => {
@@ -58,7 +58,7 @@ export const QRScan = ({
         if (
           schema[0] === 'sui' &&
           schema[1] === wallet.signer.network &&
-          (schema[3] === 'transaction' || schema[3] === 'login')
+          (schema[3] === 'login' || schema[3] === 'sign')
         ) {
           setDestId(schema.join('::'));
           setType(schema[3]);
@@ -79,28 +79,36 @@ export const QRScan = ({
   useEffect(() => {
     let peer: Peer | undefined = undefined;
     if (!!wallet && !!destId && !!type) {
-      if (type === 'login') {
-        peer = connectQRLogin({
-          wallet,
-          destId,
-          setOpen,
-          onClose: () => {
-            setOpen(false);
-            onClose();
-          },
-          onEvent,
-        });
-      } else {
-        peer = connectQRPay({
-          wallet,
-          destId,
-          setOpen,
-          onClose: (result) => {
-            setOpen(false);
-            onClose(result);
-          },
-          onEvent,
-        });
+      switch (type) {
+        case 'login':
+          peer = connectQRLogin({
+            wallet,
+            destId,
+            setOpen,
+            onClose: () => {
+              setOpen(false);
+              onClose();
+            },
+            onEvent,
+          });
+          break;
+        case 'sign':
+          peer = connectQRSign({
+            wallet,
+            destId,
+            setOpen,
+            onClose: (result) => {
+              setOpen(false);
+              onClose(result);
+            },
+            onEvent,
+          });
+          break;
+        case 'verification':
+          // TODO
+          break;
+        default:
+          break;
       }
     }
     return () => {

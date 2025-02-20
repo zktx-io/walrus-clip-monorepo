@@ -33,7 +33,7 @@ import { IAccount, NETWORK, NotiVariant } from './types';
 import { cleanup, ZkLoginSigner } from './zkLoginSigner';
 import { Password } from '../components/password';
 import { QRLoginCode } from '../components/QRLoginCode';
-import { QRPayCode } from '../components/QRPayCode';
+import { QRSignCode } from '../components/QRSignCode';
 
 type WalletEventsMap = {
   [E in keyof StandardEventsListeners]: Parameters<
@@ -275,7 +275,7 @@ export class WalletStandard implements Wallet {
       document.body.appendChild(container);
       const root = ReactDOM.createRoot(container);
       root.render(
-        <QRPayCode
+        <QRSignCode
           option={{
             title,
             description,

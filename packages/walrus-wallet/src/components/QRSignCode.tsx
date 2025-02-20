@@ -30,12 +30,12 @@ import {
 import { WalletStandard } from '../utils/walletStandard';
 
 enum MessageType {
-  STEP_0 = 'PAY_STEP_0',
-  STEP_1 = 'PAY_STEP_1',
-  STEP_2 = 'PAY_STEP_2',
+  STEP_0 = 'SIGN_STEP_0',
+  STEP_1 = 'SIGN_STEP_1',
+  STEP_2 = 'SIGN_STEP_2',
 }
 
-export const connectQRPay = ({
+export const connectQRSign = ({
   wallet,
   destId,
   setOpen,
@@ -173,7 +173,7 @@ export const connectQRPay = ({
   return peer;
 };
 
-export const QRPayCode = ({
+export const QRSignCode = ({
   mode = 'light',
   option,
   network,
@@ -200,7 +200,7 @@ export const QRPayCode = ({
   }) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
-  const peerId = `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::transaction`;
+  const peerId = `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::sign`;
 
   const handleClose = (
     error?: string,
