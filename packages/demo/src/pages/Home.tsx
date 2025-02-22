@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import {
   ConnectButton,
@@ -6,7 +6,6 @@ import {
   useCurrentWallet,
   useDisconnectWallet,
   // useSignAndExecuteTransaction,
-  useSuiClient,
 } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
@@ -19,7 +18,6 @@ export const Home = () => {
   const navigate = useNavigate();
   const { connectionStatus, currentWallet } = useCurrentWallet();
   const account = useCurrentAccount();
-  const client = useSuiClient();
 
   const { mutate: disconnect } = useDisconnectWallet();
   // const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
@@ -31,9 +29,6 @@ export const Home = () => {
     signAndExecuteSponsoredTransaction,
     pay,
   } = useWalrusWallet();
-
-  const [address, setAddress] = useState<string | undefined>(undefined);
-  const [balance, setBalance] = useState<string | undefined>(undefined);
 
   const onSignAndExcuteTx = async () => {
     if (account) {
@@ -144,17 +139,6 @@ export const Home = () => {
   };
 
   useEffect(() => {
-    if (connectionStatus === 'connected' && account) {
-      setAddress(account.address);
-      client
-        .getBalance({
-          owner: account.address,
-        })
-        .then(({ totalBalance }) => setBalance(totalBalance));
-    }
-  }, [connectionStatus, account, client, isConnected]);
-
-  useEffect(() => {
     if (
       connectionStatus === 'connected' &&
       !isConnected &&
@@ -174,12 +158,10 @@ export const Home = () => {
           <div className="flex flex-col items-center">
             <h3 className="text-xl font-bold text-green-600">Connected</h3>
             <div className="w-full text-center">
-              <p className="text-lg font-bold mb-1">Address</p>
-              <p className="text-sm break-all text-center">
-                {address || 'n/a'}
+              <p>
+                Walrus Clip unifies the wallet user experience and eliminates
+                silos between dApps.
               </p>
-              <p className="text-lg font-bold mt-2 mb-1">Balance</p>
-              <p className="text-sm">{balance || 'n/a'}</p>
             </div>
             <div className="flex flex-col gap-2 w-full mt-4">
               <div className="flex gap-2 w-full">
