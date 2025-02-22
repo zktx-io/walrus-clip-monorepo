@@ -1,6 +1,11 @@
 import React from 'react';
 
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import {
+  CoinMetadata,
+  CoinStruct,
+  getFullnodeUrl,
+  SuiClient,
+} from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { toBase64 } from '@mysten/sui/utils';
 import {
@@ -15,6 +20,7 @@ import {
   SUI_CHAINS,
   SuiFeatures,
   SuiSignAndExecuteTransactionMethod,
+  SuiSignAndExecuteTransactionOutput,
   SuiSignPersonalMessageMethod,
   SuiSignTransactionMethod,
   Wallet,
@@ -43,6 +49,16 @@ type WalletEventsMap = {
 
 const TIME_OUT = 300;
 
+export interface FloatCoinBalance {
+  coinType: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  fBalance: string;
+  balance: string;
+  lockedBalance: Record<string, { balance: string; fBalance: string }>;
+}
+
 export class WalletStandard implements Wallet {
   readonly #events: Emitter<WalletEventsMap>;
 
@@ -62,6 +78,8 @@ export class WalletStandard implements Wallet {
 
   #account: IAccount | undefined;
   #signer: ZkLoginSigner | undefined;
+
+  #coinMetadataCache: { [coinType: string]: CoinMetadata } = {};
 
   get version() {
     return this.#version;
@@ -85,6 +103,14 @@ export class WalletStandard implements Wallet {
 
   get signer() {
     return this.#signer;
+  }
+
+  get coinMetadata() {
+    return this.#coinMetadataCache;
+  }
+
+  get address() {
+    return this.#account?.address;
   }
 
   constructor(
@@ -288,6 +314,100 @@ export class WalletStandard implements Wallet {
           }}
         />,
       );
+    });
+  };
+
+  public getAllBalances = async (): Promise<FloatCoinBalance[] | undefined> => {
+    if (this.#account) {
+      const client = new SuiClient({
+        url: getFullnodeUrl(this.#network),
+      });
+
+      const allBalances = await client.getAllBalances({
+        owner: this.#account.address,
+      });
+
+      const balances: FloatCoinBalance[] = [];
+
+      const formatBalance = (value: string, dec: number) => {
+        const formatted = (parseInt(value) / Math.pow(10, dec)).toString();
+        return formatted;
+      };
+
+      for (const balance of allBalances) {
+        const { coinType, totalBalance, lockedBalance } = balance;
+
+        if (coinType !== '0x2::sui::SUI' && parseInt(totalBalance) === 0)
+          continue;
+
+        if (!this.#coinMetadataCache[coinType]) {
+          try {
+            const metadata = await client.getCoinMetadata({ coinType });
+            if (metadata) {
+              this.#coinMetadataCache[coinType] = metadata;
+            }
+          } catch (error) {
+            continue;
+          }
+        }
+
+        const metadata = this.#coinMetadataCache[coinType];
+        const decimals = metadata.decimals || 0;
+        const fBalance = formatBalance(totalBalance, decimals);
+
+        const lBalance: Record<string, { balance: string; fBalance: string }> =
+          {};
+        Object.keys(lockedBalance).forEach((key) => {
+          lBalance[key] = {
+            balance: lockedBalance[key],
+            fBalance: formatBalance(lockedBalance[key], decimals),
+          };
+        });
+
+        balances.push({
+          coinType,
+          name: metadata.name,
+          symbol: metadata.symbol,
+          decimals,
+          fBalance,
+          balance: totalBalance,
+          lockedBalance: lBalance,
+        });
+      }
+
+      return balances.sort((a, b) =>
+        a.coinType === '0x2::sui::SUI'
+          ? -1
+          : b.coinType === '0x2::sui::SUI'
+            ? 1
+            : 0,
+      );
+    }
+
+    return undefined;
+  };
+
+  public getCoins = async (coinType: string): Promise<CoinStruct[]> => {
+    if (this.#account && coinType) {
+      const client = new SuiClient({
+        url: getFullnodeUrl(this.#network),
+      });
+      const coins = await client.getCoins({
+        owner: this.#account.address,
+        coinType,
+      });
+      return coins.data;
+    }
+    return [];
+  };
+
+  public signAndExecuteTransaction = async (
+    transaction: Transaction,
+  ): Promise<SuiSignAndExecuteTransactionOutput> => {
+    return this.#signAndExecuteTransaction({
+      transaction,
+      chain: `sui:${this.#network}`,
+      account: this.#accounts[0],
     });
   };
 

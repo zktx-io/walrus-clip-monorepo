@@ -4,8 +4,8 @@ import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { generateRandomness } from '@mysten/sui/zklogin';
-import { Cross2Icon } from '@radix-ui/react-icons';
 import Peer from 'peerjs';
+import { HiOutlineXMark } from 'react-icons/hi2';
 import { QRCode } from 'react-qrcode-logo';
 
 import {
@@ -392,7 +392,7 @@ export const QRSignCode = ({
                 handleClose('User closed');
               }}
             >
-              <Cross2Icon />
+              <HiOutlineXMark />
             </DlgClose>
           </div>
           <QRCode

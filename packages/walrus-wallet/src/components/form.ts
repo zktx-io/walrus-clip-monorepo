@@ -114,3 +114,63 @@ export const FormInput = styled('input', {
     },
   },
 });
+
+export const FormCoinSelect = styled('select', {
+  borderRadius: '4px',
+  fontSize: '14px',
+  padding: '6px',
+  borderStyle: 'solid',
+  borderWidth: '1px',
+  backgroundColor: 'transparent',
+  cursor: 'pointer',
+  outline: 'none',
+  variants: {
+    mode: {
+      light: {
+        color: '#000000',
+        borderColor: '#01013740',
+        '&:focus': { borderColor: '#3c74ff' },
+      },
+      dark: {
+        color: '#ffffff',
+        borderColor: '#ddf3ff40',
+        '&:focus': { borderColor: '#33a8ff' },
+      },
+    },
+  },
+});
+
+export const FormCoinAmount = styled('div', {
+  display: 'flex',
+  alignItems: 'center',
+  borderRadius: '4px',
+  borderStyle: 'solid',
+  borderWidth: '1px',
+  variants: {
+    mode: {
+      light: {
+        borderColor: '#01013740',
+        '&:focus-within': { borderColor: '#3c74ff' },
+      },
+      dark: {
+        borderColor: '#ddf3ff40',
+        '&:focus-within': { borderColor: '#33a8ff' },
+      },
+    },
+  },
+});
+
+export const MaxButton = styled('button', {
+  background: 'transparent',
+  border: 'none',
+  padding: '6px 10px',
+  fontSize: '12px',
+  fontWeight: 'bold',
+  cursor: 'pointer',
+  variants: {
+    mode: {
+      light: { color: '#3c74ff' },
+      dark: { color: '#33a8ff' },
+    },
+  },
+});

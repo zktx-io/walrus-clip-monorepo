@@ -9,6 +9,7 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
+  Mode,
 } from './modal';
 import { NotiVariant } from '../utils/types';
 
@@ -18,7 +19,7 @@ export const Password2 = ({
   onConfirm,
   onEvent,
 }: {
-  mode?: 'dark' | 'light';
+  mode?: Mode;
   onClose: () => void;
   onConfirm: (password: string) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;

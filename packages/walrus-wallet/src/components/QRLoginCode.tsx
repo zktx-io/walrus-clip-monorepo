@@ -6,8 +6,8 @@ import {
   generateRandomness,
   ZkLoginPublicIdentifier,
 } from '@mysten/sui/zklogin';
-import { Cross2Icon } from '@radix-ui/react-icons';
 import Peer from 'peerjs';
+import { HiOutlineXMark } from 'react-icons/hi2';
 import { QRCode } from 'react-qrcode-logo';
 
 import {
@@ -274,7 +274,7 @@ export const QRLoginCode = ({
                 handleClose('Login canceled');
               }}
             >
-              <Cross2Icon />
+              <HiOutlineXMark />
             </DlgClose>
           </div>
           <QRCode

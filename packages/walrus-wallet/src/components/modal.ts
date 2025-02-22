@@ -25,6 +25,19 @@ const contentShow = keyframes({
   },
 });
 
+const contentShowBottom = keyframes({
+  from: {
+    opacity: 0,
+    transform: 'translate(-50%, 100%)',
+  },
+  to: {
+    opacity: 1,
+    transform: 'translate(-50%, 0)',
+  },
+});
+
+export type Mode = 'light' | 'dark';
+
 export const DlgOverlay = styled(Dialog.Overlay, {
   zIndex: 2147483645,
   pointerEvents: 'none',
@@ -69,6 +82,48 @@ export const DlgContent = styled(Dialog.DialogContent, {
         borderStyle: 'solid',
         borderWidth: '1px',
         borderColor: '#ddf3ff15',
+        backgroundColor: '#191919',
+        boxShadow:
+          '0 10px 20px rgba(54, 58, 63, 0.1), 0 6px 6px rgba(54, 58, 63, 0.14)',
+      },
+    },
+  },
+});
+
+export const DlgContentBottom = styled(Dialog.Content, {
+  zIndex: 2147483645,
+  position: 'fixed',
+  bottom: 0,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  width: '100%',
+  maxWidth: '450px',
+  maxHeight: '80vh',
+  borderRadius: '12px 12px 0 0',
+  backgroundColor: '#191919',
+  padding: '25px',
+  outline: 'none',
+  animation: `${contentShowBottom} 1000ms cubic-bezier(0.16, 1, 0.3, 1)`,
+  '@media (max-width: 600px)': {
+    borderRadius: '12px 12px 0 0',
+    height: 'auto',
+    maxHeight: '80vh',
+    maxWidth: '100%',
+  },
+  variants: {
+    mode: {
+      light: {
+        borderStyle: 'none',
+        color: '#000000',
+        backgroundColor: '#ffffff',
+        boxShadow:
+          '0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23)',
+      },
+      dark: {
+        borderStyle: 'solid',
+        borderWidth: '1px',
+        borderColor: '#ddf3ff15',
+        color: '#ffffff',
         backgroundColor: '#191919',
         boxShadow:
           '0 10px 20px rgba(54, 58, 63, 0.1), 0 6px 6px rgba(54, 58, 63, 0.14)',

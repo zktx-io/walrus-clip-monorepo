@@ -224,6 +224,8 @@ export const WalrusWallet = ({
     >
       <ActionDrawer
         isConnected={isConnected}
+        icon={icon}
+        wallet={wallet}
         scan={isScannerEnabled && isZkLogin ? scan : undefined}
         onLogout={() => {
           if (wallet) {
@@ -232,6 +234,7 @@ export const WalrusWallet = ({
             onEvent({ variant: 'success', message: 'Logged out' });
           }
         }}
+        onEvent={onEvent}
       />
       {children}
     </WalrusWalletContext.Provider>
