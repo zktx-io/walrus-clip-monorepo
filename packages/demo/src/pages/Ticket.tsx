@@ -33,7 +33,7 @@ export const Ticket = () => {
         {tickets.map((ticket) => (
           <div
             key={ticket.id}
-            className="flex bg-gray-900 text-white p-6 rounded-xl items-center w-full max-w-5xl mx-auto transition-all duration-300 hover:bg-gray-700 hover:shadow-lg"
+            className="flex bg-gray-900 text-white p-6 rounded-xl items-center w-full max-w-5xl mx-auto transition-all duration-300 border border-gray-500 hover:bg-gray-200 hover:text-black hover:border-gray-200 hover:shadow-lg"
           >
             <div className="w-40 h-40 flex-shrink-0 rounded overflow-hidden transform transition-transform duration-300 hover:scale-105">
               <img
@@ -45,8 +45,12 @@ export const Ticket = () => {
             <div className="flex-1 flex flex-col justify-between ml-8">
               <div>
                 <h2 className="text-3xl font-bold">{ticket.name}</h2>
-                <p className="text-lg text-gray-400">{ticket.location}</p>
-                <p className="text-lg text-gray-400">{ticket.date}</p>
+                <p className="text-lg text-gray-400 hover:text-black">
+                  {ticket.location}
+                </p>
+                <p className="text-lg text-gray-400 hover:text-black">
+                  {ticket.date}
+                </p>
                 <p className="text-xl font-semibold mt-2">{ticket.price}</p>
               </div>
               <button className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded cursor-pointer">

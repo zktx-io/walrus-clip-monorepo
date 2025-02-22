@@ -56,7 +56,7 @@ export const Kiosk = () => {
       });
 
       setTxDigest(txResult[0].digest);
-      setOrderedItems(cart); // 결제 완료 후 주문 내역 저장
+      setOrderedItems(cart);
       setIsModalOpen(true);
       setCart([]);
     } catch (error) {
@@ -66,66 +66,79 @@ export const Kiosk = () => {
 
   return (
     <div className="flex flex-col items-center p-4">
-      <h1 className="text-2xl font-bold text-black mb-4">McDonald's Kiosk</h1>
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            className="pb-4 border rounded-lg shadow-md hover:bg-white hover:text-black flex flex-col items-center transition-all duration-300 overflow-hidden cursor-pointer"
-            onClick={() => addToCart(item)}
-          >
-            <img
-              src={item.image}
-              alt={item.name}
-              className="w-[829px] object-contain mb-4 transform transition-transform duration-300 hover:scale-105"
-            />
-            <span className="text-black">{item.name}</span>
-            <span className="text-gray-600">
-              {item.price.toLocaleString()} KRW
-            </span>
-          </button>
-        ))}
-      </div>
-      <div className="w-full max-w-md p-4 border rounded-lg shadow-md">
-        <h2 className="text-xl font-bold text-black">Cart</h2>
-        {cart.length === 0 ? (
-          <p className="text-gray-600">Your cart is empty.</p>
-        ) : (
-          <ul>
-            {cart.map((item, index) => (
-              <li
-                key={index}
-                className="flex justify-between items-center text-black"
-              >
-                <span>
-                  {item.name} -{' '}
-                  <span className="text-gray-600">
+      <h1 className="text-2xl font-bold mb-4">McDonald's Kiosk</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
+        <div className="grid grid-cols-1 gap-6">
+          {menuItems.map((item) => (
+            <div
+              key={item.id}
+              className="flex bg-gray-900 text-white p-6 rounded-xl items-center w-full transition-all duration-300 border border-gray-300 hover:bg-gray-200 hover:text-black hover:border-gray-200 hover:shadow-lg cursor-pointer"
+              onClick={() => addToCart(item)}
+            >
+              <div className="w-40 h-40 flex-shrink-0 rounded overflow-hidden transform transition-transform duration-300 hover:scale-105">
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1 flex flex-col justify-between ml-8">
+                <div>
+                  <h2 className="text-2xl font-bold">{item.name}</h2>
+                  <p className="text-lg text-gray-400">
                     {item.price.toLocaleString()} KRW
-                  </span>
-                </span>
-                <button
-                  className="ml-2 px-2 py-1 cursor-pointer border border-transparent transition-all duration-300 hover:border-red-500 hover:bg-transparent hover:text-red-500"
-                  onClick={() => removeFromCart(index)}
-                >
-                  ❌
+                  </p>
+                </div>
+                <button className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded cursor-pointer">
+                  Add to Cart
                 </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="font-bold mt-2 text-black">
-          Total:{' '}
-          <span className="text-gray-600">
-            {getTotalPrice().toLocaleString()} KRW
-          </span>
-        </p>
-        <button
-          disabled={cart.length === 0}
-          className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-white hover:text-black transition-all duration-300 disabled:bg-gray-300 cursor-pointer"
-          onClick={onShowPay}
-        >
-          Checkout
-        </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="w-full max-w-md md:max-w-lg md:col-span-1 md:self-start md:ml-auto p-4 border rounded-lg shadow-md">
+          <h2 className="text-xl font-bold">Cart</h2>
+          {cart.length === 0 ? (
+            <p className="text-gray-400">Your cart is empty.</p>
+          ) : (
+            <ul>
+              {cart.map((item, index) => (
+                <li
+                  key={index}
+                  className="flex justify-between items-center"
+                >
+                  <span>
+                    {item.name} -{' '}
+                    <span className="text-gray-600">
+                      {item.price.toLocaleString()} KRW
+                    </span>
+                  </span>
+                  <button
+                    className="ml-2 px-2 py-1 cursor-pointer border border-transparent transition-all duration-300 hover:border-red-500 hover:bg-transparent hover:text-red-500"
+                    onClick={() => removeFromCart(index)}
+                  >
+                    ❌
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="font-bold mt-2">
+            Total:{' '}
+            <span className="text-gray-400">
+              {getTotalPrice().toLocaleString()} KRW
+            </span>
+          </p>
+          <button
+            disabled={cart.length === 0}
+            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-white hover:text-black transition-all duration-300 disabled:bg-gray-300 cursor-pointer"
+            onClick={onShowPay}
+          >
+            Checkout
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
