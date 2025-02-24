@@ -5,6 +5,7 @@ import {
   CoinStruct,
   getFullnodeUrl,
   SuiClient,
+  SuiObjectData,
 } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { toBase64 } from '@mysten/sui/utils';
@@ -397,6 +398,47 @@ export class WalletStandard implements Wallet {
         coinType,
       });
       return coins.data;
+    }
+    return [];
+  };
+
+  public getOwnedObjects = async (): Promise<SuiObjectData[]> => {
+    if (this.#account) {
+      const client = new SuiClient({
+        url: getFullnodeUrl(this.#network),
+      });
+      const allObjects: SuiObjectData[] = [];
+      let hasNextPage = true;
+      let nextCursor: string | null | undefined = undefined;
+
+      while (hasNextPage) {
+        const response = await client.getOwnedObjects({
+          owner: this.#account.address,
+          filter: {
+            MatchNone: [
+              { StructType: '0x2::coin::Coin' },
+              { StructType: '0x2::coin::TreasuryCap' },
+            ],
+          },
+          options: {
+            showType: true,
+            showDisplay: true,
+          },
+          cursor: nextCursor,
+          limit: 50,
+        });
+        allObjects.push(
+          ...response.data
+            .filter(
+              (item) =>
+                !!item.data && !!item.data.display && !!item.data.display.data,
+            )
+            .map((item) => item.data!),
+        );
+        nextCursor = response.nextCursor;
+        hasNextPage = response.hasNextPage;
+      }
+      return [...allObjects, ...allObjects];
     }
     return [];
   };
