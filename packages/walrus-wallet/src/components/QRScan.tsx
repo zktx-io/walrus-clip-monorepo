@@ -137,7 +137,12 @@ export const QRScan = ({
     <>
       <DlgRoot open={open}>
         <DlgPortal>
-          <DlgOverlay mode={mode} />
+          <DlgOverlay
+            mode={mode}
+            onClick={() => {
+              handleClose('User closed');
+            }}
+          />
           <DlgContent
             mode={mode}
             onOpenAutoFocus={(event) => {
