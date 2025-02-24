@@ -43,7 +43,7 @@ export const QRScan = ({
   >(undefined);
 
   const handleClose = useCallback(
-    (error: string) => {
+    (error?: string) => {
       if (error) {
         onEvent({
           variant: 'error',
@@ -140,7 +140,7 @@ export const QRScan = ({
           <DlgOverlay
             mode={mode}
             onClick={() => {
-              handleClose('User closed');
+              handleClose();
             }}
           />
           <DlgContent
@@ -160,7 +160,7 @@ export const QRScan = ({
               <DlgClose
                 mode={mode}
                 onClick={() => {
-                  handleClose('User closed');
+                  handleClose();
                 }}
               >
                 <HiOutlineXMark />
