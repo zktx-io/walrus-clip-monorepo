@@ -183,12 +183,12 @@ export const DlgDescription2 = styled(Dialog.DialogDescription, {
   },
 });
 
-export const DlgClose = styled('button', {
+export const DlgButtonIcon = styled('button', {
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
   borderRadius: '50%',
-  padding: '0px',
+  padding: '2px',
   height: '24px',
   width: '24px',
   outline: 'none',

@@ -4,14 +4,20 @@ import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { motion } from 'framer-motion';
 import {
-  HiOutlineArrowRightOnRectangle,
   HiOutlineCamera,
-  HiOutlineIdentification,
+  HiOutlinePhoto,
   HiOutlineQrCode,
+  HiOutlineSquares2X2,
   HiOutlineWallet,
 } from 'react-icons/hi2';
 
-import { DlgBalance } from './DlgBalance';
+import { DlgBalances } from './DlgBalances';
+import { DlgCredentials } from './DlgCredentials';
+import { DlgKiosks } from './DlgKiosks';
+import { DlgNFTs } from './DlgNFTs';
+import { DlgSystem } from './DlgSystem';
+import { DlgTransferCoin } from './DlgTransferCoin';
+import { DlgTransferNFT } from './DlgTransferNFT';
 import {
   DlgOverlay,
   DlgPortal,
@@ -22,7 +28,7 @@ import {
 } from './modal';
 import { QRAddress } from './QRAddress';
 import { NotiVariant } from '../utils/types';
-import { WalletStandard } from '../utils/walletStandard';
+import { FloatCoinBalance, WalletStandard } from '../utils/walletStandard';
 
 export const ActionDrawer = ({
   mode = 'light',
@@ -48,17 +54,23 @@ export const ActionDrawer = ({
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(false);
-  const [openAccount, setOpenAccount] = useState<boolean>(false);
   const [openAddress, setOpenAddress] = useState<boolean>(false);
+  const [openBalances, setOpenBalances] = useState<boolean>(false);
+  const [openSystem, setOpenSystem] = useState<boolean>(false);
+
+  const [openTransferCoin, setOpenTransferCoin] = useState<
+    { address?: string; coin?: FloatCoinBalance } | undefined
+  >(undefined);
+  const [openTransferNFT, setOpenTransferNFT] = useState<string | undefined>(
+    undefined,
+  );
+  const [openCredentials, setOpenCredentials] = useState<boolean>(false);
+  const [openNFTs, setOpenNFTs] = useState<boolean>(false);
+  const [openKiosk, setOpenKiosk] = useState<boolean>(false);
 
   const handleScan = () => {
     setOpen(false);
     !!scan && scan();
-  };
-
-  const handleAccount = () => {
-    setOpen(false);
-    setOpenAccount(true);
   };
 
   const handleAddress = () => {
@@ -66,9 +78,19 @@ export const ActionDrawer = ({
     setOpenAddress(true);
   };
 
-  const handleLogout = () => {
+  const handleBalances = () => {
     setOpen(false);
-    onLogout();
+    setOpenBalances(true);
+  };
+
+  const handleNFTs = () => {
+    setOpen(false);
+    setOpenNFTs(true);
+  };
+
+  const handleSystem = () => {
+    setOpen(false);
+    setOpenSystem(true);
   };
 
   return (
@@ -83,7 +105,7 @@ export const ActionDrawer = ({
         )}
 
         <DlgPortal>
-          <DlgOverlay />
+          <DlgOverlay mode={mode} />
           <Dialog.Content
             asChild
             aria-describedby={undefined}
@@ -100,15 +122,15 @@ export const ActionDrawer = ({
                 <VisuallyHidden.Root>Action Drawer</VisuallyHidden.Root>
               </DlgTitle>
               <div className="action-buttons">
-                <button className="action-icon-button" onClick={handleAccount}>
+                <button className="action-icon-button" onClick={handleBalances}>
                   <HiOutlineWallet
                     className="action-icon"
                     width={32}
                     height={32}
                   />
                 </button>
-                <button className="action-icon-button">
-                  <HiOutlineIdentification
+                <button className="action-icon-button" onClick={handleNFTs}>
+                  <HiOutlinePhoto
                     className="action-icon"
                     width={32}
                     height={32}
@@ -130,8 +152,8 @@ export const ActionDrawer = ({
                     />
                   </button>
                 )}
-                <button className="action-icon-button" onClick={handleLogout}>
-                  <HiOutlineArrowRightOnRectangle
+                <button className="action-icon-button" onClick={handleSystem}>
+                  <HiOutlineSquares2X2
                     className="action-icon"
                     width={32}
                     height={32}
@@ -210,19 +232,108 @@ export const ActionDrawer = ({
         `}
         </style>
       </DlgRoot>
-      <DlgBalance
-        mode={mode}
-        wallet={wallet}
-        open={openAccount}
-        onClose={() => setOpenAccount(false)}
-        onEvent={onEvent}
-      />
       <QRAddress
         mode={mode}
         icon={icon}
         address={wallet?.address}
         open={openAddress}
-        onClose={() => setOpenAddress(false)}
+        onClose={() => {
+          setOpenAddress(false);
+        }}
+      />
+      <DlgSystem
+        mode={mode}
+        open={openSystem}
+        onClose={(isBack: boolean) => {
+          isBack && setOpen(true);
+          setOpenSystem(false);
+        }}
+        onLogout={() => {
+          setOpen(false);
+          setOpenSystem(false);
+          onLogout();
+        }}
+        openCredentials={() => {
+          setOpenSystem(false);
+          setOpenCredentials(true);
+        }}
+        openKiosk={() => {
+          setOpenSystem(false);
+          setOpenKiosk(true);
+        }}
+      />
+
+      <DlgBalances
+        mode={mode}
+        wallet={wallet}
+        open={openBalances}
+        onClose={(isBack: boolean) => {
+          isBack && setOpen(true);
+          setOpenBalances(false);
+        }}
+        openTransfer={(option) => {
+          setOpenBalances(false);
+          setOpenTransferCoin(option);
+        }}
+      />
+      <DlgNFTs
+        mode={mode}
+        wallet={wallet}
+        open={openNFTs}
+        onClose={(isBack: boolean) => {
+          isBack && setOpen(true);
+          setOpenNFTs(false);
+        }}
+        openTransfer={(nftId) => {
+          setOpenNFTs(false);
+          setOpenTransferNFT(nftId);
+        }}
+        openKioskTransfer={(nftId) => {
+          // setOpenSystem(false);
+          // setOpenTransferNFT(nftId);
+        }}
+      />
+
+      <DlgTransferCoin
+        mode={mode}
+        wallet={wallet}
+        open={openTransferCoin}
+        onClose={(isBack: boolean) => {
+          isBack && setOpenBalances(true);
+          setOpen(false);
+          setOpenTransferCoin(undefined);
+        }}
+        onEvent={onEvent}
+      />
+      <DlgTransferNFT
+        mode={mode}
+        wallet={wallet}
+        nftId={openTransferNFT}
+        onClose={(isBack: boolean) => {
+          isBack && setOpenNFTs(true);
+          setOpen(false);
+          setOpenTransferNFT(undefined);
+        }}
+        onEvent={onEvent}
+      />
+
+      <DlgCredentials
+        mode={mode}
+        wallet={wallet}
+        open={openCredentials}
+        onClose={(isBack: boolean) => {
+          isBack && setOpenSystem(true);
+          setOpenCredentials(false);
+        }}
+      />
+      <DlgKiosks
+        mode={mode}
+        wallet={wallet}
+        open={openKiosk}
+        onClose={(isBack: boolean) => {
+          isBack && setOpenSystem(true);
+          setOpenKiosk(false);
+        }}
       />
     </>
   );

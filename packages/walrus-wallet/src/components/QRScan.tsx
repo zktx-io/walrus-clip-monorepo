@@ -4,9 +4,8 @@ import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
 import Peer from 'peerjs';
 import { HiOutlineXMark } from 'react-icons/hi2';
 
-import { DlgCoinTransfer } from './DlgCoinTransfer';
 import {
-  DlgClose,
+  DlgButtonIcon,
   DlgContent,
   DlgDescription2,
   DlgOverlay,
@@ -17,7 +16,7 @@ import {
 import { connectQRLogin } from './QRLoginCode';
 import { connectQRSign } from './QRSignCode';
 import { NotiVariant } from '../utils/types';
-import { FloatCoinBalance, WalletStandard } from '../utils/walletStandard';
+import { WalletStandard } from '../utils/walletStandard';
 
 type QRScanType = 'address' | 'login' | 'sign' | 'verification';
 
@@ -26,21 +25,19 @@ export const QRScan = ({
   wallet,
   onEvent,
   onClose,
+  scanAddress,
 }: {
   mode?: 'dark' | 'light';
   wallet: WalletStandard;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onClose: (result?: { digest: string; effects: string }[]) => void;
+  scanAddress?: (address: string) => void;
 }) => {
   const [title, setTitle] = useState<string>('Scan');
   const [open, setOpen] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
   const [destId, setDestId] = useState<string | undefined>(undefined);
   const [type, setType] = useState<QRScanType | undefined>(undefined);
-
-  const [openTransfer, setOpenTransfer] = useState<
-    { address?: string; coin?: FloatCoinBalance } | undefined
-  >(undefined);
 
   const handleClose = useCallback(
     (error?: string) => {
@@ -90,40 +87,47 @@ export const QRScan = ({
   useEffect(() => {
     let peer: Peer | undefined = undefined;
     if (!!wallet && !!destId && !!type) {
-      switch (type) {
-        case 'address':
-          setOpen(false);
-          setOpenTransfer({ address: destId });
-          break;
-        case 'login':
-          peer = connectQRLogin({
-            wallet,
-            destId,
-            setOpen,
-            onClose: () => {
-              setOpen(false);
-              onClose();
-            },
-            onEvent,
-          });
-          break;
-        case 'sign':
-          peer = connectQRSign({
-            wallet,
-            destId,
-            setOpen,
-            onClose: (result) => {
-              setOpen(false);
-              onClose(result);
-            },
-            onEvent,
-          });
-          break;
-        case 'verification':
-          // TODO
-          break;
-        default:
-          break;
+      if (scanAddress) {
+        switch (type) {
+          case 'address':
+            setOpen(false);
+            scanAddress(destId);
+            break;
+          default:
+            break;
+        }
+      } else {
+        switch (type) {
+          case 'login':
+            peer = connectQRLogin({
+              wallet,
+              destId,
+              setOpen,
+              onClose: () => {
+                setOpen(false);
+                onClose();
+              },
+              onEvent,
+            });
+            break;
+          case 'sign':
+            peer = connectQRSign({
+              wallet,
+              destId,
+              setOpen,
+              onClose: (result) => {
+                setOpen(false);
+                onClose(result);
+              },
+              onEvent,
+            });
+            break;
+          case 'verification':
+            // TODO
+            break;
+          default:
+            break;
+        }
       }
     }
     return () => {
@@ -131,71 +135,60 @@ export const QRScan = ({
         peer.destroy();
       }
     };
-  }, [wallet, destId, type, onEvent, onClose]);
+  }, [wallet, destId, type, scanAddress, onEvent, onClose]);
 
   return (
-    <>
-      <DlgRoot open={open}>
-        <DlgPortal>
-          <DlgOverlay
-            mode={mode}
-            onClick={() => {
-              handleClose();
-            }}
-          />
-          <DlgContent
-            mode={mode}
-            onOpenAutoFocus={(event) => {
-              event.preventDefault();
+    <DlgRoot open={open}>
+      <DlgPortal>
+        <DlgOverlay
+          mode={mode}
+          onClick={() => {
+            handleClose();
+          }}
+        />
+        <DlgContent
+          mode={mode}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
+            <DlgTitle mode={mode}>{title}</DlgTitle>
+            <DlgButtonIcon
+              mode={mode}
+              onClick={() => {
+                handleClose();
               }}
             >
-              <DlgTitle mode={mode}>{title}</DlgTitle>
-              <DlgClose
-                mode={mode}
-                onClick={() => {
-                  handleClose();
-                }}
-              >
-                <HiOutlineXMark />
-              </DlgClose>
-            </div>
-            <div
-              style={{ position: 'relative', width: '100%', marginTop: '12px' }}
-            >
-              <Scanner
-                styles={{
-                  container: { width: '256px', height: '256px' },
-                  video: { width: '256px', height: '256px' },
-                }}
-                formats={['qr_code']}
-                onScan={handleScan}
-                onError={(error) => {
-                  handleClose(`${error}`);
-                }}
-              />
-            </div>
-            <DlgDescription2 mode={mode}>
-              {error ? error : 'Please scan the QR code.'}
-            </DlgDescription2>
-          </DlgContent>
-        </DlgPortal>
-      </DlgRoot>
-      <DlgCoinTransfer
-        mode={mode}
-        wallet={wallet}
-        open={openTransfer}
-        onClose={() => {
-          setOpenTransfer(undefined);
-        }}
-        onEvent={onEvent}
-      />
-    </>
+              <HiOutlineXMark />
+            </DlgButtonIcon>
+          </div>
+          <div
+            style={{ position: 'relative', width: '100%', marginTop: '12px' }}
+          >
+            <Scanner
+              styles={{
+                container: { width: '256px', height: '256px' },
+                video: { width: '256px', height: '256px' },
+              }}
+              formats={['qr_code']}
+              onScan={handleScan}
+              onError={(error) => {
+                handleClose(`${error}`);
+              }}
+            />
+          </div>
+          <DlgDescription2 mode={mode}>
+            {error ? error : 'Please scan the QR code.'}
+          </DlgDescription2>
+        </DlgContent>
+      </DlgPortal>
+    </DlgRoot>
   );
 };

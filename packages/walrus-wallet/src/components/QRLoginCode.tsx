@@ -11,7 +11,7 @@ import { HiOutlineXMark } from 'react-icons/hi2';
 import { QRCode } from 'react-qrcode-logo';
 
 import {
-  DlgClose,
+  DlgButtonIcon,
   DlgContent,
   DlgDescription2,
   DlgOverlay,
@@ -268,14 +268,14 @@ export const QRLoginCode = ({
             }}
           >
             <DlgTitle mode={mode}>Login</DlgTitle>
-            <DlgClose
+            <DlgButtonIcon
               mode={mode}
               onClick={() => {
                 handleClose('Login canceled');
               }}
             >
               <HiOutlineXMark />
-            </DlgClose>
+            </DlgButtonIcon>
           </div>
           <QRCode
             value={peerId}

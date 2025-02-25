@@ -140,7 +140,7 @@ export const FormCoinSelect = styled('select', {
   },
 });
 
-export const FormCoinAmount = styled('div', {
+export const FormInputWithButton = styled('div', {
   display: 'flex',
   alignItems: 'center',
   borderRadius: '4px',
@@ -160,17 +160,16 @@ export const FormCoinAmount = styled('div', {
   },
 });
 
-export const MaxButton = styled('button', {
+export const FormInputButton = styled('button', {
   background: 'transparent',
   border: 'none',
   padding: '6px 10px',
   fontSize: '12px',
-  fontWeight: 'bold',
   cursor: 'pointer',
   variants: {
     mode: {
-      light: { color: '#3c74ff' },
-      dark: { color: '#33a8ff' },
+      light: { color: '#000000' },
+      dark: { color: '#ffffff' },
     },
   },
 });

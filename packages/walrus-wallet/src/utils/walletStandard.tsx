@@ -1,6 +1,13 @@
 import React from 'react';
 
 import {
+  KioskClient,
+  KioskData,
+  KioskOwnerCap,
+  KioskTransaction,
+  Network,
+} from '@mysten/kiosk';
+import {
   CoinMetadata,
   CoinStruct,
   getFullnodeUrl,
@@ -318,6 +325,118 @@ export class WalletStandard implements Wallet {
     });
   };
 
+  public signAndExecuteTransaction = async (
+    transaction: Transaction,
+  ): Promise<SuiSignAndExecuteTransactionOutput> => {
+    return this.#signAndExecuteTransaction({
+      transaction,
+      chain: `sui:${this.#network}`,
+      account: this.#accounts[0],
+    });
+  };
+
+  #signTransaction: SuiSignTransactionMethod = async ({
+    transaction,
+    chain,
+  }) => {
+    if (chain === `sui:${this.#network}`) {
+      if (this.#signer) {
+        const client = new SuiClient({
+          url: getFullnodeUrl(this.#network),
+        });
+        const tx = await transaction.toJSON();
+        const txBytes = await Transaction.from(tx).build({ client });
+        const { bytes, signature } =
+          await this.#signer.signTransaction(txBytes);
+        return {
+          bytes,
+          signature,
+        };
+      } else {
+        const tx = await transaction.toJSON();
+        const txResult = await this.pay(
+          'Sign Transaction',
+          'Please scan the QR code to sign.',
+          {
+            transactions: [Transaction.from(tx)],
+            isSponsored: false,
+          },
+        );
+        return {
+          bytes: txResult[0].bytes,
+          signature: txResult[0].signature,
+        };
+      }
+    }
+    throw new Error('chain error');
+  };
+
+  #signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async ({
+    transaction,
+    chain,
+  }) => {
+    if (chain === `sui:${this.#network}`) {
+      if (this.#signer) {
+        const client = new SuiClient({
+          url: getFullnodeUrl(this.#network),
+        });
+        const tx = await transaction.toJSON();
+        const txBytes = await Transaction.from(tx).build({
+          client,
+        });
+        const { bytes, signature } =
+          await this.#signer.signTransaction(txBytes);
+        const { digest, errors } = await client.executeTransactionBlock({
+          transactionBlock: bytes,
+          signature: signature,
+        });
+        if (errors) {
+          throw new Error(errors.join(', '));
+        }
+        const { rawEffects } = await client.waitForTransaction({
+          digest,
+          options: {
+            showRawEffects: true,
+          },
+        });
+        return {
+          digest,
+          bytes,
+          signature,
+          effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
+        };
+      } else {
+        const tx = await transaction.toJSON();
+        const txResult = await this.pay(
+          'Sign and Execute Transaction',
+          'Please scan the QR code to sign.',
+          {
+            transactions: [Transaction.from(tx)],
+            isSponsored: false,
+          },
+        );
+        return {
+          digest: txResult[0].digest,
+          bytes: txResult[0].bytes,
+          signature: txResult[0].signature,
+          effects: txResult[0].effects,
+        };
+      }
+    }
+    throw new Error('chain error');
+  };
+
+  #signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message }) => {
+    if (this.#signer) {
+      const { signature } = await this.#signer.signPersonalMessage(message);
+      return {
+        bytes: toBase64(message),
+        signature,
+      };
+    }
+    throw new Error('signer error');
+  };
+
   public getAllBalances = async (): Promise<FloatCoinBalance[] | undefined> => {
     if (this.#account) {
       const client = new SuiClient({
@@ -438,120 +557,129 @@ export class WalletStandard implements Wallet {
         nextCursor = response.nextCursor;
         hasNextPage = response.hasNextPage;
       }
-      return [...allObjects, ...allObjects];
+      return [...allObjects];
     }
     return [];
   };
 
-  public signAndExecuteTransaction = async (
-    transaction: Transaction,
-  ): Promise<SuiSignAndExecuteTransactionOutput> => {
-    return this.#signAndExecuteTransaction({
-      transaction,
-      chain: `sui:${this.#network}`,
-      account: this.#accounts[0],
+  public getObjects = async (ids: string[]): Promise<SuiObjectData[]> => {
+    const client = new SuiClient({
+      url: getFullnodeUrl(this.#network),
     });
+    const response = await client.multiGetObjects({
+      ids,
+      options: {
+        showType: true,
+        showDisplay: true,
+      },
+    });
+    return response
+      .filter(
+        (item) =>
+          !!item.data && !!item.data.display && !!item.data.display.data,
+      )
+      .map((item) => item.data!);
   };
 
-  #signTransaction: SuiSignTransactionMethod = async ({
-    transaction,
-    chain,
-  }) => {
-    if (chain === `sui:${this.#network}`) {
-      if (this.#signer) {
-        const client = new SuiClient({
-          url: getFullnodeUrl(this.#network),
-        });
-        const tx = await transaction.toJSON();
-        const txBytes = await Transaction.from(tx).build({ client });
-        const { bytes, signature } =
-          await this.#signer.signTransaction(txBytes);
-        return {
-          bytes,
-          signature,
-        };
+  public createKiosk = async (isPersonal: boolean) => {
+    if (
+      this.#account &&
+      (this.#network === 'mainnet' || this.#network === 'testnet')
+    ) {
+      const client = new SuiClient({
+        url: getFullnodeUrl(this.#network),
+      });
+      const kioskClient = new KioskClient({
+        client,
+        network: this.#network as Network,
+      });
+
+      const transaction = new Transaction();
+      transaction.setSender(this.#account.address);
+      const kioskTx = new KioskTransaction({ transaction, kioskClient });
+
+      if (isPersonal) {
+        kioskTx.createPersonal(true).finalize();
       } else {
-        const tx = await transaction.toJSON();
-        const txResult = await this.pay(
-          'Sign Transaction',
-          'Please scan the QR code to sign.',
-          {
-            transactions: [Transaction.from(tx)],
-            isSponsored: false,
-          },
-        );
-        return {
-          bytes: txResult[0].bytes,
-          signature: txResult[0].signature,
-        };
+        kioskTx.create();
+        kioskTx.shareAndTransferCap(this.#account.address);
+        kioskTx.finalize();
       }
+
+      await this.signAndExecuteTransaction(transaction);
     }
-    throw new Error('chain error');
   };
 
-  #signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async ({
-    transaction,
-    chain,
-  }) => {
-    if (chain === `sui:${this.#network}`) {
-      if (this.#signer) {
+  getKioskData = async (id: string): Promise<KioskData | undefined> => {
+    if (
+      this.#account &&
+      (this.#network === 'mainnet' || this.#network === 'testnet')
+    ) {
+      try {
         const client = new SuiClient({
           url: getFullnodeUrl(this.#network),
         });
-        const tx = await transaction.toJSON();
-        const txBytes = await Transaction.from(tx).build({
+        const kioskClient = new KioskClient({
           client,
+          network: this.#network as Network,
         });
-        const { bytes, signature } =
-          await this.#signer.signTransaction(txBytes);
-        const { digest, errors } = await client.executeTransactionBlock({
-          transactionBlock: bytes,
-          signature: signature,
-        });
-        if (errors) {
-          throw new Error(errors.join(', '));
-        }
-        const { rawEffects } = await client.waitForTransaction({
-          digest,
+        const res = await kioskClient.getKiosk({
+          id,
           options: {
-            showRawEffects: true,
+            withKioskFields: true,
+            withListingPrices: true,
+            withObjects: true,
+            objectOptions: {
+              showType: true,
+              showDisplay: true,
+              showContent: true,
+            },
           },
         });
-        return {
-          digest,
-          bytes,
-          signature,
-          effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
-        };
-      } else {
-        const tx = await transaction.toJSON();
-        const txResult = await this.pay(
-          'Sign and Execute Transaction',
-          'Please scan the QR code to sign.',
-          {
-            transactions: [Transaction.from(tx)],
-            isSponsored: false,
-          },
-        );
-        return {
-          digest: txResult[0].digest,
-          bytes: txResult[0].bytes,
-          signature: txResult[0].signature,
-          effects: txResult[0].effects,
-        };
+        return res;
+      } catch (error) {
+        //
       }
     }
-    throw new Error('chain error');
+    return undefined;
   };
 
-  #signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message }) => {
-    if (this.#signer) {
-      const { signature } = await this.#signer.signPersonalMessage(message);
-      return {
-        bytes: toBase64(message),
-        signature,
-      };
+  public getOwnedKiosks = async (): Promise<KioskOwnerCap[] | undefined> => {
+    if (
+      this.#account &&
+      (this.#network === 'mainnet' || this.#network === 'testnet')
+    ) {
+      const client = new SuiClient({
+        url: getFullnodeUrl(this.#network),
+      });
+      const kioskClient = new KioskClient({
+        client,
+        network: this.#network as Network,
+      });
+
+      let allKioskOwnerCaps: any[] = [];
+      let allKioskIds: string[] = [];
+      let cursor: string | undefined = undefined;
+      let hasNextPage = true;
+
+      while (hasNextPage) {
+        const response = await kioskClient.getOwnedKiosks({
+          address: this.#account.address,
+          pagination: { cursor },
+        });
+
+        if (response) {
+          allKioskOwnerCaps.push(...response.kioskOwnerCaps);
+          allKioskIds.push(...response.kioskIds);
+          hasNextPage = response.hasNextPage;
+          cursor = response.nextCursor || undefined;
+        } else {
+          hasNextPage = false;
+        }
+      }
+
+      return allKioskOwnerCaps;
     }
-    throw new Error('signer error');
+    return undefined;
   };
 }

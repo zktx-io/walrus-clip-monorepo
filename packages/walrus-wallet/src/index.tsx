@@ -60,6 +60,7 @@ export const WalrusWallet = ({
   name,
   icon,
   network,
+  mode,
   sponsored,
   zklogin,
   onEvent,
@@ -68,6 +69,7 @@ export const WalrusWallet = ({
   name: string;
   icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
   network: NETWORK;
+  mode?: 'dark' | 'light';
   sponsored?: string;
   zklogin?: {
     enokey: string;
@@ -142,6 +144,7 @@ export const WalrusWallet = ({
         const root = ReactDOM.createRoot(container);
         root.render(
           <QRScan
+            mode={mode}
             wallet={wallet}
             onEvent={onEvent}
             onClose={(result) => {
@@ -155,7 +158,7 @@ export const WalrusWallet = ({
         resolve(undefined);
       }
     });
-  }, [wallet, onEvent]);
+  }, [mode, onEvent, wallet]);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -223,6 +226,7 @@ export const WalrusWallet = ({
       }}
     >
       <ActionDrawer
+        mode={mode}
         isConnected={isConnected}
         icon={icon}
         wallet={wallet}

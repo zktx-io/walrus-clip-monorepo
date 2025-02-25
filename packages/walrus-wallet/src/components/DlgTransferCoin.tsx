@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
 
 import { Transaction } from '@mysten/sui/transactions';
+import ReactDOM from 'react-dom/client';
+import { HiOutlineCamera, HiOutlineXMark } from 'react-icons/hi2';
 
 import {
-  FormCoinAmount,
   FormCoinSelect,
-  FormControl,
   FormField,
   FormInput,
+  FormInputButton,
+  FormInputWithButton,
   FormLabel,
   FormMessage,
   FormRoot,
-  MaxButton,
 } from './form';
 import {
   DlgButton,
+  DlgButtonIcon,
   DlgContent,
   DlgDescription,
   DlgOverlay,
@@ -23,10 +25,12 @@ import {
   DlgTitle,
   Mode,
 } from './modal';
+import { QRScan } from './QRScan';
 import { NotiVariant } from '../utils/types';
 import { FloatCoinBalance, WalletStandard } from '../utils/walletStandard';
+import { cleanup } from '../utils/zkLoginSigner';
 
-export const DlgCoinTransfer = ({
+export const DlgTransferCoin = ({
   mode,
   wallet,
   open,
@@ -36,7 +40,7 @@ export const DlgCoinTransfer = ({
   mode: Mode;
   wallet?: WalletStandard;
   open?: { address?: string; coin?: FloatCoinBalance };
-  onClose: () => void;
+  onClose: (isBack: boolean) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const [loading, setLoading] = useState<boolean>(true);
@@ -64,6 +68,33 @@ export const DlgCoinTransfer = ({
       setAmount(balanceInDecimals.toString());
       setError('');
     }
+  };
+
+  const handleScan = () => {
+    return new Promise((resolve) => {
+      if (wallet) {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = ReactDOM.createRoot(container);
+        root.render(
+          <QRScan
+            mode={mode}
+            wallet={wallet}
+            onEvent={onEvent}
+            onClose={(result) => {
+              cleanup(container, root);
+              resolve(result || undefined);
+            }}
+            scanAddress={(address) => {
+              setRecipient(address);
+            }}
+          />,
+        );
+      } else {
+        onEvent({ variant: 'error', message: 'Wallet not found' });
+        resolve(undefined);
+      }
+    });
   };
 
   const handleAmountChange = (value: string) => {
@@ -160,9 +191,10 @@ export const DlgCoinTransfer = ({
           variant: 'error',
           message: `${error}`,
         });
+      } finally {
+        setLoading(true);
+        onClose(false);
       }
-      setLoading(false);
-      onClose();
     }
   };
 
@@ -170,6 +202,7 @@ export const DlgCoinTransfer = ({
     const update = async () => {
       if (open && wallet) {
         setLoading(true);
+        setRecipient('');
         setAmount('');
         setError('');
         const allBalances = await wallet.getAllBalances();
@@ -191,9 +224,9 @@ export const DlgCoinTransfer = ({
   }, [open, wallet]);
 
   return (
-    <DlgRoot open={!!open} onOpenChange={onClose}>
+    <DlgRoot open={!!open}>
       <DlgPortal>
-        <DlgOverlay mode={mode} onClick={onClose} />
+        <DlgOverlay mode={mode} onClick={() => onClose(false)} />
         <DlgContent
           mode={mode}
           onOpenAutoFocus={(event) => event.preventDefault()}
@@ -204,7 +237,19 @@ export const DlgCoinTransfer = ({
             maxWidth: '500px',
           }}
         >
-          <DlgTitle mode={mode}>Send Coins</DlgTitle>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              width: '100%',
+            }}
+          >
+            <DlgTitle mode={mode}>Send Coins</DlgTitle>
+            <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
+              <HiOutlineXMark />
+            </DlgButtonIcon>
+          </div>
           <DlgDescription mode={mode}>
             Please select the coin you want to send, enter the amount and the
             recipient address.
@@ -230,7 +275,7 @@ export const DlgCoinTransfer = ({
           <FormRoot>
             <FormField name="Recipient Address">
               <FormLabel mode={mode}>Recipient Address</FormLabel>
-              <FormControl asChild>
+              <FormInputWithButton mode={mode}>
                 <FormInput
                   required
                   autoComplete="off"
@@ -242,15 +287,25 @@ export const DlgCoinTransfer = ({
                   onChange={(e) => {
                     setRecipient(e.target.value);
                   }}
+                  style={{ flexGrow: 1, border: 'none' }}
                 />
-              </FormControl>
+                <FormInputButton
+                  mode={mode}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleScan();
+                  }}
+                >
+                  <HiOutlineCamera />
+                </FormInputButton>
+              </FormInputWithButton>
             </FormField>
           </FormRoot>
 
           <FormRoot>
             <FormField name="Amount to send">
               <FormLabel mode={mode}>Amount to send</FormLabel>
-              <FormCoinAmount mode={mode}>
+              <FormInputWithButton mode={mode}>
                 <FormInput
                   type="number"
                   mode={mode}
@@ -260,7 +315,7 @@ export const DlgCoinTransfer = ({
                   onChange={(e) => handleAmountChange(e.target.value)}
                   style={{ flexGrow: 1, border: 'none' }}
                 />
-                <MaxButton
+                <FormInputButton
                   mode={mode}
                   onClick={(e) => {
                     e.preventDefault();
@@ -268,8 +323,8 @@ export const DlgCoinTransfer = ({
                   }}
                 >
                   Max
-                </MaxButton>
-              </FormCoinAmount>
+                </FormInputButton>
+              </FormInputWithButton>
               <FormMessage mode={mode} error={!!error}>
                 {error
                   ? error
