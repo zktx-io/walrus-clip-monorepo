@@ -5,6 +5,7 @@ import {
   useCurrentAccount,
   useCurrentWallet,
   useDisconnectWallet,
+  useSignAndExecuteTransaction,
 } from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
@@ -17,6 +18,7 @@ export const Home = () => {
   const account = useCurrentAccount();
 
   const { mutate: disconnect } = useDisconnectWallet();
+  const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
   const { isConnected, signAndExecuteSponsoredTransaction } = useWalrusWallet();
 
@@ -37,18 +39,39 @@ export const Home = () => {
           ],
         });
 
-        const result = await signAndExecuteSponsoredTransaction({
-          transaction,
-          chain: `sui:${NETWORK}`,
-        });
-        enqueueSnackbar(`${result.digest}`, {
-          variant: 'success',
-          style: {
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          },
-        });
+        if (currentWallet && currentWallet.name === WALLET_NAME) {
+          const result = await signAndExecuteSponsoredTransaction({
+            transaction,
+            chain: `sui:${NETWORK}`,
+          });
+          enqueueSnackbar(`${result.digest}`, {
+            variant: 'success',
+            style: {
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            },
+          });
+        } else {
+          signAndExecuteTransaction(
+            {
+              transaction: new Transaction(),
+              chain: 'sui:testnet',
+            },
+            {
+              onSuccess: (result) => {
+                enqueueSnackbar(`${result.digest}`, {
+                  variant: 'success',
+                  style: {
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  },
+                });
+              },
+            },
+          );
+        }
       } catch (error) {
         enqueueSnackbar(`${error}`, {
           variant: 'error',
@@ -93,7 +116,9 @@ export const Home = () => {
                   className="w-full bg-blue-500 text-white py-2 px-2 rounded-lg cursor-pointer"
                   onClick={onSignAndExcuteTx}
                 >
-                  Sponsored Transaction
+                  {currentWallet && currentWallet.name === WALLET_NAME
+                    ? 'Sponsored Transaction'
+                    : 'Transaction'}
                 </button>
               </div>
             </div>
