@@ -6,11 +6,11 @@ import {
   useCurrentWallet,
   useDisconnectWallet,
 } from '@mysten/dapp-kit';
+import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
+import { enqueueSnackbar } from 'notistack';
 
 import { NETWORK, WALLET_NAME } from '../utils/config';
-import { enqueueSnackbar } from 'notistack';
-import { Transaction } from '@mysten/sui/transactions';
 
 export const Home = () => {
   const { connectionStatus, currentWallet } = useCurrentWallet();

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface Item {
   id: number;
@@ -105,10 +105,7 @@ export const Kiosk = () => {
           ) : (
             <ul>
               {cart.map((item, index) => (
-                <li
-                  key={index}
-                  className="flex justify-between items-center"
-                >
+                <li key={index} className="flex justify-between items-center">
                   <span>
                     {item.name} -{' '}
                     <span className="text-gray-600">

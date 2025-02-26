@@ -73,7 +73,13 @@ function App() {
           setActiveNetwork(network);
         }}
       >
-        <WalletProvider autoConnect>
+        <WalletProvider
+          autoConnect
+          stashedWallet={{
+            name: 'stashed wallet',
+            network: activeNetwork as 'mainnet' | 'testnet',
+          }}
+        >
           <RouterProvider router={router} />
         </WalletProvider>
       </SuiClientProvider>
