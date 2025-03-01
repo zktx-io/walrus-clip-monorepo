@@ -32,6 +32,7 @@ export const DlgCredentials = ({
           mode={mode}
           aria-describedby={undefined}
           onOpenAutoFocus={(event) => event.preventDefault()}
+          style={{ height: '40vh' }}
         >
           <div
             style={{
@@ -51,11 +52,26 @@ export const DlgCredentials = ({
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-start',
-              marginTop: '10px',
               width: '100%',
+              height: '100%',
+              overflowY: 'auto',
+              marginTop: '10px',
             }}
           >
-            {'developing...'}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100%',
+                height: '150px',
+                fontSize: '16px',
+                color: '#888',
+                gridColumn: '1 / -1',
+              }}
+            >
+              developing...
+            </div>
           </div>
         </DlgContentBottom>
       </DlgPortal>

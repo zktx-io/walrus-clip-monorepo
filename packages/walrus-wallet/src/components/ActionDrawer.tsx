@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+import { KioskOwnerCap } from '@mysten/kiosk';
+import { SuiObjectData } from '@mysten/sui/client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { motion } from 'framer-motion';
@@ -13,9 +15,11 @@ import {
 
 import { DlgBalances } from './DlgBalances';
 import { DlgCredentials } from './DlgCredentials';
+import { DlgDashboard } from './DlgDashboard';
+import { DlgKioskPlace } from './DlgKioskPlace';
 import { DlgKiosks } from './DlgKiosks';
+import { DlgKioskTake } from './DlgKioskTake';
 import { DlgNFTs } from './DlgNFTs';
-import { DlgSystem } from './DlgSystem';
 import { DlgTransferCoin } from './DlgTransferCoin';
 import { DlgTransferNFT } from './DlgTransferNFT';
 import {
@@ -61,12 +65,18 @@ export const ActionDrawer = ({
   const [openTransferCoin, setOpenTransferCoin] = useState<
     { address?: string; coin?: FloatCoinBalance } | undefined
   >(undefined);
-  const [openTransferNFT, setOpenTransferNFT] = useState<string | undefined>(
-    undefined,
-  );
+  const [openTransferNFT, setOpenTransferNFT] = useState<
+    SuiObjectData | undefined
+  >(undefined);
   const [openCredentials, setOpenCredentials] = useState<boolean>(false);
   const [openNFTs, setOpenNFTs] = useState<boolean>(false);
   const [openKiosk, setOpenKiosk] = useState<boolean>(false);
+  const [openKioskPlace, setOpenKioskPlace] = useState<
+    SuiObjectData | undefined
+  >(undefined);
+  const [openKioskTake, setOpenKioskTake] = useState<KioskOwnerCap | undefined>(
+    undefined,
+  );
 
   const handleScan = () => {
     setOpen(false);
@@ -241,7 +251,7 @@ export const ActionDrawer = ({
           setOpenAddress(false);
         }}
       />
-      <DlgSystem
+      <DlgDashboard
         mode={mode}
         open={openSystem}
         onClose={(isBack: boolean) => {
@@ -284,13 +294,13 @@ export const ActionDrawer = ({
           isBack && setOpen(true);
           setOpenNFTs(false);
         }}
-        openTransfer={(nftId) => {
+        openTransfer={(objData) => {
           setOpenNFTs(false);
-          setOpenTransferNFT(nftId);
+          setOpenTransferNFT(objData);
         }}
-        openKioskTransfer={(nftId) => {
-          // setOpenSystem(false);
-          // setOpenTransferNFT(nftId);
+        openKioskPlace={(objData) => {
+          setOpenNFTs(false);
+          setOpenKioskPlace(objData);
         }}
       />
 
@@ -308,13 +318,64 @@ export const ActionDrawer = ({
       <DlgTransferNFT
         mode={mode}
         wallet={wallet}
-        nftId={openTransferNFT}
+        object={openTransferNFT}
         onClose={(isBack: boolean) => {
           isBack && setOpenNFTs(true);
           setOpen(false);
           setOpenTransferNFT(undefined);
         }}
         onEvent={onEvent}
+      />
+      <DlgKioskPlace
+        mode={mode}
+        wallet={wallet}
+        object={openKioskPlace}
+        onClose={(isBack: boolean) => {
+          isBack && setOpenNFTs(true);
+          setOpen(false);
+          setOpenKioskPlace(undefined);
+        }}
+        kioskPlace={async (objData) => {
+          if (wallet) {
+            await wallet?.kioskPlace(objData.kiosk, {
+              item: objData.object.objectId,
+              itemType: objData.object.type!,
+            });
+            setOpen(false);
+            setOpenKioskPlace(undefined);
+            onEvent({
+              variant: 'success',
+              message: 'Item placed in kiosk',
+            });
+          }
+        }}
+      />
+      <DlgKioskTake
+        mode={mode}
+        wallet={wallet}
+        open={openKioskTake}
+        onClose={(isBack: boolean) => {
+          isBack && setOpenKiosk(true);
+          setOpenKioskTake(undefined);
+        }}
+        kioskTake={async (objData) => {
+          if (wallet) {
+            await wallet?.kiosTake(
+              objData.kiosk,
+              {
+                itemId: objData.object.objectId,
+                itemType: objData.object.type!,
+              },
+              objData.recipient,
+            );
+            setOpenKioskTake(undefined);
+            setOpen(false);
+            onEvent({
+              variant: 'success',
+              message: 'Item taken from kiosk',
+            });
+          }
+        }}
       />
 
       <DlgCredentials
@@ -333,6 +394,10 @@ export const ActionDrawer = ({
         onClose={(isBack: boolean) => {
           isBack && setOpenSystem(true);
           setOpenKiosk(false);
+        }}
+        onSelectKiosk={(kiosk) => {
+          setOpenKiosk(false);
+          setOpenKioskTake(kiosk);
         }}
       />
     </>

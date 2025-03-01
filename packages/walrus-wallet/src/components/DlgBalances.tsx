@@ -74,6 +74,7 @@ export const DlgBalances = ({
           mode={mode}
           aria-describedby={undefined}
           onOpenAutoFocus={(event) => event.preventDefault()}
+          style={{ height: '40vh' }}
         >
           <div
             style={{
@@ -94,142 +95,143 @@ export const DlgBalances = ({
               flexDirection: 'column',
               alignItems: 'flex-start',
               width: '100%',
-              maxHeight: '50vh',
+              height: 'calc(100% - 10px)',
               overflowY: 'auto',
-              marginTop: '10px',
             }}
           >
-            {loading && coins.length === 0
-              ? Array(1)
-                  .fill(0)
-                  .map((_, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: '100%',
-                        height: '48px',
-                        background: '#e0e0e0',
-                        borderRadius: '8px',
-                        marginBottom: '8px',
-                        animation: 'pulse 1.5s infinite ease-in-out',
-                      }}
-                    />
-                  ))
-              : coins.map((balance, index) => {
-                  const hasLockedBalances =
-                    Object.keys(balance.lockedBalance).length > 0;
+            {loading && coins.length === 0 ? (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  width: '100%',
+                  height: '150px',
+                  fontSize: '16px',
+                  color: '#888',
+                  gridColumn: '1 / -1',
+                }}
+              >
+                Loading...
+              </div>
+            ) : (
+              coins.map((balance, index) => {
+                const hasLockedBalances =
+                  Object.keys(balance.lockedBalance).length > 0;
 
-                  return (
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'flex-start',
+                      width: '100%',
+                      padding: '4px',
+                      borderRadius: '8px',
+                      background: 'transparent',
+                      color: 'black',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'background 0.3s, color 0.3s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)';
+                      e.currentTarget.style.color = 'black';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'black';
+                    }}
+                    onClick={() => {
+                      openTransfer({ coin: balance });
+                    }}
+                  >
                     <div
-                      key={balance.coinType}
                       style={{
                         display: 'flex',
-                        flexDirection: 'column',
-                        width: '100%',
-                        marginTop: '2px',
-                        paddingBottom: '2px',
-                        borderBottom:
-                          index === coins.length - 1
-                            ? 'none'
-                            : '1px solid #ccc',
-                        backgroundColor:
-                          hoverIndex === index ? '#f3f4f6' : 'transparent',
-                        transition: 'background-color 0.2s ease-in-out',
-                        cursor: 'pointer',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 0',
                       }}
-                      onMouseEnter={() => setHoverIndex(index)}
-                      // eslint-disable-next-line no-restricted-syntax
-                      onMouseLeave={() => setHoverIndex(null)}
-                      onClick={() => {
-                        openTransfer({ coin: balance });
-                      }}
+                      onClick={() =>
+                        hasLockedBalances && toggleLockedBalances(index)
+                      }
                     >
                       <div
                         style={{
                           display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '8px 0',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
                         }}
-                        onClick={() =>
-                          hasLockedBalances && toggleLockedBalances(index)
-                        }
                       >
                         <div
                           style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'flex-start',
+                            fontWeight: 'bold',
                           }}
                         >
-                          <div
-                            style={{
-                              fontWeight: 'bold',
-                            }}
-                          >
-                            {balance.symbol}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.8rem',
-                              color: '#555',
-                            }}
-                          >
-                            {balance.name}
-                          </div>
+                          {balance.symbol}
                         </div>
                         <div
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
+                            fontSize: '0.8rem',
+                            color: '#555',
                           }}
                         >
-                          <span>
-                            {formatNumberFromString(balance.fBalance)}
-                          </span>
-                          {hasLockedBalances ? (
-                            expandedIndex === index ? (
-                              <HiOutlineChevronUp />
-                            ) : (
-                              <HiOutlineChevronDown />
-                            )
-                          ) : (
-                            <HiOutlineChevronDown style={{ color: '#aaa' }} />
-                          )}
+                          {balance.name}
                         </div>
                       </div>
-
                       <div
                         style={{
-                          overflow: 'hidden',
-                          maxHeight: expandedIndex === index ? '150px' : '0',
-                          opacity: expandedIndex === index ? 1 : 0,
-                          transition:
-                            'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
                         }}
                       >
-                        {Object.entries(balance.lockedBalance).map(
-                          ([lockType, { fBalance }]) => (
-                            <div
-                              key={lockType}
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                width: '100%',
-                                paddingLeft: '16px',
-                                fontSize: '0.9em',
-                              }}
-                            >
-                              <span>{lockType}</span>
-                              <span>{formatNumberFromString(fBalance)}</span>
-                            </div>
-                          ),
+                        <span>{formatNumberFromString(balance.fBalance)}</span>
+                        {hasLockedBalances ? (
+                          expandedIndex === index ? (
+                            <HiOutlineChevronUp />
+                          ) : (
+                            <HiOutlineChevronDown />
+                          )
+                        ) : (
+                          <HiOutlineChevronDown style={{ color: '#aaa' }} />
                         )}
                       </div>
                     </div>
-                  );
-                })}
+
+                    <div
+                      style={{
+                        overflow: 'hidden',
+                        maxHeight: expandedIndex === index ? '150px' : '0',
+                        opacity: expandedIndex === index ? 1 : 0,
+                        transition:
+                          'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out',
+                      }}
+                    >
+                      {Object.entries(balance.lockedBalance).map(
+                        ([lockType, { fBalance }]) => (
+                          <div
+                            key={lockType}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              width: '100%',
+                              paddingLeft: '16px',
+                              fontSize: '0.9em',
+                            }}
+                          >
+                            <span>{lockType}</span>
+                            <span>{formatNumberFromString(fBalance)}</span>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </DlgContentBottom>
       </DlgPortal>

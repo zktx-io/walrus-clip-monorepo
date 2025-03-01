@@ -128,8 +128,6 @@ export const DlgTransferCoin = ({
           parseFloat(amount) * Math.pow(10, selectCoin.decimals),
         );
         const tx = new Transaction();
-        tx.setSender(wallet.address);
-
         let total = BigInt(0);
         for (const item of coins) {
           const coinBalance = BigInt(item.balance);

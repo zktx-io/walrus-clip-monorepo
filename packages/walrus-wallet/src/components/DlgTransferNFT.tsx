@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+import { SuiObjectData } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import ReactDOM from 'react-dom/client';
 import { HiOutlineCamera, HiOutlineXMark } from 'react-icons/hi2';
@@ -31,19 +32,18 @@ import { cleanup } from '../utils/zkLoginSigner';
 export const DlgTransferNFT = ({
   mode,
   wallet,
-  nftId,
+  object,
   onClose,
   onEvent,
 }: {
   mode: Mode;
   wallet?: WalletStandard;
-  nftId?: string;
+  object?: SuiObjectData;
   onClose: (isBack: boolean) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [recipient, setRecipient] = useState<string>('');
-  const [error, setError] = useState('');
 
   const handleScan = () => {
     return new Promise((resolve) => {
@@ -73,14 +73,12 @@ export const DlgTransferNFT = ({
   };
 
   const handleTransfer = async () => {
-    if (!wallet || !wallet.address || !recipient || !nftId) return;
+    if (!wallet || !wallet.address || !recipient || !object) return;
 
     setLoading(true);
     try {
       const tx = new Transaction();
-      tx.setSender(wallet.address);
-
-      tx.transferObjects([tx.object(nftId)], recipient);
+      tx.transferObjects([tx.object(object.objectId)], recipient);
 
       await wallet.signAndExecuteTransaction(tx);
       onEvent({
@@ -88,25 +86,22 @@ export const DlgTransferNFT = ({
         message: 'NFT Transfer Successful',
       });
     } catch (error) {
-      onEvent({
-        variant: 'error',
-        message: `${error}`,
-      });
+      //
     } finally {
       setLoading(false);
-      onClose(false);
+      onClose(true);
     }
   };
 
   useEffect(() => {
-    if (!!nftId) {
+    if (!!object) {
       setRecipient('');
-      setError('');
+      setLoading(false);
     }
-  }, [nftId]);
+  }, [object]);
 
   return (
-    <DlgRoot open={!!nftId}>
+    <DlgRoot open={!!object}>
       <DlgPortal>
         <DlgOverlay mode={mode} onClick={() => onClose(false)} />
         <DlgContent

@@ -2,8 +2,8 @@ import React from 'react';
 
 import {
   HiOutlineArrowRightOnRectangle,
-  HiOutlineBuildingStorefront,
   HiOutlineIdentification,
+  HiOutlineSquare2Stack,
   HiOutlineXMark,
 } from 'react-icons/hi2';
 
@@ -17,7 +17,7 @@ import {
   Mode,
 } from './modal';
 
-export const DlgSystem = ({
+export const DlgDashboard = ({
   mode = 'light',
   open,
   onClose,
@@ -49,7 +49,7 @@ export const DlgSystem = ({
               width: '100%',
             }}
           >
-            <DlgTitle mode={mode}>Account</DlgTitle>
+            <DlgTitle mode={mode}>Dashboard</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
               <HiOutlineXMark />
             </DlgButtonIcon>
@@ -73,7 +73,7 @@ export const DlgSystem = ({
               },
               {
                 label: 'Kiosks',
-                icon: HiOutlineBuildingStorefront,
+                icon: HiOutlineSquare2Stack,
                 action: openKiosk,
               },
             ].map(({ label, icon: Icon, action }) => (

@@ -124,6 +124,8 @@ export const FormCoinSelect = styled('select', {
   backgroundColor: 'transparent',
   cursor: 'pointer',
   outline: 'none',
+  width: '100%',
+  maxWidth: '100%',
   variants: {
     mode: {
       light: {

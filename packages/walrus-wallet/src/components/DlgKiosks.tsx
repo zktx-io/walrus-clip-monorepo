@@ -24,11 +24,13 @@ export const DlgKiosks = ({
   wallet,
   open,
   onClose,
+  onSelectKiosk,
 }: {
   mode?: Mode;
   wallet?: WalletStandard;
   open: boolean;
   onClose: (isBack: boolean) => void;
+  onSelectKiosk: (kioskId: KioskOwnerCap) => void;
 }) => {
   const [kiosks, setKiosks] = useState<KioskOwnerCap[] | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
@@ -75,6 +77,7 @@ export const DlgKiosks = ({
           mode={mode}
           aria-describedby={undefined}
           onOpenAutoFocus={(event) => event.preventDefault()}
+          style={{ height: '40vh' }}
         >
           <div
             style={{
@@ -103,133 +106,144 @@ export const DlgKiosks = ({
               </DlgButtonIcon>
             </div>
           </div>
-
-          {loading ? (
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                width: '100%',
-                height: '150px',
-                fontSize: '16px',
-                color: '#888',
-              }}
-            >
-              Loading...
-            </div>
-          ) : kiosks === undefined ? (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                marginTop: '20px',
-                width: '100%',
-              }}
-            >
-              <p
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              width: '100%',
+              height: 'calc(100% - 10px)',
+              overflowY: 'auto',
+            }}
+          >
+            {loading && !kiosks ? (
+              <div
                 style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  width: '100%',
+                  height: '150px',
                   fontSize: '16px',
                   color: '#888',
-                  marginBottom: '10px',
                 }}
               >
-                No Kiosks Available
-              </p>
-              {wallet && (
-                <div
+                Loading...
+              </div>
+            ) : kiosks === undefined ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  marginTop: '20px',
+                  width: '100%',
+                }}
+              >
+                <p
                   style={{
-                    display: 'flex',
-                    gap: '10px',
-                    marginTop: '10px',
+                    fontSize: '16px',
+                    color: '#888',
+                    marginBottom: '10px',
                   }}
                 >
-                  <DlgButton
-                    mode={mode}
-                    disabled={!wallet}
-                    onClick={() => handleCreateKiosk(false)}
-                  >
-                    Create Shared Kiosk
-                  </DlgButton>
-                  <DlgButton
-                    mode={mode}
-                    disabled={!wallet}
-                    onClick={() => handleCreateKiosk(true)}
-                  >
-                    Create Personal Kiosk
-                  </DlgButton>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '10px',
-                width: '100%',
-                marginTop: '10px',
-                maxWidth: '450px',
-              }}
-            >
-              {kiosks.map(({ kioskId, isPersonal }, index) => (
-                <div
-                  key={index}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-start',
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '8px',
-                    background: 'transparent',
-                    color: 'black',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: 'clamp(14px, 1vw, 16px)',
-                    transition: 'background 0.3s, color 0.3s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)';
-                    e.currentTarget.style.color = 'black';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = 'black';
-                  }}
-                >
+                  No Kiosks Available
+                </p>
+                {wallet && (
                   <div
                     style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      width: '100%',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
+                      gap: '10px',
+                      marginTop: '10px',
                     }}
                   >
-                    {isPersonal ? (
-                      <HiOutlineUser size="clamp(18px, 2vw, 20px)" />
-                    ) : (
-                      <HiOutlineUserGroup size="clamp(18px, 2vw, 20px)" />
-                    )}
-                    <span
+                    <DlgButton
+                      mode={mode}
+                      disabled={!wallet}
+                      onClick={() => handleCreateKiosk(false)}
+                    >
+                      Create Shared Kiosk
+                    </DlgButton>
+                    <DlgButton
+                      mode={mode}
+                      disabled={!wallet}
+                      onClick={() => handleCreateKiosk(true)}
+                    >
+                      Create Personal Kiosk
+                    </DlgButton>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '10px',
+                  width: '100%',
+                  marginTop: '10px',
+                  maxWidth: '450px',
+                }}
+              >
+                {kiosks.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-start',
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      background: 'transparent',
+                      color: 'black',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 'clamp(14px, 1vw, 16px)',
+                      transition: 'background 0.3s, color 0.3s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)';
+                      e.currentTarget.style.color = 'black';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'black';
+                    }}
+                    onClick={() => onSelectKiosk(item)}
+                  >
+                    <div
                       style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        width: '100%',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        width: '100%',
                       }}
                     >
-                      {kioskId}
-                    </span>
+                      {item.isPersonal ? (
+                        <HiOutlineUser size="clamp(18px, 2vw, 20px)" />
+                      ) : (
+                        <HiOutlineUserGroup size="clamp(18px, 2vw, 20px)" />
+                      )}
+                      <span
+                        style={{
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          width: '100%',
+                        }}
+                      >
+                        {item.kioskId}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </DlgContentBottom>
       </DlgPortal>
     </DlgRoot>

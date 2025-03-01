@@ -344,8 +344,12 @@ export class WalletStandard implements Wallet {
         const client = new SuiClient({
           url: getFullnodeUrl(this.#network),
         });
-        const tx = await transaction.toJSON();
-        const txBytes = await Transaction.from(tx).build({ client });
+        const txJson = await transaction.toJSON();
+        const tx = Transaction.from(txJson);
+        tx.setSenderIfNotSet(this.#signer.toSuiAddress());
+        const txBytes = await tx.build({
+          client,
+        });
         const { bytes, signature } =
           await this.#signer.signTransaction(txBytes);
         return {
@@ -380,8 +384,10 @@ export class WalletStandard implements Wallet {
         const client = new SuiClient({
           url: getFullnodeUrl(this.#network),
         });
-        const tx = await transaction.toJSON();
-        const txBytes = await Transaction.from(tx).build({
+        const txJson = await transaction.toJSON();
+        const tx = Transaction.from(txJson);
+        tx.setSenderIfNotSet(this.#signer.toSuiAddress());
+        const txBytes = await tx.build({
           client,
         });
         const { bytes, signature } =
@@ -595,7 +601,6 @@ export class WalletStandard implements Wallet {
       });
 
       const transaction = new Transaction();
-      transaction.setSender(this.#account.address);
       const kioskTx = new KioskTransaction({ transaction, kioskClient });
 
       if (isPersonal) {
@@ -608,40 +613,6 @@ export class WalletStandard implements Wallet {
 
       await this.signAndExecuteTransaction(transaction);
     }
-  };
-
-  getKioskData = async (id: string): Promise<KioskData | undefined> => {
-    if (
-      this.#account &&
-      (this.#network === 'mainnet' || this.#network === 'testnet')
-    ) {
-      try {
-        const client = new SuiClient({
-          url: getFullnodeUrl(this.#network),
-        });
-        const kioskClient = new KioskClient({
-          client,
-          network: this.#network as Network,
-        });
-        const res = await kioskClient.getKiosk({
-          id,
-          options: {
-            withKioskFields: true,
-            withListingPrices: true,
-            withObjects: true,
-            objectOptions: {
-              showType: true,
-              showDisplay: true,
-              showContent: true,
-            },
-          },
-        });
-        return res;
-      } catch (error) {
-        //
-      }
-    }
-    return undefined;
   };
 
   public getOwnedKiosks = async (): Promise<KioskOwnerCap[] | undefined> => {
@@ -657,7 +628,7 @@ export class WalletStandard implements Wallet {
         network: this.#network as Network,
       });
 
-      let allKioskOwnerCaps: any[] = [];
+      let allKioskOwnerCaps: KioskOwnerCap[] = [];
       let allKioskIds: string[] = [];
       let cursor: string | undefined = undefined;
       let hasNextPage = true;
@@ -679,6 +650,98 @@ export class WalletStandard implements Wallet {
       }
 
       return allKioskOwnerCaps;
+    }
+    return undefined;
+  };
+
+  public getKiosk = async (
+    id: string,
+  ): Promise<{ kiosk: KioskData; items: SuiObjectData[] } | undefined> => {
+    if (
+      this.#account &&
+      (this.#network === 'mainnet' || this.#network === 'testnet')
+    ) {
+      try {
+        const client = new SuiClient({
+          url: getFullnodeUrl(this.#network),
+        });
+        const kioskClient = new KioskClient({
+          client,
+          network: this.#network as Network,
+        });
+        const kiosk = await kioskClient.getKiosk({
+          id,
+          options: {
+            withKioskFields: true,
+            withListingPrices: true,
+            withObjects: true,
+            objectOptions: {
+              showType: true,
+              showDisplay: true,
+              showContent: true,
+            },
+          },
+        });
+        const items = await this.getObjects(kiosk.itemIds);
+        return {
+          kiosk,
+          items,
+        };
+      } catch (error) {
+        //
+      }
+    }
+    return undefined;
+  };
+
+  public kioskPlace = async (
+    cap: KioskOwnerCap,
+    nftId: { item: string; itemType: string },
+  ) => {
+    if (
+      this.#account &&
+      (this.#network === 'mainnet' || this.#network === 'testnet')
+    ) {
+      const client = new SuiClient({
+        url: getFullnodeUrl(this.#network),
+      });
+      const kioskClient = new KioskClient({
+        client,
+        network: this.#network as Network,
+      });
+      const transaction = new Transaction();
+      const kioskTx = new KioskTransaction({ transaction, kioskClient, cap });
+      kioskTx.place(nftId).finalize();
+      await this.signAndExecuteTransaction(transaction);
+    }
+    return undefined;
+  };
+
+  public kiosTake = async (
+    cap: KioskOwnerCap,
+    nftId: { itemId: string; itemType: string },
+    recipient?: string,
+  ) => {
+    if (
+      this.#account &&
+      (this.#network === 'mainnet' || this.#network === 'testnet')
+    ) {
+      const client = new SuiClient({
+        url: getFullnodeUrl(this.#network),
+      });
+      const kioskClient = new KioskClient({
+        client,
+        network: this.#network as Network,
+      });
+      const transaction = new Transaction();
+      const kioskTx = new KioskTransaction({ transaction, kioskClient, cap });
+      const item = kioskTx.take(nftId);
+      transaction.transferObjects(
+        [item],
+        recipient ? recipient : this.#account.address,
+      );
+      kioskTx.finalize();
+      await this.signAndExecuteTransaction(transaction);
     }
     return undefined;
   };
