@@ -23,26 +23,23 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
 import { QRScan } from './QRScan';
+import { useWalletState } from '../recoil';
 import { NotiVariant } from '../utils/types';
-import { FloatCoinBalance, WalletStandard } from '../utils/walletStandard';
+import { FloatCoinBalance } from '../utils/walletStandard';
 import { cleanup } from '../utils/zkLoginSigner';
 
 export const DlgTransferCoin = ({
-  mode,
-  wallet,
   open,
   onClose,
   onEvent,
 }: {
-  mode: Mode;
-  wallet?: WalletStandard;
   open?: { address?: string; coin?: FloatCoinBalance };
   onClose: (isBack: boolean) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
+  const { mode, wallet } = useWalletState();
   const [loading, setLoading] = useState<boolean>(true);
   const [coins, setCoins] = useState<FloatCoinBalance[]>([]);
   const [selectCoin, setSelectCoin] = useState<FloatCoinBalance | undefined>(

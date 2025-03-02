@@ -36,10 +36,8 @@ const contentShowBottom = keyframes({
   },
 });
 
-export type Mode = 'light' | 'dark';
-
 export const DlgOverlay = styled(Dialog.Overlay, {
-  zIndex: 2147483645,
+  zIndex: 1234,
   pointerEvents: 'none',
   position: 'fixed',
   inset: 0,
@@ -58,7 +56,7 @@ export const DlgOverlay = styled(Dialog.Overlay, {
 });
 
 export const DlgContent = styled(Dialog.DialogContent, {
-  zIndex: 2147483645,
+  zIndex: 1234,
   pointerEvents: 'none',
   borderRadius: '6px',
   position: 'fixed',
@@ -68,6 +66,8 @@ export const DlgContent = styled(Dialog.DialogContent, {
   padding: '25px',
   outline: 'none',
   animation: `${contentShow} 150ms cubic-bezier(0.16, 1, 0.3, 1)`,
+  width: '100%',
+  maxWidth: '500px',
   '@media (max-width: 600px)': {
     height: 'auto',
     width: '100%',
@@ -94,7 +94,7 @@ export const DlgContent = styled(Dialog.DialogContent, {
 });
 
 export const DlgContentQR = styled(Dialog.DialogContent, {
-  zIndex: 2147483645,
+  zIndex: 1234,
   pointerEvents: 'none',
   borderRadius: '6px',
   position: 'fixed',
@@ -126,7 +126,7 @@ export const DlgContentQR = styled(Dialog.DialogContent, {
 });
 
 export const DlgContentBottom = styled(Dialog.Content, {
-  zIndex: 2147483645,
+  zIndex: 1234,
   position: 'fixed',
   bottom: 0,
   left: '50%',

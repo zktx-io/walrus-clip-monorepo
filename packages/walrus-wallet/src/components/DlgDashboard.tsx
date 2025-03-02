@@ -14,24 +14,23 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
+import { useWalletState } from '../recoil';
 
 export const DlgDashboard = ({
-  mode = 'light',
   open,
   onClose,
   onLogout,
   openCredentials,
   openKiosk,
 }: {
-  mode?: Mode;
   open: boolean;
   onClose: (isBack: boolean) => void;
   onLogout: () => void;
   openCredentials: () => void;
   openKiosk: () => void;
 }) => {
+  const { mode } = useWalletState();
   return (
     <DlgRoot open={open}>
       <DlgPortal>

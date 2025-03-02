@@ -15,7 +15,6 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
 
 export const PwConfirm = ({
@@ -23,7 +22,7 @@ export const PwConfirm = ({
   onClose,
   onConfirm,
 }: {
-  mode?: Mode;
+  mode: 'light' | 'dark';
   onClose: () => void;
   onConfirm: (password: string) => Promise<void>;
 }) => {

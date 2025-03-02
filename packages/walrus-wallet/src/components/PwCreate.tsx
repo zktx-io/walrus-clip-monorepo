@@ -18,7 +18,7 @@ export const PwCreate = ({
   onConfirm,
   onEvent,
 }: {
-  mode?: 'dark' | 'light';
+  mode: 'dark' | 'light';
   onClose: () => void;
   onConfirm: (password: string) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
@@ -39,12 +39,14 @@ export const PwCreate = ({
             setOpen(false);
             onClose();
           }}
+          style={{ zIndex: 2147483645 }}
         />
         <DlgContent
           mode={mode}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
           }}
+          style={{ zIndex: 2147483645 }}
         >
           <DlgTitle mode={mode}>Confirm password</DlgTitle>
           <DlgDescription mode={mode}>

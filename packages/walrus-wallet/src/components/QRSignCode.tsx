@@ -175,7 +175,7 @@ export const QRSignCode = ({
   onEvent,
   onClose,
 }: {
-  mode?: 'dark' | 'light';
+  mode: 'dark' | 'light';
   option: {
     title?: string;
     description?: string;

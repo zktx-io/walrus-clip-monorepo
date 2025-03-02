@@ -22,26 +22,22 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
 import { QRScan } from './QRScan';
+import { useWalletState } from '../recoil';
 import { NotiVariant } from '../utils/types';
-import { WalletStandard } from '../utils/walletStandard';
 import { cleanup } from '../utils/zkLoginSigner';
 
 export const DlgTransferNFT = ({
-  mode,
-  wallet,
   object,
   onClose,
   onEvent,
 }: {
-  mode: Mode;
-  wallet?: WalletStandard;
   object?: SuiObjectData;
   onClose: (isBack: boolean) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
+  const { mode, wallet } = useWalletState();
   const [loading, setLoading] = useState<boolean>(false);
   const [recipient, setRecipient] = useState<string>('');
 

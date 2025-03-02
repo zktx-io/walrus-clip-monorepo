@@ -31,6 +31,7 @@ export class ZkLoginSigner extends Signer {
   #network: NETWORK;
   #zkLogin: IZkLogin;
   #address: string;
+  #mode: 'dark' | 'light';
   #onEvent: (data: { variant: NotiVariant; message: string }) => void;
 
   get network(): NETWORK {
@@ -41,12 +42,14 @@ export class ZkLoginSigner extends Signer {
     network: NETWORK,
     zkLogin: IZkLogin,
     address: string,
+    mode: 'dark' | 'light',
     onEvent: (data: { variant: NotiVariant; message: string }) => void,
   ) {
     super();
     this.#network = network;
     this.#zkLogin = zkLogin;
     this.#address = address;
+    this.#mode = mode;
     this.#onEvent = onEvent;
   }
 
@@ -57,6 +60,7 @@ export class ZkLoginSigner extends Signer {
       const root = ReactDOM.createRoot(container);
       root.render(
         <PwConfirm
+          mode={this.#mode}
           onClose={() => {
             cleanup(container, root);
             reject(new Error('rejected'));

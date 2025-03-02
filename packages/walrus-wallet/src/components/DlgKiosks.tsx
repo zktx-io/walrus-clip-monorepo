@@ -15,23 +15,19 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
-import { WalletStandard } from '../utils/walletStandard';
+import { useWalletState } from '../recoil';
 
 export const DlgKiosks = ({
-  mode = 'light',
-  wallet,
   open,
   onClose,
   onSelectKiosk,
 }: {
-  mode?: Mode;
-  wallet?: WalletStandard;
   open: boolean;
   onClose: (isBack: boolean) => void;
   onSelectKiosk: (kioskId: KioskOwnerCap) => void;
 }) => {
+  const { mode, wallet } = useWalletState();
   const [kiosks, setKiosks] = useState<KioskOwnerCap[] | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(true);
 

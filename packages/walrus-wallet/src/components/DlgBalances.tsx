@@ -13,23 +13,20 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
-import { FloatCoinBalance, WalletStandard } from '../utils/walletStandard';
+import { useWalletState } from '../recoil';
+import { FloatCoinBalance } from '../utils/walletStandard';
 
 export const DlgBalances = ({
-  mode = 'light',
-  wallet,
   open,
   onClose,
   openTransfer,
 }: {
-  mode?: Mode;
-  wallet?: WalletStandard;
   open: boolean;
   onClose: (isBack: boolean) => void;
   openTransfer: (option: { address?: string; coin?: FloatCoinBalance }) => void;
 }) => {
+  const { mode, wallet } = useWalletState();
   const [coins, setCoins] = useState<FloatCoinBalance[]>([]);
   // eslint-disable-next-line no-restricted-syntax
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);

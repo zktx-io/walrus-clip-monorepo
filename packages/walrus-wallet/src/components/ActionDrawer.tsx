@@ -22,30 +22,20 @@ import { DlgKioskTake } from './DlgKioskTake';
 import { DlgNFTs } from './DlgNFTs';
 import { DlgTransferCoin } from './DlgTransferCoin';
 import { DlgTransferNFT } from './DlgTransferNFT';
-import {
-  DlgOverlay,
-  DlgPortal,
-  DlgRoot,
-  DlgTitle,
-  DlgTrigger,
-  Mode,
-} from './modal';
+import { DlgOverlay, DlgPortal, DlgRoot, DlgTitle, DlgTrigger } from './modal';
 import { QRAddress } from './QRAddress';
+import { useWalletState } from '../recoil';
 import { NotiVariant } from '../utils/types';
-import { FloatCoinBalance, WalletStandard } from '../utils/walletStandard';
+import { FloatCoinBalance } from '../utils/walletStandard';
 
 export const ActionDrawer = ({
-  mode = 'light',
   icon,
-  wallet,
   isConnected,
   scan,
   onLogout,
   onEvent,
 }: {
   icon: string;
-  mode?: Mode;
-  wallet?: WalletStandard;
   isConnected: boolean;
   scan?: () => Promise<
     | undefined
@@ -57,6 +47,7 @@ export const ActionDrawer = ({
   onLogout: () => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
+  const { mode, wallet } = useWalletState();
   const [open, setOpen] = useState<boolean>(false);
   const [openAddress, setOpenAddress] = useState<boolean>(false);
   const [openBalances, setOpenBalances] = useState<boolean>(false);
@@ -243,16 +234,13 @@ export const ActionDrawer = ({
         </style>
       </DlgRoot>
       <QRAddress
-        mode={mode}
         icon={icon}
-        address={wallet?.address}
         open={openAddress}
         onClose={() => {
           setOpenAddress(false);
         }}
       />
       <DlgDashboard
-        mode={mode}
         open={openSystem}
         onClose={(isBack: boolean) => {
           isBack && setOpen(true);
@@ -274,8 +262,6 @@ export const ActionDrawer = ({
       />
 
       <DlgBalances
-        mode={mode}
-        wallet={wallet}
         open={openBalances}
         onClose={(isBack: boolean) => {
           isBack && setOpen(true);
@@ -287,8 +273,6 @@ export const ActionDrawer = ({
         }}
       />
       <DlgNFTs
-        mode={mode}
-        wallet={wallet}
         open={openNFTs}
         onClose={(isBack: boolean) => {
           isBack && setOpen(true);
@@ -305,8 +289,6 @@ export const ActionDrawer = ({
       />
 
       <DlgTransferCoin
-        mode={mode}
-        wallet={wallet}
         open={openTransferCoin}
         onClose={(isBack: boolean) => {
           isBack && setOpenBalances(true);
@@ -316,8 +298,6 @@ export const ActionDrawer = ({
         onEvent={onEvent}
       />
       <DlgTransferNFT
-        mode={mode}
-        wallet={wallet}
         object={openTransferNFT}
         onClose={(isBack: boolean) => {
           isBack && setOpenNFTs(true);
@@ -327,8 +307,6 @@ export const ActionDrawer = ({
         onEvent={onEvent}
       />
       <DlgKioskPlace
-        mode={mode}
-        wallet={wallet}
         object={openKioskPlace}
         onClose={(isBack: boolean) => {
           isBack && setOpenNFTs(true);
@@ -351,8 +329,6 @@ export const ActionDrawer = ({
         }}
       />
       <DlgKioskTake
-        mode={mode}
-        wallet={wallet}
         open={openKioskTake}
         onClose={(isBack: boolean) => {
           isBack && setOpenKiosk(true);
@@ -379,8 +355,6 @@ export const ActionDrawer = ({
       />
 
       <DlgCredentials
-        mode={mode}
-        wallet={wallet}
         open={openCredentials}
         onClose={(isBack: boolean) => {
           isBack && setOpenSystem(true);
@@ -388,8 +362,6 @@ export const ActionDrawer = ({
         }}
       />
       <DlgKiosks
-        mode={mode}
-        wallet={wallet}
         open={openKiosk}
         onClose={(isBack: boolean) => {
           isBack && setOpenSystem(true);

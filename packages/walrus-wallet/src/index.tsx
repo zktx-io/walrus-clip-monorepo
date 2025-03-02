@@ -11,9 +11,11 @@ import { genAddressSeed } from '@mysten/sui/zklogin';
 import { IdentifierString, registerWallet } from '@mysten/wallet-standard';
 import { decodeJwt } from 'jose';
 import ReactDOM from 'react-dom/client';
+import { RecoilRoot } from 'recoil';
 
 import { ActionDrawer } from './components/ActionDrawer';
 import { QRScan } from './components/QRScan';
+import { useWalletState } from './recoil';
 import { createProof } from './utils/createProof';
 import {
   getAccountData,
@@ -52,24 +54,11 @@ interface IWalrusWalletContext {
   }>;
 }
 
-const WalrusWalletContext = createContext<IWalrusWalletContext | undefined>(
-  undefined,
-);
-
-export const WalrusWallet = ({
-  name,
-  icon,
-  network,
-  mode,
-  sponsored,
-  zklogin,
-  onEvent,
-  children,
-}: {
+interface IWalrusWalletProps {
   name: string;
   icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
   network: NETWORK;
-  mode?: 'dark' | 'light';
+  mode: 'dark' | 'light';
   sponsored?: string;
   zklogin?: {
     enokey: string;
@@ -78,13 +67,26 @@ export const WalrusWallet = ({
   };
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   children: React.ReactNode;
-}) => {
+}
+
+const WalrusWalletContext = createContext<IWalrusWalletContext | undefined>(
+  undefined,
+);
+
+const WalrusWalletRoot = ({
+  name,
+  icon,
+  network,
+  mode,
+  sponsored,
+  zklogin,
+  onEvent,
+  children,
+}: IWalrusWalletProps) => {
   const initialized = useRef<boolean>(false);
+  const { wallet, setWallet, setMode } = useWalletState();
   const [isScannerEnabled, setIsScannerEnabled] =
     React.useState<boolean>(false);
-  const [wallet, setWallet] = React.useState<WalletStandard | undefined>(
-    undefined,
-  );
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
   const [isZkLogin, setIsZkLogin] = React.useState<boolean>(false);
 
@@ -168,6 +170,7 @@ export const WalrusWallet = ({
         icon,
         network,
         sponsored || '',
+        mode || 'light',
         onEvent,
         setIsConnected,
         {
@@ -176,13 +179,24 @@ export const WalrusWallet = ({
         },
       );
       setWallet(walletStandard);
+      setMode(mode || 'light');
       registerWallet(walletStandard);
 
       const account = getAccountData();
       setIsConnected(!!account);
       setIsZkLogin(!!account?.zkLogin);
     }
-  }, [name, icon, network, onEvent, zklogin, sponsored]);
+  }, [
+    name,
+    icon,
+    network,
+    mode,
+    sponsored,
+    zklogin,
+    onEvent,
+    setWallet,
+    setMode,
+  ]);
 
   useEffect(() => {
     const testCamera = async () => {
@@ -226,10 +240,8 @@ export const WalrusWallet = ({
       }}
     >
       <ActionDrawer
-        mode={mode}
         isConnected={isConnected}
         icon={icon}
-        wallet={wallet}
         scan={isScannerEnabled && isZkLogin ? scan : undefined}
         onLogout={() => {
           if (wallet) {
@@ -242,6 +254,14 @@ export const WalrusWallet = ({
       />
       {children}
     </WalrusWalletContext.Provider>
+  );
+};
+
+export const WalrusWallet = ({ children, ...others }: IWalrusWalletProps) => {
+  return (
+    <RecoilRoot>
+      <WalrusWalletRoot {...others}>{children}</WalrusWalletRoot>
+    </RecoilRoot>
   );
 };
 

@@ -9,21 +9,17 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
-import { WalletStandard } from '../utils/walletStandard';
+import { useWalletState } from '../recoil';
 
 export const DlgCredentials = ({
-  mode = 'light',
-  wallet,
   open,
   onClose,
 }: {
-  mode?: Mode;
-  wallet?: WalletStandard;
   open: boolean;
   onClose: (isBack: boolean) => void;
 }) => {
+  const { mode, wallet } = useWalletState();
   return (
     <DlgRoot open={open}>
       <DlgPortal>

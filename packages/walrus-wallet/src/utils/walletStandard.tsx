@@ -87,6 +87,8 @@ export class WalletStandard implements Wallet {
   #account: IAccount | undefined;
   #signer: ZkLoginSigner | undefined;
 
+  #mode: 'dark' | 'light';
+
   #coinMetadataCache: { [coinType: string]: CoinMetadata } = {};
 
   get version() {
@@ -126,6 +128,7 @@ export class WalletStandard implements Wallet {
     icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`,
     network: NETWORK,
     sponsored: string,
+    mode: 'dark' | 'light',
     onEvent: (data: { variant: NotiVariant; message: string }) => void,
     setIsConnected: (isConnected: boolean) => void,
     zklogin?: {
@@ -138,6 +141,7 @@ export class WalletStandard implements Wallet {
     this.#icon = icon;
     this.#network = network;
     this.#sponsored = sponsored === '' ? undefined : sponsored;
+    this.#mode = mode;
     this.#onEvent = onEvent;
     this.#setIsConnected = setIsConnected;
     this.#epochOffset = zklogin?.epochOffset;
@@ -183,6 +187,7 @@ export class WalletStandard implements Wallet {
       const root = ReactDOM.createRoot(container);
       root.render(
         <PwCreate
+          mode={this.#mode}
           onClose={() => {
             cleanup(container, root);
             reject(new Error('rejected'));
@@ -210,6 +215,7 @@ export class WalletStandard implements Wallet {
       const root = ReactDOM.createRoot(container);
       root.render(
         <QRLoginCode
+          mode={this.#mode}
           icon={this.#icon}
           network={this.#network}
           onEvent={this.#onEvent}
@@ -272,6 +278,7 @@ export class WalletStandard implements Wallet {
         this.#network,
         this.#account.zkLogin,
         this.#account.address,
+        this.#mode,
         this.#onEvent,
       );
     }
@@ -305,6 +312,7 @@ export class WalletStandard implements Wallet {
       const root = ReactDOM.createRoot(container);
       root.render(
         <QRSignCode
+          mode={this.#mode}
           option={{
             title,
             description,
@@ -414,7 +422,7 @@ export class WalletStandard implements Wallet {
       } else {
         const tx = await transaction.toJSON();
         const txResult = await this.pay(
-          'Sign and Execute Transaction',
+          'Sign and Execute',
           'Please scan the QR code to sign.',
           {
             transactions: [Transaction.from(tx)],

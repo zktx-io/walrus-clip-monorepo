@@ -14,19 +14,14 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
-import { WalletStandard } from '../utils/walletStandard';
+import { useWalletState } from '../recoil';
 
 export const DlgKioskPlace = ({
-  mode,
-  wallet,
   object,
   onClose,
   kioskPlace,
 }: {
-  mode: Mode;
-  wallet?: WalletStandard;
   object?: SuiObjectData;
   onClose: (isBack: boolean) => void;
   kioskPlace: (objData: {
@@ -35,6 +30,7 @@ export const DlgKioskPlace = ({
     recipient?: string;
   }) => Promise<void>;
 }) => {
+  const { mode, wallet } = useWalletState();
   const [kiosks, setKiosks] = useState<KioskOwnerCap[] | undefined>(undefined);
   const [selectedKiosk, setSelectedKiosk] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);

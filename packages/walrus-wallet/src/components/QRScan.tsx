@@ -27,7 +27,7 @@ export const QRScan = ({
   onClose,
   scanAddress,
 }: {
-  mode?: 'dark' | 'light';
+  mode: 'dark' | 'light';
   wallet: WalletStandard;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onClose: (result?: { digest: string; effects: string }[]) => void;

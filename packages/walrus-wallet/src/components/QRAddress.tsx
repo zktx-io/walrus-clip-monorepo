@@ -9,34 +9,31 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
+import { useWalletState } from '../recoil';
 
 export const QRAddress = ({
-  mode,
-  address,
   open,
   onClose,
   icon,
 }: {
-  mode?: Mode;
-  address?: string;
   open: boolean;
   onClose: () => void;
   icon: string;
 }) => {
+  const { mode, wallet } = useWalletState();
   const [copied, setCopied] = useState<boolean>(false);
 
   const copyToClipboard = () => {
-    if (address) {
-      navigator.clipboard.writeText(address);
+    if (wallet?.address) {
+      navigator.clipboard.writeText(wallet.address);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
   return (
-    <DlgRoot open={open && !!address}>
+    <DlgRoot open={open && !!wallet?.address}>
       <DlgPortal>
         <DlgOverlay
           mode={mode}
@@ -66,7 +63,7 @@ export const QRAddress = ({
           >
             <DlgDescription
               mode={mode}
-              title={address}
+              title={wallet?.address}
               style={{
                 flexGrow: 1,
                 overflow: 'hidden',
@@ -75,11 +72,11 @@ export const QRAddress = ({
                 textAlign: 'center',
               }}
             >
-              {copied ? 'Copied!' : address}
+              {copied ? 'Copied!' : wallet?.address}
             </DlgDescription>
           </div>
           <QRCode
-            value={address}
+            value={wallet?.address}
             logoImage={icon}
             logoPadding={5}
             size={256}

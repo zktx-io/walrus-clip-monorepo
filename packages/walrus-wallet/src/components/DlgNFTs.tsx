@@ -14,25 +14,21 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
-import { WalletStandard } from '../utils/walletStandard';
+import { useWalletState } from '../recoil';
 
 export const DlgNFTs = ({
-  mode = 'light',
-  wallet,
   open,
   onClose,
   openTransfer,
   openKioskPlace,
 }: {
-  mode?: Mode;
-  wallet?: WalletStandard;
   open: boolean;
   onClose: (isBack: boolean) => void;
   openTransfer: (objData: SuiObjectData) => void;
   openKioskPlace: (objData: SuiObjectData) => void;
 }) => {
+  const { mode, wallet } = useWalletState();
   const [assets, setAssets] = useState<SuiObjectData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 

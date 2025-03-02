@@ -134,7 +134,7 @@ export const QRLoginCode = ({
   onClose,
   onEvent,
 }: {
-  mode?: 'dark' | 'light';
+  mode: 'dark' | 'light';
   network: NETWORK;
   icon: string;
   onClose: (result?: { address: string; network: NETWORK }) => void;
@@ -253,12 +253,13 @@ export const QRLoginCode = ({
   return (
     <DlgRoot open={open}>
       <DlgPortal>
-        <DlgOverlay mode={mode} />
+        <DlgOverlay mode={mode} style={{ zIndex: 2147483645 }} />
         <DlgContentQR
           mode={mode}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
           }}
+          style={{ zIndex: 2147483645 }}
         >
           <div
             style={{
