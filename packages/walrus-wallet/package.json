@@ -9,7 +9,7 @@
     "wallet standard",
     "customizable"
   ],
-  "version": "0.1.8",
+  "version": "0.1.9",
   "type": "module",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
