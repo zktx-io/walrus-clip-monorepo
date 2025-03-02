@@ -6,7 +6,7 @@ import { HiOutlineXMark } from 'react-icons/hi2';
 
 import {
   DlgButtonIcon,
-  DlgContent,
+  DlgContentQR,
   DlgDescription2,
   DlgOverlay,
   DlgPortal,
@@ -146,7 +146,7 @@ export const QRScan = ({
             handleClose();
           }}
         />
-        <DlgContent
+        <DlgContentQR
           mode={mode}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -187,7 +187,7 @@ export const QRScan = ({
           <DlgDescription2 mode={mode}>
             {error ? error : 'Please scan the QR code.'}
           </DlgDescription2>
-        </DlgContent>
+        </DlgContentQR>
       </DlgPortal>
     </DlgRoot>
   );

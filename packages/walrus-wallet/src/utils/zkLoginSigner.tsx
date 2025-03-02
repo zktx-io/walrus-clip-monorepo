@@ -16,7 +16,7 @@ import ReactDOM from 'react-dom/client';
 
 import { IZkLogin, NETWORK, NotiVariant } from './types';
 import { decryptText } from './utils';
-import { Password2 } from '../components/password2';
+import { PwConfirm } from '../components/PwConfirm';
 
 const TIME_OUT = 300;
 
@@ -56,22 +56,25 @@ export class ZkLoginSigner extends Signer {
       document.body.appendChild(container);
       const root = ReactDOM.createRoot(container);
       root.render(
-        <Password2
+        <PwConfirm
           onClose={() => {
             cleanup(container, root);
             reject(new Error('rejected'));
           }}
           onConfirm={async (password: string) => {
-            cleanup(container, root);
-            const { iv, encrypted } = this.#zkLogin.keypair.privateKey;
-            const privateKey = await decryptText(password, encrypted, iv);
-            if (privateKey) {
-              resolve(privateKey);
-            } else {
-              reject(new Error('Password Error.'));
+            try {
+              const { iv, encrypted } = this.#zkLogin.keypair.privateKey;
+              const privateKey = await decryptText(password, encrypted, iv);
+              if (!!privateKey) {
+                cleanup(container, root);
+                resolve(privateKey);
+              } else {
+                throw new Error('Invalid password.');
+              }
+            } catch (error) {
+              throw new Error('Invalid password.');
             }
           }}
-          onEvent={this.#onEvent}
         />,
       );
     });

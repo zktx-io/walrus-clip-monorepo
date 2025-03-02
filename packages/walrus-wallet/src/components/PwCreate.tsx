@@ -9,30 +9,33 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-  Mode,
 } from './modal';
 import { NotiVariant } from '../utils/types';
 
-export const Password2 = ({
+export const PwCreate = ({
   mode = 'light',
   onClose,
   onConfirm,
   onEvent,
 }: {
-  mode?: Mode;
+  mode?: 'dark' | 'light';
   onClose: () => void;
   onConfirm: (password: string) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const [open, setOpen] = useState(true);
   const [password, setPassword] = useState('');
-
+  const [confirmPassword, setConfirmPassword] = useState('');
   return (
     <DlgRoot open={open}>
       <DlgPortal>
         <DlgOverlay
           mode={mode}
           onClick={() => {
+            onEvent({
+              variant: 'error',
+              message: 'Password confirmation cancelled',
+            });
             setOpen(false);
             onClose();
           }}
@@ -43,7 +46,7 @@ export const Password2 = ({
             event.preventDefault();
           }}
         >
-          <DlgTitle mode={mode}>Sign</DlgTitle>
+          <DlgTitle mode={mode}>Confirm password</DlgTitle>
           <DlgDescription mode={mode}>
             Please confirm your password to proceed.
           </DlgDescription>
@@ -64,6 +67,23 @@ export const Password2 = ({
               </FormControl>
             </FormField>
           </FormRoot>
+          <FormRoot>
+            <FormField name="confirmPassword">
+              <FormControl asChild>
+                <FormInput
+                  required
+                  autoComplete="off"
+                  autoCorrect="off"
+                  mode={mode}
+                  placeholder="confirm password"
+                  type="password"
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                  }}
+                />
+              </FormControl>
+            </FormField>
+          </FormRoot>
           <div
             style={{
               display: 'flex',
@@ -74,7 +94,7 @@ export const Password2 = ({
           >
             <DlgButton
               mode={mode}
-              disabled={password.length < 1}
+              disabled={password !== confirmPassword || password.length < 1}
               onClick={() => {
                 setOpen(false);
                 onConfirm(password);

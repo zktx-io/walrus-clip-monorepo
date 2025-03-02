@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
-import { FormControl, FormField, FormInput, FormRoot } from './form';
+import {
+  FormControl,
+  FormField,
+  FormInput,
+  FormMessage,
+  FormRoot,
+} from './form';
 import {
   DlgButton,
   DlgContent,
@@ -9,33 +15,37 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
+  Mode,
 } from './modal';
-import { NotiVariant } from '../utils/types';
 
-export const Password = ({
+export const PwConfirm = ({
   mode = 'light',
   onClose,
   onConfirm,
-  onEvent,
 }: {
-  mode?: 'dark' | 'light';
+  mode?: Mode;
   onClose: () => void;
-  onConfirm: (password: string) => void;
-  onEvent: (data: { variant: NotiVariant; message: string }) => void;
+  onConfirm: (password: string) => Promise<void>;
 }) => {
   const [open, setOpen] = useState(true);
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (open) {
+      setPassword('');
+      setLoading(false);
+      setError(false);
+    }
+  }, [open]);
+
   return (
     <DlgRoot open={open}>
       <DlgPortal>
         <DlgOverlay
           mode={mode}
           onClick={() => {
-            onEvent({
-              variant: 'error',
-              message: 'Password confirmation cancelled',
-            });
             setOpen(false);
             onClose();
           }}
@@ -46,7 +56,7 @@ export const Password = ({
             event.preventDefault();
           }}
         >
-          <DlgTitle mode={mode}>Confirm password</DlgTitle>
+          <DlgTitle mode={mode}>Sign</DlgTitle>
           <DlgDescription mode={mode}>
             Please confirm your password to proceed.
           </DlgDescription>
@@ -65,23 +75,11 @@ export const Password = ({
                   }}
                 />
               </FormControl>
-            </FormField>
-          </FormRoot>
-          <FormRoot>
-            <FormField name="confirmPassword">
-              <FormControl asChild>
-                <FormInput
-                  required
-                  autoComplete="off"
-                  autoCorrect="off"
-                  mode={mode}
-                  placeholder="confirm password"
-                  type="password"
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                  }}
-                />
-              </FormControl>
+              {error && (
+                <FormMessage mode={mode} error={error}>
+                  incorrect password
+                </FormMessage>
+              )}
             </FormField>
           </FormRoot>
           <div
@@ -94,10 +92,18 @@ export const Password = ({
           >
             <DlgButton
               mode={mode}
-              disabled={password !== confirmPassword || password.length < 1}
-              onClick={() => {
-                setOpen(false);
-                onConfirm(password);
+              disabled={password.length < 1 || loading}
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  setError(false);
+                  await onConfirm(password);
+                  setOpen(false);
+                } catch (error) {
+                  setError(true);
+                } finally {
+                  setLoading(false);
+                }
               }}
             >
               Confirm

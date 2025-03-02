@@ -65,6 +65,42 @@ export const DlgContent = styled(Dialog.DialogContent, {
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
+  padding: '25px',
+  outline: 'none',
+  animation: `${contentShow} 150ms cubic-bezier(0.16, 1, 0.3, 1)`,
+  '@media (max-width: 600px)': {
+    height: 'auto',
+    width: '100%',
+    maxWidth: 'calc(100% - 12px)',
+  },
+  variants: {
+    mode: {
+      light: {
+        borderStyle: 'none',
+        backgroundColor: '#ffffff',
+        boxShadow:
+          '0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23)',
+      },
+      dark: {
+        borderStyle: 'solid',
+        borderWidth: '1px',
+        borderColor: '#ddf3ff15',
+        backgroundColor: '#191919',
+        boxShadow:
+          '0 10px 20px rgba(54, 58, 63, 0.1), 0 6px 6px rgba(54, 58, 63, 0.14)',
+      },
+    },
+  },
+});
+
+export const DlgContentQR = styled(Dialog.DialogContent, {
+  zIndex: 2147483645,
+  pointerEvents: 'none',
+  borderRadius: '6px',
+  position: 'fixed',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
   maxWidth: '450px',
   padding: '25px',
   outline: 'none',
@@ -105,7 +141,8 @@ export const DlgContentBottom = styled(Dialog.Content, {
   '@media (max-width: 600px)': {
     borderRadius: '12px 12px 0 0',
     height: 'auto',
-    maxWidth: '100%',
+    width: '100%',
+    maxWidth: 'calc(100% - 12px)',
   },
   variants: {
     mode: {

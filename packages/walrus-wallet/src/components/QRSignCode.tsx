@@ -10,7 +10,7 @@ import { QRCode } from 'react-qrcode-logo';
 
 import {
   DlgButtonIcon,
-  DlgContent,
+  DlgContentQR,
   DlgDescription2,
   DlgOverlay,
   DlgPortal,
@@ -372,7 +372,7 @@ export const QRSignCode = ({
     <DlgRoot open={open}>
       <DlgPortal>
         <DlgOverlay mode={mode} />
-        <DlgContent
+        <DlgContentQR
           mode={mode}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -404,7 +404,7 @@ export const QRSignCode = ({
             style={{ width: '256px', height: '256px' }}
           />
           <DlgDescription2 mode={mode}>{option.description}</DlgDescription2>
-        </DlgContent>
+        </DlgContentQR>
       </DlgPortal>
     </DlgRoot>
   );

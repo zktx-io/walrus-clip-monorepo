@@ -12,7 +12,7 @@ import { QRCode } from 'react-qrcode-logo';
 
 import {
   DlgButtonIcon,
-  DlgContent,
+  DlgContentQR,
   DlgDescription2,
   DlgOverlay,
   DlgPortal,
@@ -254,7 +254,7 @@ export const QRLoginCode = ({
     <DlgRoot open={open}>
       <DlgPortal>
         <DlgOverlay mode={mode} />
-        <DlgContent
+        <DlgContentQR
           mode={mode}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -288,7 +288,7 @@ export const QRLoginCode = ({
           <DlgDescription2 mode={mode}>
             Please scan the QR code to log in.
           </DlgDescription2>
-        </DlgContent>
+        </DlgContentQR>
       </DlgPortal>
     </DlgRoot>
   );

@@ -45,7 +45,7 @@ import {
 } from './localStorage';
 import { IAccount, NETWORK, NotiVariant } from './types';
 import { cleanup, ZkLoginSigner } from './zkLoginSigner';
-import { Password } from '../components/password';
+import { PwCreate } from '../components/PwCreate';
 import { QRLoginCode } from '../components/QRLoginCode';
 import { QRSignCode, TxResult } from '../components/QRSignCode';
 
@@ -182,7 +182,7 @@ export class WalletStandard implements Wallet {
       document.body.appendChild(container);
       const root = ReactDOM.createRoot(container);
       root.render(
-        <Password
+        <PwCreate
           onClose={() => {
             cleanup(container, root);
             reject(new Error('rejected'));

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { QRCode } from 'react-qrcode-logo';
 
 import {
-  DlgContent,
+  DlgContentQR,
   DlgDescription,
   DlgOverlay,
   DlgPortal,
@@ -44,7 +44,7 @@ export const QRAddress = ({
             onClose();
           }}
         />
-        <DlgContent
+        <DlgContentQR
           mode={mode}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -86,7 +86,7 @@ export const QRAddress = ({
             qrStyle="dots"
             style={{ width: '256px', height: '256px' }}
           />
-        </DlgContent>
+        </DlgContentQR>
       </DlgPortal>
     </DlgRoot>
   );
