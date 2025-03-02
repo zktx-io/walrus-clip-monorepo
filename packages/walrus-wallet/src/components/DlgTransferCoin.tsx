@@ -228,12 +228,6 @@ export const DlgTransferCoin = ({
         <DlgContent
           mode={mode}
           onOpenAutoFocus={(event) => event.preventDefault()}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            width: '400px',
-            maxWidth: '500px',
-          }}
         >
           <div
             style={{
