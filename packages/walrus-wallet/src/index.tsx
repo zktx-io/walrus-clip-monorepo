@@ -58,7 +58,7 @@ interface IWalrusWalletProps {
   name: string;
   icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
   network: NETWORK;
-  mode: 'dark' | 'light';
+  mode?: 'dark' | 'light';
   sponsored?: string;
   zklogin?: {
     enokey: string;
@@ -146,7 +146,7 @@ const WalrusWalletRoot = ({
         const root = ReactDOM.createRoot(container);
         root.render(
           <QRScan
-            mode={mode}
+            mode={mode || 'light'}
             wallet={wallet}
             onEvent={onEvent}
             onClose={(result) => {
