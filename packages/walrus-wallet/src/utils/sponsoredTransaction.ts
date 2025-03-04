@@ -106,19 +106,19 @@ export const signAndExecuteSponsoredTransaction = async (
         };
       }
     } else {
-      const txResult = await wallet.pay(
+      const { digest, bytes, signature, effects } = await wallet.pay(
         'Bill',
         'Please scan the QR code to pay.',
         {
-          transactions: [input.transaction],
+          transaction: input.transaction,
           isSponsored: true,
         },
       );
       return {
-        digest: txResult[0].digest,
-        bytes: txResult[0].bytes,
-        signature: txResult[0].signature,
-        effects: txResult[0].effects,
+        digest,
+        bytes,
+        signature,
+        effects,
       };
     }
     throw new Error('Chain error');

@@ -42,7 +42,7 @@ export const ActionDrawer = ({
     | {
         digest: string;
         effects: string;
-      }[]
+      }
   >;
   onLogout: () => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;

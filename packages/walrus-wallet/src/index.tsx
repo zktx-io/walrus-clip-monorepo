@@ -36,13 +36,13 @@ interface IWalrusWalletContext {
     | {
         digest: string;
         effects: string;
-      }[]
+      }
   >;
   pay: (
     title: string,
     description: string,
-    data: { transactions: Transaction[]; isSponsored?: boolean },
-  ) => Promise<{ digest: string; effects: string }[]>;
+    data: { transaction: Transaction; isSponsored?: boolean },
+  ) => Promise<{ digest: string; effects: string }>;
   signAndExecuteSponsoredTransaction: (input: {
     transaction: Transaction;
     chain: IdentifierString;
@@ -136,7 +136,7 @@ const WalrusWalletRoot = ({
   );
 
   const scan = useCallback((): Promise<
-    { digest: string; effects: string }[] | undefined
+    { digest: string; effects: string } | undefined
   > => {
     return new Promise((resolve) => {
       const account = getAccountData();

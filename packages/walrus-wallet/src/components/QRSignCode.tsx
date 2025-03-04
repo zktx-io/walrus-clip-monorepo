@@ -52,7 +52,7 @@ export const connectQRSign = ({
   wallet: WalletStandard;
   destId: string;
   setOpen: (open: boolean) => void;
-  onClose: (result?: TxResult[]) => void;
+  onClose: (result?: TxResult) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const randomness = generateRandomness();
@@ -88,52 +88,59 @@ export const connectQRSign = ({
             switch (message.type) {
               case MessageType.STEP_1:
                 {
-                  const { txs } = JSON.parse(message.value) as {
-                    txs: { bytes: string; digest?: string }[];
-                  };
-                  const signatures = await signer.signMultiTx(
-                    txs.map(({ bytes }) => fromBase64(bytes)),
+                  const { bytes, digest } = JSON.parse(message.value);
+                  const { signature } = await signer.signTransaction(
+                    fromBase64(bytes),
                   );
-                  const txsTemp = txs.map((item, index) => ({
-                    ...item,
-                    signature: signatures[index].signature,
-                  }));
                   connection.send(
                     makeMessage(
                       MessageType.STEP_2,
-                      JSON.stringify({
-                        txs: txsTemp,
-                      }),
+                      JSON.stringify({ txBytes: bytes, signature, digest }),
                     ),
                   );
                   connection.open && connection.close({ flush: true });
-                  const txResult: TxResult[] = [];
-                  for (const tx of txsTemp) {
-                    const digest = tx.digest
-                      ? tx.digest
-                      : await Transaction.from(fromBase64(tx.bytes)).getDigest({
-                          client,
-                        });
+                  if (digest) {
                     const { rawEffects } = await client.waitForTransaction({
                       digest,
                       options: {
                         showRawEffects: true,
                       },
                     });
-                    txResult.push({
-                      bytes: tx.bytes,
-                      signature: tx.signature,
+                    onEvent({
+                      variant: 'success',
+                      message: 'Transaction executed',
+                    });
+                    onClose({
+                      bytes,
+                      signature,
+                      digest,
+                      effects: rawEffects
+                        ? toBase64(new Uint8Array(rawEffects))
+                        : '',
+                    });
+                  } else {
+                    const digest = await Transaction.from(
+                      fromBase64(bytes),
+                    ).getDigest({ client });
+                    const { rawEffects } = await client.waitForTransaction({
+                      digest,
+                      options: {
+                        showRawEffects: true,
+                      },
+                    });
+                    onEvent({
+                      variant: 'success',
+                      message: 'Transaction executed',
+                    });
+                    onClose({
+                      bytes,
+                      signature,
                       digest,
                       effects: rawEffects
                         ? toBase64(new Uint8Array(rawEffects))
                         : '',
                     });
                   }
-                  onEvent({
-                    variant: 'success',
-                    message: 'Transaction executed',
-                  });
-                  onClose(txResult);
                 }
                 break;
 
@@ -179,18 +186,18 @@ export const QRSignCode = ({
   option: {
     title?: string;
     description?: string;
-    transactions: Transaction[];
+    transaction: Transaction;
   };
   network: NETWORK;
   sponsored?: string;
   icon: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  onClose: (result?: TxResult[]) => void;
+  onClose: (result?: TxResult) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
   const peerId = `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::sign`;
 
-  const handleClose = (error?: string, result?: TxResult[]) => {
+  const handleClose = (error?: string, result?: TxResult) => {
     error &&
       onEvent({
         variant: 'error',
@@ -231,40 +238,35 @@ export const QRSignCode = ({
                     message: 'create transaction...',
                   });
                 }
-                const txBytes: Uint8Array[] = [];
-                for (const tx of option.transactions) {
-                  tx.setSenderIfNotSet(message.value);
-                  txBytes.push(
-                    await tx.build({
-                      client,
-                      ...(sponsored !== undefined && {
-                        onlyTransactionKind: true,
-                      }),
-                    }),
-                  );
-                }
+
+                option.transaction.setSenderIfNotSet(message.value);
+
                 if (sponsored !== undefined) {
-                  const txs: { bytes: string; digest: string }[] = [];
-                  for (const tx of txBytes) {
-                    txs.push(
-                      await createSponsoredTransaction(
-                        sponsored,
-                        network,
-                        message.value,
-                        tx,
-                      ),
+                  const txBytes = await option.transaction.build({
+                    client,
+                    onlyTransactionKind: true,
+                  });
+                  const { bytes: sponsoredTxBytes, digest } =
+                    await createSponsoredTransaction(
+                      sponsored,
+                      network,
+                      message.value,
+                      txBytes,
                     );
-                  }
-                  connection.send(
-                    makeMessage(MessageType.STEP_1, JSON.stringify({ txs })),
-                  );
-                } else {
                   connection.send(
                     makeMessage(
                       MessageType.STEP_1,
-                      JSON.stringify({
-                        txs: txBytes.map((item) => ({ bytes: toBase64(item) })),
-                      }),
+                      JSON.stringify({ bytes: sponsoredTxBytes, digest }),
+                    ),
+                  );
+                } else {
+                  const txBytes = await option.transaction.build({
+                    client,
+                  });
+                  connection.send(
+                    makeMessage(
+                      MessageType.STEP_1,
+                      JSON.stringify({ bytes: toBase64(txBytes) }),
                     ),
                   );
                 }
@@ -281,59 +283,50 @@ export const QRSignCode = ({
                       ? 'Executing sponsored transaction...'
                       : 'Executing transaction...',
                 });
-                const txResult: TxResult[] = [];
-                const { txs } = JSON.parse(message.value) as {
-                  txs: {
-                    digest?: string;
-                    signature: string;
-                    bytes: string;
-                  }[];
-                };
                 if (sponsored !== undefined) {
-                  for (const tx of txs) {
-                    await executeSponsoredTransaction(
-                      sponsored,
-                      tx.digest!,
-                      tx.signature,
-                    );
-                    const { rawEffects } = await client.waitForTransaction({
-                      digest: tx.digest!,
-                      options: {
-                        showRawEffects: true,
-                      },
-                    });
-                    txResult.push({
-                      bytes: tx.bytes,
-                      signature: tx.signature,
-                      digest: tx.digest!,
-                      effects: rawEffects
-                        ? toBase64(new Uint8Array(rawEffects))
-                        : '',
-                    });
-                  }
+                  const { digest, signature, txBytes } = JSON.parse(
+                    message.value,
+                  );
+                  await executeSponsoredTransaction(
+                    sponsored,
+                    digest!,
+                    signature,
+                  );
+                  const { rawEffects } = await client.waitForTransaction({
+                    digest,
+                    options: {
+                      showRawEffects: true,
+                    },
+                  });
+                  handleClose(undefined, {
+                    bytes: txBytes,
+                    signature,
+                    digest,
+                    effects: rawEffects
+                      ? toBase64(new Uint8Array(rawEffects))
+                      : '',
+                  });
                 } else {
-                  for (const tx of txs) {
-                    const { digest } = await client.executeTransactionBlock({
-                      transactionBlock: tx.bytes,
-                      signature: tx.signature,
-                    });
-                    const { rawEffects } = await client.waitForTransaction({
-                      digest,
-                      options: {
-                        showRawEffects: true,
-                      },
-                    });
-                    txResult.push({
-                      bytes: tx.bytes,
-                      signature: tx.signature,
-                      digest,
-                      effects: rawEffects
-                        ? toBase64(new Uint8Array(rawEffects))
-                        : '',
-                    });
-                  }
+                  const { signature, txBytes } = JSON.parse(message.value);
+                  const { digest } = await client.executeTransactionBlock({
+                    transactionBlock: txBytes,
+                    signature,
+                  });
+                  const { rawEffects } = await client.waitForTransaction({
+                    digest,
+                    options: {
+                      showRawEffects: true,
+                    },
+                  });
+                  handleClose(undefined, {
+                    bytes: txBytes,
+                    signature,
+                    digest,
+                    effects: rawEffects
+                      ? toBase64(new Uint8Array(rawEffects))
+                      : '',
+                  });
                 }
-                handleClose(undefined, txResult);
               }
               break;
 

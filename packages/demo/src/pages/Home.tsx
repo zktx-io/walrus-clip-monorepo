@@ -115,11 +115,11 @@ export const Home = () => {
           ),
         ],
       });
-      const txResult = await pay('Bill', 'Please scan the QR code to pay.', {
-        transactions: [transaction],
+      const { digest } = await pay('Bill', 'Please scan the QR code to pay.', {
+        transaction,
         isSponsored: true,
       });
-      enqueueSnackbar(txResult[0].digest, {
+      enqueueSnackbar(digest, {
         variant: 'success',
         style: {
           whiteSpace: 'nowrap',

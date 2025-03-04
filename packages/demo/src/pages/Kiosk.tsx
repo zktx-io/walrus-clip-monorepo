@@ -50,12 +50,12 @@ export const Kiosk = () => {
         ],
       });
 
-      const txResult = await pay('Pay', 'Please scan the QR code to pay.', {
-        transactions: [transaction],
+      const { digest } = await pay('Pay', 'Please scan the QR code to pay.', {
+        transaction,
         isSponsored: true,
       });
 
-      setTxDigest(txResult[0].digest);
+      setTxDigest(digest);
       setOrderedItems(cart);
       setIsModalOpen(true);
       setCart([]);

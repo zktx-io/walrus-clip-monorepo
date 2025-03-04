@@ -304,8 +304,8 @@ export class WalletStandard implements Wallet {
   pay = async (
     title: string,
     description: string,
-    data: { transactions: Transaction[]; isSponsored?: boolean },
-  ): Promise<TxResult[]> => {
+    data: { transaction: Transaction; isSponsored?: boolean },
+  ): Promise<TxResult> => {
     return new Promise((resolve) => {
       const container = document.createElement('div');
       document.body.appendChild(container);
@@ -316,7 +316,7 @@ export class WalletStandard implements Wallet {
           option={{
             title,
             description,
-            transactions: data.transactions,
+            transaction: data.transaction,
           }}
           network={this.#network}
           sponsored={data.isSponsored ? this.#sponsored : undefined}
@@ -370,13 +370,13 @@ export class WalletStandard implements Wallet {
           'Sign Transaction',
           'Please scan the QR code to sign.',
           {
-            transactions: [Transaction.from(tx)],
+            transaction: Transaction.from(tx),
             isSponsored: false,
           },
         );
         return {
-          bytes: txResult[0].bytes,
-          signature: txResult[0].signature,
+          bytes: txResult.bytes,
+          signature: txResult.signature,
         };
       }
     }
@@ -425,15 +425,15 @@ export class WalletStandard implements Wallet {
           'Sign and Execute',
           'Please scan the QR code to sign.',
           {
-            transactions: [Transaction.from(tx)],
+            transaction: Transaction.from(tx),
             isSponsored: false,
           },
         );
         return {
-          digest: txResult[0].digest,
-          bytes: txResult[0].bytes,
-          signature: txResult[0].signature,
-          effects: txResult[0].effects,
+          digest: txResult.digest,
+          bytes: txResult.bytes,
+          signature: txResult.signature,
+          effects: txResult.effects,
         };
       }
     }
