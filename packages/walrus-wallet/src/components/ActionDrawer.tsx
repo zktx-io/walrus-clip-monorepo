@@ -199,7 +199,7 @@ export const ActionDrawer = ({
             border-radius: 12px 12px 0 0;
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
             overflow: hidden;
-            z-index: 2147483647;
+            z-index: 1234;
           }
 
           .action-buttons {
