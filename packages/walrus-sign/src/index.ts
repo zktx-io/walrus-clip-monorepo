@@ -125,11 +125,13 @@ export class WalrusSign {
   }
 
   async createTrust(token: string, expire: number): Promise<string> {
-    const [payload] = token.split('.');
+    const [header, payload] = token.split('.');
     const payloadJson = JSON.parse(
       new TextDecoder().decode(fromBase64(payload)),
     );
-    const hash = bigIntToBase64(poseidonHash([textToBigInt(token)]));
+    const hash = bigIntToBase64(
+      poseidonHash([textToBigInt(header), textToBigInt(payload)]),
+    );
     const trust = await this.createSignedJWT(
       { hash },
       payloadJson.sub,
@@ -185,7 +187,9 @@ export class WalrusSign {
         if (
           trust &&
           trust.hash ===
-            bigIntToBase64(poseidonHash([textToBigInt(payloadJson.data)]))
+            bigIntToBase64(
+              poseidonHash([textToBigInt(header), textToBigInt(payload)]),
+            )
         ) {
           return this.verifyJWT(payloadJson.data);
         }

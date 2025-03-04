@@ -44,7 +44,6 @@ function App() {
 
   return (
     <WalrusWallet
-      mode="light"
       name={WALLET_NAME}
       icon={ICON}
       network={activeNetwork}

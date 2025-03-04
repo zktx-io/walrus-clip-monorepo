@@ -10,7 +10,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["jest"],
+    "types": ["jest"]
   },
   "include": ["src"]
 }

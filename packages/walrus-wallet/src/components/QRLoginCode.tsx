@@ -25,6 +25,7 @@ import {
   NotiVariant,
   parseMessage,
 } from '../utils/types';
+import { PEER_CONFIG } from '../utils/utils';
 import { WalletStandard } from '../utils/walletStandard';
 
 enum MessageType {
@@ -46,7 +47,7 @@ export const connectQRLogin = ({
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const randomness = generateRandomness();
-  const peer = new Peer(randomness);
+  const peer = new Peer(randomness, PEER_CONFIG);
 
   onEvent({ variant: 'info', message: 'Connecting...' });
   setOpen(false);
@@ -157,7 +158,7 @@ export const QRLoginCode = ({
   };
 
   useEffect(() => {
-    const peer = new Peer(peerId.replace(/::/g, '-'));
+    const peer = new Peer(peerId.replace(/::/g, '-'), PEER_CONFIG);
     let step = '';
 
     peer.on('connection', (connection) => {
