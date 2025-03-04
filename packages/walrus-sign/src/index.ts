@@ -1,9 +1,13 @@
 import { Signer } from '@mysten/sui/cryptography';
 import { fromBase64, toBase58, toBase64 } from '@mysten/sui/utils';
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
-import { sha256 } from '@noble/hashes/sha256';
+import { poseidonHash } from '@mysten/sui/zklogin';
 
 import { Aggregator, Network, Publisher } from './config';
+
+const BN254_PRIME = BigInt(
+  '21888242871839275222246405745257275088548364400416034343698204186575808495617',
+);
 
 const jsonToBase64Url = (json: { [key: string]: any }): string => {
   const bytes = new TextEncoder().encode(JSON.stringify(json));
@@ -12,6 +16,30 @@ const jsonToBase64Url = (json: { [key: string]: any }): string => {
     .replace(/\//g, '_')
     .replace(/=+$/, '');
 };
+
+const base64UrlToBase64 = (base64url: string): string => {
+  return (
+    base64url.replace(/-/g, '+').replace(/_/g, '/') +
+    '=='.slice(0, (4 - (base64url.length % 4)) % 4)
+  );
+};
+
+const textToBigInt = (token: string): bigint => {
+  const bytes = new TextEncoder().encode(token);
+  const hex = Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return BigInt('0x' + hex) % BN254_PRIME;
+};
+
+function bigIntToBase64(num: bigint): string {
+  let hex = num.toString(16);
+  if (hex.length % 2 !== 0) hex = '0' + hex;
+  const bytes = new Uint8Array(
+    hex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
+  );
+  return toBase64(bytes);
+}
 
 export class WalrusSign {
   private readonly signer: Signer;
@@ -76,7 +104,10 @@ export class WalrusSign {
       `${encodedHeader}.${encodedPayload}`,
     );
     const { signature } = await this.signer.signPersonalMessage(dataToSign);
-    return `${encodedHeader}.${encodedPayload}.${signature}`;
+    return `${encodedHeader}.${encodedPayload}.${signature
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '')}`;
   }
 
   async signJWT(
@@ -98,8 +129,7 @@ export class WalrusSign {
     const payloadJson = JSON.parse(
       new TextDecoder().decode(fromBase64(payload)),
     );
-    const hash = toBase64(sha256(new TextEncoder().encode(token)));
-
+    const hash = bigIntToBase64(poseidonHash([textToBigInt(token)]));
     const trust = await this.createSignedJWT(
       { hash },
       payloadJson.sub,
@@ -155,7 +185,7 @@ export class WalrusSign {
         if (
           trust &&
           trust.hash ===
-            toBase64(sha256(new TextEncoder().encode(payloadJson.data)))
+            bigIntToBase64(poseidonHash([textToBigInt(payloadJson.data)]))
         ) {
           return this.verifyJWT(payloadJson.data);
         }
@@ -175,16 +205,16 @@ export class WalrusSign {
         const dataToSign = new TextEncoder().encode(`${header}.${payload}`);
         const recoveredPublicKey = await verifyPersonalMessageSignature(
           dataToSign,
-          signature,
+          base64UrlToBase64(signature),
         );
 
         if (publicKeys.includes(recoveredPublicKey.toSuiPublicKey())) {
           return { ...payloadJson.data };
         }
-        throw new Error('Invalid signature');
+        throw new Error('Invalid signature (1)');
       }
     } catch (error) {
-      throw new Error('Invalid signature');
+      throw new Error('Invalid signature (2)');
     }
   }
 }

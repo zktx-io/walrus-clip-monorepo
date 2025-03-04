@@ -12,6 +12,7 @@
   "author": "daoauth",
   "license": "ISC",
   "scripts": {
+    "test": "cd packages/walrus-sign && npm run test",
     "lint": "eslint 'packages/**/*.{js,jsx,ts,tsx}' --fix",
     "format": "prettier --write 'packages/**/*.{js,jsx,ts,tsx,json,css,md}'",
     "dev:clip": "cd packages/clip && npm run dev",
