@@ -2,9 +2,16 @@ import { Signer } from '@mysten/sui/cryptography';
 import { fromBase64, toBase58, toBase64 } from '@mysten/sui/utils';
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 import { sha256 } from '@noble/hashes/sha256';
-import { SignJWT } from 'jose';
 
 import { Aggregator, Network, Publisher } from './config';
+
+const jsonToBase64Url = (json: { [key: string]: any }): string => {
+  const bytes = new TextEncoder().encode(JSON.stringify(json));
+  return toBase64(bytes)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+};
 
 export class WalrusSign {
   private readonly signer: Signer;
@@ -47,23 +54,29 @@ export class WalrusSign {
     expire: number,
     audience?: string | string[],
   ): Promise<string> {
-    const jwtBuilder = new SignJWT(payload)
-      .setProtectedHeader({ alg: this.signer.getKeyScheme(), typ: 'SUI' })
-      .setIssuer(this.issuer)
-      .setSubject(subject)
-      .setExpirationTime(expire)
-      .setIssuedAt();
+    const header = {
+      alg: this.signer.getKeyScheme(),
+      typ: 'SUI',
+    };
+    const jwtPayload: { [key: string]: any } = {
+      ...payload,
+      iss: this.issuer,
+      sub: subject,
+      exp: Math.floor(expire / 1000),
+      iat: Math.floor(Date.now() / 1000),
+    };
 
     if (audience) {
-      jwtBuilder.setAudience(audience);
+      jwtPayload.aud = audience;
     }
 
-    const unsignedToken = await jwtBuilder.sign(new Uint8Array(0));
-    const [header, payloadPart] = unsignedToken.split('.');
-    const dataToSign = new TextEncoder().encode(`${header}.${payloadPart}`);
+    const encodedHeader = jsonToBase64Url(header);
+    const encodedPayload = jsonToBase64Url(jwtPayload);
+    const dataToSign = new TextEncoder().encode(
+      `${encodedHeader}.${encodedPayload}`,
+    );
     const { signature } = await this.signer.signPersonalMessage(dataToSign);
-
-    return `${header}.${payloadPart}.${signature}`;
+    return `${encodedHeader}.${encodedPayload}.${signature}`;
   }
 
   async signJWT(
