@@ -73,24 +73,24 @@ export const Kiosk = () => {
           {menuItems.map((item) => (
             <div
               key={item.id}
-              className="flex bg-gray-900 text-white p-6 rounded-xl items-center w-full transition-all duration-300 border border-gray-300 hover:bg-gray-200 hover:text-black hover:border-gray-200 hover:shadow-lg cursor-pointer"
+              className="flex flex-col md:flex-row bg-gray-900 text-white p-6 rounded-xl w-full max-w-lg md:max-w-5xl transition-all duration-300 border border-gray-300 hover:bg-gray-200 hover:text-black hover:border-gray-200 hover:shadow-lg cursor-pointer"
               onClick={() => addToCart(item)}
             >
-              <div className="w-40 h-40 flex-shrink-0 rounded overflow-hidden transform transition-transform duration-300 hover:scale-105">
+              <div className="w-full md:w-40 h-40 flex-shrink-0 rounded overflow-hidden transform transition-transform duration-300 hover:scale-105">
                 <img
                   src={item.image}
                   alt={item.name}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <div className="flex-1 flex flex-col justify-between ml-8">
+              <div className="flex-1 flex flex-col justify-between p-4 md:ml-8">
                 <div>
                   <h2 className="text-2xl font-bold">{item.name}</h2>
                   <p className="text-lg text-gray-400">
                     {item.price.toLocaleString()} KRW
                   </p>
                 </div>
-                <button className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded cursor-pointer">
+                <button className="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded cursor-pointer">
                   Add to Cart
                 </button>
               </div>
