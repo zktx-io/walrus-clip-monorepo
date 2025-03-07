@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import { KioskOwnerCap } from '@mysten/kiosk';
 import { SuiObjectData } from '@mysten/sui/client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { motion } from 'framer-motion';
+import ReactDOM from 'react-dom/client';
 import {
   HiOutlineCamera,
   HiOutlinePhoto,
@@ -25,28 +26,25 @@ import { DlgTransferNFT } from './DlgTransferNFT';
 import { DlgOverlay, DlgPortal, DlgRoot, DlgTitle, DlgTrigger } from './modal';
 import { QRAddress } from './QRAddress';
 import { useWalletState } from '../recoil';
+import { QRScan } from './QRScan';
+import { getAccountData } from '../utils/localStorage';
 import { NotiVariant } from '../utils/types';
 import { FloatCoinBalance } from '../utils/walletStandard';
+import { cleanup } from '../utils/zkLoginSigner';
 
 export const ActionDrawer = ({
   icon,
   isConnected,
-  scan,
   onLogout,
   onEvent,
 }: {
   icon: string;
   isConnected: boolean;
-  scan?: () => Promise<
-    | undefined
-    | {
-        digest: string;
-        effects: string;
-      }
-  >;
   onLogout: () => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
+  const [isScannerEnabled, setIsScannerEnabled] = useState<boolean>(false);
+
   const { mode, wallet } = useWalletState();
   const [open, setOpen] = useState<boolean>(false);
   const [openAddress, setOpenAddress] = useState<boolean>(false);
@@ -69,10 +67,33 @@ export const ActionDrawer = ({
     undefined,
   );
 
-  const handleScan = () => {
-    setOpen(false);
-    !!scan && scan();
-  };
+  const handleScan = useCallback((): Promise<
+    { digest: string; effects: string } | undefined
+  > => {
+    return new Promise((resolve) => {
+      setOpen(false);
+      const account = getAccountData();
+      if (account && !!account.zkLogin && wallet) {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        const root = ReactDOM.createRoot(container);
+        root.render(
+          <QRScan
+            mode={mode || 'light'}
+            wallet={wallet}
+            onEvent={onEvent}
+            onClose={(result) => {
+              cleanup(container, root);
+              resolve(result || undefined);
+            }}
+          />,
+        );
+      } else {
+        onEvent({ variant: 'error', message: 'Account not found' });
+        resolve(undefined);
+      }
+    });
+  }, [mode, onEvent, wallet]);
 
   const handleAddress = () => {
     setOpen(false);
@@ -93,6 +114,25 @@ export const ActionDrawer = ({
     setOpen(false);
     setOpenSystem(true);
   };
+
+  useEffect(() => {
+    const testCamera = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputDevices = devices.filter(
+          (device) => device.kind === 'videoinput',
+        );
+        if (videoInputDevices.length > 0) {
+          setIsScannerEnabled(true);
+        } else {
+          setIsScannerEnabled(false);
+        }
+      } catch (error) {
+        setIsScannerEnabled(false);
+      }
+    };
+    testCamera();
+  }, []);
 
   return (
     <>
@@ -144,7 +184,7 @@ export const ActionDrawer = ({
                     height={32}
                   />
                 </button>
-                {!!scan && (
+                {isScannerEnabled && (
                   <button className="action-icon-button" onClick={handleScan}>
                     <HiOutlineCamera
                       className="action-icon"

@@ -10,11 +10,9 @@ import { Transaction } from '@mysten/sui/transactions';
 import { genAddressSeed } from '@mysten/sui/zklogin';
 import { IdentifierString, registerWallet } from '@mysten/wallet-standard';
 import { decodeJwt } from 'jose';
-import ReactDOM from 'react-dom/client';
 import { RecoilRoot } from 'recoil';
 
 import { ActionDrawer } from './components/ActionDrawer';
-import { QRScan } from './components/QRScan';
 import { useWalletState } from './recoil';
 import { createProof } from './utils/createProof';
 import {
@@ -25,19 +23,10 @@ import {
 import { signAndExecuteSponsoredTransaction } from './utils/sponsoredTransaction';
 import { NETWORK, NotiVariant } from './utils/types';
 import { WalletStandard } from './utils/walletStandard';
-import { cleanup } from './utils/zkLoginSigner';
 
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<void>;
   isConnected: boolean;
-  isScannerEnabled: boolean;
-  scan: () => Promise<
-    | undefined
-    | {
-        digest: string;
-        effects: string;
-      }
-  >;
   pay: (
     title: string,
     description: string,
@@ -85,10 +74,7 @@ const WalrusWalletRoot = ({
 }: IWalrusWalletProps) => {
   const initialized = useRef<boolean>(false);
   const { wallet, setWallet, setMode } = useWalletState();
-  const [isScannerEnabled, setIsScannerEnabled] =
-    React.useState<boolean>(false);
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
-  const [isZkLogin, setIsZkLogin] = React.useState<boolean>(false);
 
   const updateJwt = useCallback(
     async (jwt: string): Promise<void> => {
@@ -127,40 +113,12 @@ const WalrusWalletRoot = ({
           address: address,
         });
         setIsConnected(true);
-        setIsZkLogin(true);
       } else {
         throw new Error('Nonce not found');
       }
     },
     [zklogin],
   );
-
-  const scan = useCallback((): Promise<
-    { digest: string; effects: string } | undefined
-  > => {
-    return new Promise((resolve) => {
-      const account = getAccountData();
-      if (account && !!account.zkLogin && wallet) {
-        const container = document.createElement('div');
-        document.body.appendChild(container);
-        const root = ReactDOM.createRoot(container);
-        root.render(
-          <QRScan
-            mode={mode || 'light'}
-            wallet={wallet}
-            onEvent={onEvent}
-            onClose={(result) => {
-              cleanup(container, root);
-              resolve(result || undefined);
-            }}
-          />,
-        );
-      } else {
-        onEvent({ variant: 'error', message: 'Account not found' });
-        resolve(undefined);
-      }
-    });
-  }, [mode, onEvent, wallet]);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -184,7 +142,6 @@ const WalrusWalletRoot = ({
 
       const account = getAccountData();
       setIsConnected(!!account);
-      setIsZkLogin(!!account?.zkLogin);
     }
   }, [
     name,
@@ -198,32 +155,11 @@ const WalrusWalletRoot = ({
     setMode,
   ]);
 
-  useEffect(() => {
-    const testCamera = async () => {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputDevices = devices.filter(
-          (device) => device.kind === 'videoinput',
-        );
-        if (videoInputDevices.length > 0) {
-          setIsScannerEnabled(true);
-        } else {
-          setIsScannerEnabled(false);
-        }
-      } catch (error) {
-        setIsScannerEnabled(false);
-      }
-    };
-    testCamera();
-  }, []);
-
   return (
     <WalrusWalletContext.Provider
       value={{
         updateJwt,
         isConnected,
-        isScannerEnabled,
-        scan,
         pay: (title, description, data) => {
           if (wallet) {
             return wallet.pay(title, description, data);
@@ -242,7 +178,6 @@ const WalrusWalletRoot = ({
       <ActionDrawer
         isConnected={isConnected}
         icon={icon}
-        scan={isScannerEnabled && isZkLogin ? scan : undefined}
         onLogout={() => {
           if (wallet) {
             wallet.logout();
