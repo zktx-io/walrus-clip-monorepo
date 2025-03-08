@@ -53,10 +53,11 @@ export const Home = () => {
               },
             )});
           },
-          signTransaction: async (transaction: Uint8Array) => {
+          signTransaction: async (bytes: Uint8Array) => {
+            const transaction = await Transaction.from(bytes).toJSON();
             return new Promise((resolve, reject) =>  {
               signTransaction({
-                transaction: Transaction.from(transaction)
+                transaction,
               },
               {
                 onSuccess: (result) => {
