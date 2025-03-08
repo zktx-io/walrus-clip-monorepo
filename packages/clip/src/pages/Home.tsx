@@ -114,9 +114,10 @@ export const Home = () => {
             },
           });
         } else {
+          const transaction = await new Transaction().toJSON();
           signAndExecuteTransaction(
             {
-              transaction: new Transaction(),
+              transaction,
               chain: 'sui:testnet',
             },
             {
