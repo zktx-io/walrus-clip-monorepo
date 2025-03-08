@@ -50,7 +50,7 @@ export const Home = () => {
               case 0x03:
                 return new MultiSigPublicKey(account.publicKey.slice(1));
               case 0x05:
-                return new ZkLoginPublicIdentifier(account.publicKey.slice(1));
+                return new ZkLoginPublicIdentifier(account.publicKey);
               case 0x06:
                 return new PasskeyPublicKey(account.publicKey.slice(1));  
               default:
