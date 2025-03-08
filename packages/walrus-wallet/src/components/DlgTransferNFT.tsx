@@ -2,13 +2,11 @@ import React, { useEffect, useState } from 'react';
 
 import { SuiObjectData } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import ReactDOM from 'react-dom/client';
-import { HiOutlineCamera, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineXMark } from 'react-icons/hi2';
 
 import {
   FormField,
   FormInput,
-  FormInputButton,
   FormInputWithButton,
   FormLabel,
   FormRoot,
@@ -23,10 +21,9 @@ import {
   DlgRoot,
   DlgTitle,
 } from './modal';
-import { QRScan } from './QRScan';
 import { useWalletState } from '../recoil';
+import { QRScanAddress } from './QRScanAddress';
 import { NotiVariant } from '../utils/types';
-import { cleanup } from '../utils/zkLoginSigner';
 
 export const DlgTransferNFT = ({
   object,
@@ -40,33 +37,6 @@ export const DlgTransferNFT = ({
   const { mode, wallet } = useWalletState();
   const [loading, setLoading] = useState<boolean>(false);
   const [recipient, setRecipient] = useState<string>('');
-
-  const handleScan = () => {
-    return new Promise((resolve) => {
-      if (wallet) {
-        const container = document.createElement('div');
-        document.body.appendChild(container);
-        const root = ReactDOM.createRoot(container);
-        root.render(
-          <QRScan
-            mode={mode}
-            wallet={wallet}
-            onEvent={onEvent}
-            onClose={(result) => {
-              cleanup(container, root);
-              resolve(result || undefined);
-            }}
-            scanAddress={(address) => {
-              setRecipient(address);
-            }}
-          />,
-        );
-      } else {
-        onEvent({ variant: 'error', message: 'Wallet not found' });
-        resolve(undefined);
-      }
-    });
-  };
 
   const handleTransfer = async () => {
     if (!wallet || !wallet.address || !recipient || !object) return;
@@ -138,15 +108,7 @@ export const DlgTransferNFT = ({
                   }}
                   style={{ flexGrow: 1, border: 'none' }}
                 />
-                <FormInputButton
-                  mode={mode}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleScan();
-                  }}
-                >
-                  <HiOutlineCamera />
-                </FormInputButton>
+                <QRScanAddress scanAddress={setRecipient} />
               </FormInputWithButton>
             </FormField>
           </FormRoot>

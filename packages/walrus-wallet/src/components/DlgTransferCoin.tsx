@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { Transaction } from '@mysten/sui/transactions';
-import ReactDOM from 'react-dom/client';
-import { HiOutlineCamera, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineXMark } from 'react-icons/hi2';
 
 import {
   FormCoinSelect,
@@ -24,11 +23,10 @@ import {
   DlgRoot,
   DlgTitle,
 } from './modal';
-import { QRScan } from './QRScan';
 import { useWalletState } from '../recoil';
+import { QRScanAddress } from './QRScanAddress';
 import { NotiVariant } from '../utils/types';
 import { FloatCoinBalance } from '../utils/walletStandard';
-import { cleanup } from '../utils/zkLoginSigner';
 
 export const DlgTransferCoin = ({
   open,
@@ -65,33 +63,6 @@ export const DlgTransferCoin = ({
       setAmount(balanceInDecimals.toString());
       setError('');
     }
-  };
-
-  const handleScan = () => {
-    return new Promise((resolve) => {
-      if (wallet) {
-        const container = document.createElement('div');
-        document.body.appendChild(container);
-        const root = ReactDOM.createRoot(container);
-        root.render(
-          <QRScan
-            mode={mode}
-            wallet={wallet}
-            onEvent={onEvent}
-            onClose={(result) => {
-              cleanup(container, root);
-              resolve(result || undefined);
-            }}
-            scanAddress={(address) => {
-              setRecipient(address);
-            }}
-          />,
-        );
-      } else {
-        onEvent({ variant: 'error', message: 'Wallet not found' });
-        resolve(undefined);
-      }
-    });
   };
 
   const handleAmountChange = (value: string) => {
@@ -278,15 +249,7 @@ export const DlgTransferCoin = ({
                   }}
                   style={{ flexGrow: 1, border: 'none' }}
                 />
-                <FormInputButton
-                  mode={mode}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleScan();
-                  }}
-                >
-                  <HiOutlineCamera />
-                </FormInputButton>
+                <QRScanAddress scanAddress={setRecipient} />
               </FormInputWithButton>
             </FormField>
           </FormRoot>
