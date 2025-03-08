@@ -2,6 +2,11 @@ import React, { useEffect, useState } from 'react';
 
 import { Signer } from '@mysten/sui/cryptography';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
+import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
+import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
+import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
+import { MultiSigPublicKey } from '@mysten/sui/multisig';
 import { fromBase64 } from '@mysten/sui/utils';
 import {
   generateRandomness,
@@ -178,17 +183,49 @@ export const QRLoginCode = ({
                     signature,
                   }: { address: string; publicKey: string; signature: string } =
                     JSON.parse(message.value);
-                  const zkLoginPublicIdentifier = new ZkLoginPublicIdentifier(
-                    fromBase64(publicKey),
-                    { client },
-                  );
-                  const encoder = new TextEncoder();
-                  const result =
-                    await zkLoginPublicIdentifier.verifyPersonalMessage(
-                      encoder.encode(peerId),
-                      fromBase64(signature),
-                    );
-                  if (result) {
+
+                  const bytesPublicKey = fromBase64(publicKey);
+                  const bytesMessage = new TextEncoder().encode(peerId);
+                  let verification = false;
+
+                  switch (bytesPublicKey[0]) {
+                    case 0x00:
+                      verification = await new Ed25519PublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x01:
+                      verification = await new Secp256k1PublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x02:
+                      verification = await new Secp256r1PublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x03:
+                      verification = await new MultiSigPublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x05:
+                      verification = await new ZkLoginPublicIdentifier(
+                        bytesPublicKey,
+                        {
+                          client,
+                        },
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x06:
+                      verification = await new PasskeyPublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    default:
+                      break;
+                  }
+                  if (verification) {
                     connection.send(makeMessage(MessageType.STEP_1, 'OK'));
                     onEvent({
                       variant: 'success',
