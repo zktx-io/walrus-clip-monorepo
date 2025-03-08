@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 
+import { Signer } from '@mysten/sui/cryptography';
 import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
-import Peer from 'peerjs';
 import { HiOutlineXMark } from 'react-icons/hi2';
 
 import {
@@ -15,29 +15,27 @@ import {
 } from './modal';
 import { connectQRLogin } from './QRLoginCode';
 import { connectQRSign } from './QRSignCode';
-import { NotiVariant } from '../utils/types';
-import { WalletStandard } from '../utils/walletStandard';
+import { useWalletState } from '../recoil';
+import { NETWORK, NotiVariant } from '../utils/types';
 
-type QRScanType = 'address' | 'login' | 'sign' | 'verification';
+type QRScanType = 'login' | 'sign' | 'verification';
 
 export const QRScan = ({
-  mode = 'light',
-  wallet,
+  mode,
+  open,
+  signer,
+  network,
   onEvent,
   onClose,
-  scanAddress,
 }: {
   mode: 'dark' | 'light';
-  wallet: WalletStandard;
+  open: boolean;
+  signer: Signer;
+  network: NETWORK;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  onClose: (result?: { digest: string; effects: string }) => void;
-  scanAddress?: (address: string) => void;
+  onClose: (isBack: boolean) => void;
 }) => {
-  const [title, setTitle] = useState<string>('Scan');
-  const [open, setOpen] = useState<boolean>(true);
   const [error, setError] = useState<string | undefined>(undefined);
-  const [destId, setDestId] = useState<string | undefined>(undefined);
-  const [type, setType] = useState<QRScanType | undefined>(undefined);
 
   const handleClose = useCallback(
     (error?: string) => {
@@ -47,33 +45,52 @@ export const QRScan = ({
           message: error,
         });
       }
-      setOpen(false);
-      onClose();
+      onClose(true);
     },
     [onClose, onEvent],
   );
 
   const handleScan = useCallback(
     (result: IDetectedBarcode[]) => {
-      if (result[0].format === 'qr_code' && wallet.signer) {
+      if (result[0].format === 'qr_code') {
         const schema = result[0].rawValue.split('::');
         if (
           schema.length === 4 &&
           schema[0] === 'sui' &&
-          schema[1] === wallet.signer.network &&
+          schema[1] === network &&
           (schema[3] === 'login' || schema[3] === 'sign')
         ) {
-          setDestId(schema.join('::'));
-          setType(schema[3]);
-        } else if (schema.length === 1) {
-          setType('address');
-          setDestId(schema[0]);
+          const destId = schema.join('::');
+          const type = schema[3] as QRScanType;
+          onClose(false);
+          switch (type) {
+            case 'login':
+              connectQRLogin({
+                signer,
+                destId,
+                onEvent,
+              });
+              break;
+            case 'sign':
+              connectQRSign({
+                signer,
+                network,
+                destId,
+                onEvent,
+              });
+              break;
+            case 'verification':
+              // TODO
+              break;
+            default:
+              break;
+          }
         } else {
           if (schema.length !== 4) {
             setError('Invalid schema');
           } else if (schema[0] !== 'sui') {
             setError('Invalid chain');
-          } else if (schema[1] !== wallet.signer.network) {
+          } else if (schema[1] !== network) {
             setError('Invalid network');
           } else {
             setError('invalid type');
@@ -81,61 +98,8 @@ export const QRScan = ({
         }
       }
     },
-    [wallet],
+    [network, onEvent, onClose, signer],
   );
-
-  useEffect(() => {
-    let peer: Peer | undefined = undefined;
-    if (!!wallet && !!destId && !!type) {
-      if (scanAddress) {
-        switch (type) {
-          case 'address':
-            setOpen(false);
-            scanAddress(destId);
-            break;
-          default:
-            break;
-        }
-      } else {
-        switch (type) {
-          case 'login':
-            peer = connectQRLogin({
-              wallet,
-              destId,
-              setOpen,
-              onClose: () => {
-                setOpen(false);
-                onClose();
-              },
-              onEvent,
-            });
-            break;
-          case 'sign':
-            peer = connectQRSign({
-              wallet,
-              destId,
-              setOpen,
-              onClose: (result) => {
-                setOpen(false);
-                onClose(result);
-              },
-              onEvent,
-            });
-            break;
-          case 'verification':
-            // TODO
-            break;
-          default:
-            break;
-        }
-      }
-    }
-    return () => {
-      if (peer) {
-        peer.destroy();
-      }
-    };
-  }, [wallet, destId, type, scanAddress, onEvent, onClose]);
 
   return (
     <DlgRoot open={open}>
@@ -159,7 +123,7 @@ export const QRScan = ({
               alignItems: 'center',
             }}
           >
-            <DlgTitle mode={mode}>{title}</DlgTitle>
+            <DlgTitle mode={mode}>Scan</DlgTitle>
             <DlgButtonIcon
               mode={mode}
               onClick={() => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+import { Signer } from '@mysten/sui/cryptography';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { fromBase64 } from '@mysten/sui/utils';
 import {
@@ -26,7 +27,6 @@ import {
   parseMessage,
 } from '../utils/types';
 import { PEER_CONFIG } from '../utils/utils';
-import { WalletStandard } from '../utils/walletStandard';
 
 enum MessageType {
   STEP_0 = 'LOGIN_STEP_0',
@@ -34,98 +34,88 @@ enum MessageType {
 }
 
 export const connectQRLogin = ({
-  wallet,
+  signer,
   destId,
-  setOpen,
-  onClose,
   onEvent,
 }: {
-  wallet: WalletStandard;
+  signer: Signer;
   destId: string;
-  setOpen: (open: boolean) => void;
-  onClose: () => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const randomness = generateRandomness();
   const peer = new Peer(randomness, PEER_CONFIG);
 
   onEvent({ variant: 'info', message: 'Connecting...' });
-  setOpen(false);
 
-  const handleClose = (error: string) => {
-    onEvent({
-      variant: 'error',
-      message: error,
-    });
-    onClose();
+  const handleClose = (error?: string) => {
+    if (error) {
+      onEvent({
+        variant: 'error',
+        message: error,
+      });
+    }
+    peer.destroy();
   };
 
   peer.on('open', (id) => {
-    if (!!wallet.signer) {
-      try {
-        const signer = wallet.signer;
-        const address = signer.toSuiAddress();
-        const connection = peer.connect(destId.replace(/::/g, '-'));
-        const encoder = new TextEncoder();
+    try {
+      const address = signer.toSuiAddress();
+      const connection = peer.connect(destId.replace(/::/g, '-'));
+      const encoder = new TextEncoder();
 
-        connection.on('open', async () => {
-          try {
-            const { signature } = await signer.signPersonalMessage(
-              encoder.encode(destId),
-            );
-            const publicKey = signer.getPublicKey().toSuiPublicKey();
-            connection.send(
-              makeMessage(
-                MessageType.STEP_0,
-                JSON.stringify({ address, publicKey, signature }),
-              ),
-            );
-          } catch (error) {
-            onEvent({ variant: 'error', message: `${error}` });
-            onClose();
+      connection.on('open', async () => {
+        try {
+          const { signature } = await signer.signPersonalMessage(
+            encoder.encode(destId),
+          );
+          const publicKey = signer.getPublicKey().toSuiPublicKey();
+          connection.send(
+            makeMessage(
+              MessageType.STEP_0,
+              JSON.stringify({ address, publicKey, signature }),
+            ),
+          );
+        } catch (error) {
+          onEvent({ variant: 'error', message: `${error}` });
+          handleClose();
+        }
+      });
+
+      connection.on('data', (data) => {
+        try {
+          const message = parseMessage(data as string);
+          switch (message.type) {
+            case MessageType.STEP_1:
+              if (message.value === 'OK') {
+                onEvent({ variant: 'success', message: 'Connected' });
+              } else {
+                onEvent({ variant: 'error', message: message.value });
+              }
+              handleClose();
+              break;
+
+            default:
+              connection.open && connection.close({ flush: true });
+              handleClose(`Unknown message type: ${message.type}`);
           }
-        });
-
-        connection.on('data', (data) => {
-          try {
-            const message = parseMessage(data as string);
-            switch (message.type) {
-              case MessageType.STEP_1:
-                if (message.value === 'OK') {
-                  onEvent({ variant: 'success', message: 'Connected' });
-                } else {
-                  onEvent({ variant: 'error', message: message.value });
-                }
-                onClose();
-                break;
-
-              default:
-                connection.open && connection.close({ flush: true });
-                handleClose(`Unknown message type: ${message.type}`);
-            }
-          } catch (error) {
-            connection.open && connection.close({ flush: true });
-            handleClose(`${error}`);
-          }
-        });
-
-        connection.on('error', (err) => {
+        } catch (error) {
           connection.open && connection.close({ flush: true });
-          handleClose(`Connection error: ${err.message}`);
-        });
-      } catch (error) {
-        handleClose(`Failed to establish connection: ${error}`);
-      }
-    } else {
-      handleClose('Wallet signer not initialized');
+          handleClose(`${error}`);
+        }
+      });
+
+      connection.on('error', (err) => {
+        connection.open && connection.close({ flush: true });
+        handleClose(`Connection error: ${err.message}`);
+      });
+    } catch (error) {
+      handleClose(`Failed to establish connection: ${error}`);
     }
   });
 
   peer.on('error', (err) => {
     handleClose(`Peer error: ${err.message}`);
   });
-
-  return peer;
 };
 
 export const QRLoginCode = ({

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { Signer } from '@mysten/sui/cryptography';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { generateRandomness } from '@mysten/sui/zklogin';
@@ -28,7 +29,6 @@ import {
   parseMessage,
 } from '../utils/types';
 import { PEER_CONFIG } from '../utils/utils';
-import { WalletStandard } from '../utils/walletStandard';
 
 enum MessageType {
   STEP_0 = 'SIGN_STEP_0',
@@ -44,134 +44,112 @@ export interface TxResult {
 }
 
 export const connectQRSign = ({
-  wallet,
+  signer,
+  network,
   destId,
-  setOpen,
-  onClose,
   onEvent,
 }: {
-  wallet: WalletStandard;
+  signer: Signer;
+  network: NETWORK;
   destId: string;
-  setOpen: (open: boolean) => void;
-  onClose: (result?: TxResult) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const randomness = generateRandomness();
   const peer = new Peer(randomness, PEER_CONFIG);
 
   onEvent({ variant: 'info', message: 'Connecting...' });
-  setOpen(false);
 
-  const handleClose = (error: string) => {
-    onEvent({
-      variant: 'error',
-      message: error,
-    });
-    onClose();
+  const handleClose = (error?: string) => {
+    if (error) {
+      onEvent({
+        variant: 'error',
+        message: error,
+      });
+    }
+    peer.destroy();
   };
 
   peer.on('open', (id) => {
-    if (!!wallet.signer) {
-      try {
-        const signer = wallet.signer;
-        const address = signer.toSuiAddress();
-        const connection = peer.connect(destId.replace(/::/g, '-'));
+    try {
+      const address = signer.toSuiAddress();
+      const connection = peer.connect(destId.replace(/::/g, '-'));
 
-        connection.on('open', () => {
-          connection.send(makeMessage(MessageType.STEP_0, address));
-        });
-        connection.on('data', async (data) => {
-          try {
-            const message = parseMessage(data as string);
-            const client = new SuiClient({
-              url: getFullnodeUrl(signer.network),
-            });
-            switch (message.type) {
-              case MessageType.STEP_1:
-                {
-                  const { bytes, digest } = JSON.parse(message.value);
-                  const { signature } = await signer.signTransaction(
-                    fromBase64(bytes),
-                  );
-                  connection.send(
-                    makeMessage(
-                      MessageType.STEP_2,
-                      JSON.stringify({ txBytes: bytes, signature, digest }),
-                    ),
-                  );
-                  connection.open && connection.close({ flush: true });
-                  if (digest) {
-                    const { rawEffects } = await client.waitForTransaction({
-                      digest,
-                      options: {
-                        showRawEffects: true,
-                      },
-                    });
-                    onEvent({
-                      variant: 'success',
-                      message: 'Transaction executed',
-                    });
-                    onClose({
-                      bytes,
-                      signature,
-                      digest,
-                      effects: rawEffects
-                        ? toBase64(new Uint8Array(rawEffects))
-                        : '',
-                    });
-                  } else {
-                    const digest = await Transaction.from(
-                      fromBase64(bytes),
-                    ).getDigest({ client });
-                    const { rawEffects } = await client.waitForTransaction({
-                      digest,
-                      options: {
-                        showRawEffects: true,
-                      },
-                    });
-                    onEvent({
-                      variant: 'success',
-                      message: 'Transaction executed',
-                    });
-                    onClose({
-                      bytes,
-                      signature,
-                      digest,
-                      effects: rawEffects
-                        ? toBase64(new Uint8Array(rawEffects))
-                        : '',
-                    });
-                  }
-                }
-                break;
-
-              default:
+      connection.on('open', () => {
+        connection.send(makeMessage(MessageType.STEP_0, address));
+      });
+      connection.on('data', async (data) => {
+        try {
+          const message = parseMessage(data as string);
+          const client = new SuiClient({
+            url: getFullnodeUrl(network),
+          });
+          switch (message.type) {
+            case MessageType.STEP_1:
+              {
+                const { bytes, digest } = JSON.parse(message.value);
+                const { signature } = await signer.signTransaction(
+                  fromBase64(bytes),
+                );
+                connection.send(
+                  makeMessage(
+                    MessageType.STEP_2,
+                    JSON.stringify({ txBytes: bytes, signature, digest }),
+                  ),
+                );
                 connection.open && connection.close({ flush: true });
-                handleClose(`Unknown message type: ${message.type}`);
-            }
-          } catch (error) {
-            connection.open && connection.close({ flush: true });
-            handleClose(`${error}`);
-          }
-        });
+                if (digest) {
+                  const { rawEffects } = await client.waitForTransaction({
+                    digest,
+                    options: {
+                      showRawEffects: true,
+                    },
+                  });
+                  onEvent({
+                    variant: 'success',
+                    message: 'Transaction executed',
+                  });
+                  handleClose();
+                } else {
+                  const digest = await Transaction.from(
+                    fromBase64(bytes),
+                  ).getDigest({ client });
+                  const { rawEffects } = await client.waitForTransaction({
+                    digest,
+                    options: {
+                      showRawEffects: true,
+                    },
+                  });
+                  onEvent({
+                    variant: 'success',
+                    message: 'Transaction executed',
+                  });
+                  handleClose();
+                }
+              }
+              break;
 
-        connection.on('error', (err) => {
+            default:
+              connection.open && connection.close({ flush: true });
+              handleClose(`Unknown message type: ${message.type}`);
+          }
+        } catch (error) {
           connection.open && connection.close({ flush: true });
-          handleClose(`Connection error: ${err.message}`);
-        });
-      } catch (error) {
-        handleClose(`Failed to establish connection: ${error}`);
-      }
-    } else {
-      handleClose('Wallet signer not initialized');
+          handleClose(`${error}`);
+        }
+      });
+
+      connection.on('error', (err) => {
+        connection.open && connection.close({ flush: true });
+        handleClose(`Connection error: ${err.message}`);
+      });
+    } catch (error) {
+      handleClose(`Failed to establish connection: ${error}`);
     }
   });
 
   peer.on('error', (err) => {
     handleClose(`Peer error: ${err.message}`);
   });
-
-  return peer;
 };
 
 export const QRSignCode = ({

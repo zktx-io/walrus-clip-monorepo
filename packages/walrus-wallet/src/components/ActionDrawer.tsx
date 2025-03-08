@@ -5,7 +5,6 @@ import { SuiObjectData } from '@mysten/sui/client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { motion } from 'framer-motion';
-import ReactDOM from 'react-dom/client';
 import {
   HiOutlineCamera,
   HiOutlinePhoto,
@@ -27,10 +26,8 @@ import { DlgOverlay, DlgPortal, DlgRoot, DlgTitle, DlgTrigger } from './modal';
 import { QRAddress } from './QRAddress';
 import { useWalletState } from '../recoil';
 import { QRScan } from './QRScan';
-import { getAccountData } from '../utils/localStorage';
 import { NotiVariant } from '../utils/types';
 import { FloatCoinBalance } from '../utils/walletStandard';
-import { cleanup } from '../utils/zkLoginSigner';
 
 export const ActionDrawer = ({
   icon,
@@ -47,6 +44,7 @@ export const ActionDrawer = ({
 
   const { mode, wallet } = useWalletState();
   const [open, setOpen] = useState<boolean>(false);
+  const [openScan, setOpenScan] = useState<boolean>(false);
   const [openAddress, setOpenAddress] = useState<boolean>(false);
   const [openBalances, setOpenBalances] = useState<boolean>(false);
   const [openSystem, setOpenSystem] = useState<boolean>(false);
@@ -67,33 +65,10 @@ export const ActionDrawer = ({
     undefined,
   );
 
-  const handleScan = useCallback((): Promise<
-    { digest: string; effects: string } | undefined
-  > => {
-    return new Promise((resolve) => {
-      setOpen(false);
-      const account = getAccountData();
-      if (account && !!account.zkLogin && wallet) {
-        const container = document.createElement('div');
-        document.body.appendChild(container);
-        const root = ReactDOM.createRoot(container);
-        root.render(
-          <QRScan
-            mode={mode || 'light'}
-            wallet={wallet}
-            onEvent={onEvent}
-            onClose={(result) => {
-              cleanup(container, root);
-              resolve(result || undefined);
-            }}
-          />,
-        );
-      } else {
-        onEvent({ variant: 'error', message: 'Account not found' });
-        resolve(undefined);
-      }
-    });
-  }, [mode, onEvent, wallet]);
+  const handleScan = () => {
+    setOpen(false);
+    setOpenScan(true);
+  };
 
   const handleAddress = () => {
     setOpen(false);
@@ -184,7 +159,7 @@ export const ActionDrawer = ({
                     height={32}
                   />
                 </button>
-                {isScannerEnabled && (
+                {isScannerEnabled && wallet && wallet.signer && (
                   <button className="action-icon-button" onClick={handleScan}>
                     <HiOutlineCamera
                       className="action-icon"
@@ -273,6 +248,20 @@ export const ActionDrawer = ({
         `}
         </style>
       </DlgRoot>
+
+      {wallet && wallet.signer && (
+        <QRScan
+          open={openScan}
+          mode={mode}
+          signer={wallet.signer}
+          network={wallet.signer.network}
+          onEvent={onEvent}
+          onClose={(isBack: boolean) => {
+            isBack && setOpen(true);
+            setOpenScan(false);
+          }}
+        />
+      )}
       <QRAddress
         icon={icon}
         open={openAddress}
@@ -355,7 +344,7 @@ export const ActionDrawer = ({
         }}
         kioskPlace={async (objData) => {
           if (wallet) {
-            await wallet?.kioskPlace(objData.kiosk, {
+            await wallet.kioskPlace(objData.kiosk, {
               item: objData.object.objectId,
               itemType: objData.object.type!,
             });
@@ -376,7 +365,7 @@ export const ActionDrawer = ({
         }}
         kioskTake={async (objData) => {
           if (wallet) {
-            await wallet?.kiosTake(
+            await wallet.kiosTake(
               objData.kiosk,
               {
                 itemId: objData.object.objectId,
