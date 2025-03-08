@@ -6,7 +6,10 @@ import {
   useCurrentWallet,
   useDisconnectWallet,
   useSignAndExecuteTransaction,
+  useSignPersonalMessage,
+  useSignTransaction,
 } from '@mysten/dapp-kit';
+import { IntentScope } from '@mysten/sui/cryptography';
 import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
@@ -19,8 +22,65 @@ export const Home = () => {
 
   const { mutate: disconnect } = useDisconnectWallet();
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+  const { mutate: signPersonalMessage } = useSignPersonalMessage();
+  const { mutate: signTransaction } = useSignTransaction();
 
-  const { isConnected, signAndExecuteSponsoredTransaction } = useWalrusWallet();
+  const { isConnected, signAndExecuteSponsoredTransaction, scan } = useWalrusWallet();
+
+  const onScan = async () => {
+    if (account) {
+      await scan( {
+        signer: {
+          toSuiAddress: () => account.address,
+          getPublicKey: () => {
+            throw new Error('Not implemented');
+          },
+          getKeyScheme: () => {
+            throw new Error('Not implemented');
+          },
+          signPersonalMessage: async (bytes: Uint8Array) => {
+            return new Promise((resolve, reject) =>  {
+              signPersonalMessage({
+                message: bytes
+              },
+              {
+                onSuccess: (result) => {
+                  resolve(result)
+                },
+                onError: (error) => {
+                  reject(error)
+                }
+              },
+            )});
+          },
+          signTransaction: async (transaction: Uint8Array) => {
+            return new Promise((resolve, reject) =>  {
+              signTransaction({
+                transaction: Transaction.from(transaction)
+              },
+              {
+                onSuccess: (result) => {
+                  resolve(result)
+                },
+                onError: (error) => {
+                  reject(error)
+                }
+              },
+            )})
+          },
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          signWithIntent: (_bytes: Uint8Array, _intent: IntentScope) => {
+            throw new Error('Not implemented');
+          },
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          sign: async (_bytes: Uint8Array) => {
+            throw new Error('Not implemented');
+          },
+        },
+        chain: `sui:${NETWORK}`,
+      });
+    }
+  };
 
   const onSignAndExcuteTx = async () => {
     if (account) {
@@ -120,6 +180,14 @@ export const Home = () => {
                     ? 'Sponsored Transaction'
                     : 'Transaction'}
                 </button>
+                {currentWallet && currentWallet.name !== WALLET_NAME && (
+                  <button
+                    className="w-full bg-blue-500 text-white py-2 px-2 rounded-lg cursor-pointer"
+                    onClick={onScan}
+                  >
+                    Scan
+                  </button>
+                )}
               </div>
             </div>
           </div>
