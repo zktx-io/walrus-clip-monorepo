@@ -15,6 +15,7 @@ import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
 
 import { NETWORK, WALLET_NAME } from '../utils/config';
+import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
 
 export const Home = () => {
   const { connectionStatus, currentWallet } = useCurrentWallet();
@@ -33,10 +34,10 @@ export const Home = () => {
         signer: {
           toSuiAddress: () => account.address,
           getPublicKey: () => {
-            throw new Error('Not implemented');
+            return new Ed25519PublicKey(account.publicKey);
           },
           getKeyScheme: () => {
-            throw new Error('Not implemented');
+            throw new Error('Not implemented (getKeyScheme)');
           },
           signPersonalMessage: async (bytes: Uint8Array) => {
             return new Promise((resolve, reject) =>  {
@@ -71,11 +72,11 @@ export const Home = () => {
           },
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           signWithIntent: (_bytes: Uint8Array, _intent: IntentScope) => {
-            throw new Error('Not implemented');
+            throw new Error('Not implemented (signWithIntent)');
           },
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           sign: async (_bytes: Uint8Array) => {
-            throw new Error('Not implemented');
+            throw new Error('Not implemented (sign)');
           },
         },
         chain: `sui:${NETWORK}`,
