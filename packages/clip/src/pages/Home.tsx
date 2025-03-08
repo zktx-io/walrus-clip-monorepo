@@ -174,6 +174,10 @@ export const Home = () => {
     }
   };
 
+  const onDisconnect = () => {
+    disconnect();
+  }
+
   useEffect(() => {
     if (
       connectionStatus === 'connected' &&
@@ -209,14 +213,20 @@ export const Home = () => {
                     ? 'Sponsored Transaction'
                     : 'Transaction'}
                 </button>
-                {currentWallet && currentWallet.name !== WALLET_NAME && (
-                  <button
-                    className="w-full bg-blue-500 text-white py-2 px-2 rounded-lg cursor-pointer"
-                    onClick={onScan}
-                  >
-                    Scan
-                  </button>
-                )}
+                <button
+                  className="w-full bg-blue-500 text-white py-2 px-2 rounded-lg cursor-pointer"
+                  onClick={onScan}
+                >
+                  Scan
+                </button>
+              </div>
+              <div className="flex gap-2 w-full">
+                <button
+                  className="w-full bg-red-500 text-white py-2 px-2 rounded-lg cursor-pointer"
+                  onClick={onDisconnect}
+                >
+                  Disconnect
+                </button>
               </div>
             </div>
           </div>
