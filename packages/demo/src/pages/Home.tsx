@@ -24,8 +24,6 @@ export const Home = () => {
 
   const {
     isConnected,
-    /* scan,*/
-    isScannerEnabled,
     signAndExecuteSponsoredTransaction,
     pay,
   } = useWalrusWallet();
@@ -63,7 +61,7 @@ export const Home = () => {
         } else {
           signAndExecuteTransaction(
             {
-              transaction,
+              transaction: await transaction.toJSON(),
               chain: `sui:${NETWORK}`,
             },
             {
@@ -175,7 +173,6 @@ export const Home = () => {
                     : 'Transaction'}
                 </button>
                 <button
-                  disabled={!isScannerEnabled}
                   className="w-full bg-blue-500 text-white py-2 rounded-lg disabled:bg-gray-300 cursor-pointer"
                   onClick={onShowBill}
                 >
