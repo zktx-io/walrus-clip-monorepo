@@ -9,13 +9,12 @@ import React, {
 import { Signer } from '@mysten/sui/cryptography';
 import { Transaction } from '@mysten/sui/transactions';
 import { genAddressSeed } from '@mysten/sui/zklogin';
-import { IdentifierString, registerWallet } from '@mysten/wallet-standard';
+import { registerWallet } from '@mysten/wallet-standard';
 import { decodeJwt } from 'jose';
-import ReactDOM from 'react-dom/client';
 import { RecoilRoot } from 'recoil';
 
 import { ActionDrawer } from './components/ActionDrawer';
-import { QRScan } from './components/QRScan';
+import { useWalrusScan, WalrusScan } from './components/WalrusScan';
 import { useWalletState } from './recoil';
 import { createProof } from './utils/createProof';
 import {
@@ -26,12 +25,11 @@ import {
 import { signAndExecuteSponsoredTransaction } from './utils/sponsoredTransaction';
 import { NETWORK, NotiVariant } from './utils/types';
 import { WalletStandard } from './utils/walletStandard';
-import { cleanup } from './utils/zkLoginSigner';
 
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<void>;
   isConnected: boolean;
-  scan: (input: { signer: Signer; chain: IdentifierString }) => Promise<void>;
+  scan: (signer: Signer) => Promise<void>;
   pay: (
     title: string,
     description: string,
@@ -39,7 +37,7 @@ interface IWalrusWalletContext {
   ) => Promise<{ digest: string; effects: string }>;
   signAndExecuteSponsoredTransaction: (input: {
     transaction: Transaction;
-    chain: IdentifierString;
+    network: NETWORK;
   }) => Promise<{
     digest: string;
     bytes: string;
@@ -78,6 +76,7 @@ const WalrusWalletRoot = ({
   children,
 }: IWalrusWalletProps) => {
   const initialized = useRef<boolean>(false);
+  const { scan } = useWalrusScan();
   const { wallet, setWallet, setMode } = useWalletState();
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
 
@@ -123,30 +122,6 @@ const WalrusWalletRoot = ({
       }
     },
     [zklogin],
-  );
-
-  const scan = useCallback(
-    (input: { signer: Signer; chain: IdentifierString }): Promise<void> => {
-      return new Promise((resolve) => {
-        const container = document.createElement('div');
-        document.body.appendChild(container);
-        const root = ReactDOM.createRoot(container);
-        root.render(
-          <QRScan
-            open
-            mode={mode || 'light'}
-            signer={input.signer}
-            network={network}
-            onEvent={onEvent}
-            onClose={() => {
-              cleanup(container, root);
-              resolve();
-            }}
-          />,
-        );
-      });
-    },
-    [mode, network, onEvent],
   );
 
   useEffect(() => {
@@ -225,7 +200,9 @@ const WalrusWalletRoot = ({
 export const WalrusWallet = ({ children, ...others }: IWalrusWalletProps) => {
   return (
     <RecoilRoot>
-      <WalrusWalletRoot {...others}>{children}</WalrusWalletRoot>
+      <WalrusScan {...others}>
+        <WalrusWalletRoot {...others}>{children}</WalrusWalletRoot>
+      </WalrusScan>
     </RecoilRoot>
   );
 };

@@ -67,7 +67,7 @@ export const DlgContent = styled(Dialog.DialogContent, {
   outline: 'none',
   animation: `${contentShow} 150ms cubic-bezier(0.16, 1, 0.3, 1)`,
   width: '100%',
-  maxWidth: '500px',
+  maxWidth: '450px',
   '@media (max-width: 600px)': {
     height: 'auto',
     width: '100%',

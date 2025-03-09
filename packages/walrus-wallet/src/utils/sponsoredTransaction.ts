@@ -1,7 +1,6 @@
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
-import { IdentifierString } from '@mysten/wallet-standard';
 
 import { getAccountData } from './localStorage';
 import { NETWORK } from './types';
@@ -61,7 +60,7 @@ export const signAndExecuteSponsoredTransaction = async (
   url: string,
   input: {
     transaction: Transaction;
-    chain: IdentifierString;
+    network: NETWORK;
   },
 ): Promise<{
   digest: string;
@@ -72,7 +71,7 @@ export const signAndExecuteSponsoredTransaction = async (
   const account = getAccountData();
   if (!!account) {
     if (!!wallet.signer) {
-      if (account.network === input.chain.split(':')[1]) {
+      if (account.network === input.network) {
         const client = new SuiClient({
           url: getFullnodeUrl(account.network),
         });

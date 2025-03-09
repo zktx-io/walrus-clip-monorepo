@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { KioskOwnerCap } from '@mysten/kiosk';
 import { SuiObjectData } from '@mysten/sui/client';
@@ -25,7 +25,7 @@ import { DlgTransferNFT } from './DlgTransferNFT';
 import { DlgOverlay, DlgPortal, DlgRoot, DlgTitle, DlgTrigger } from './modal';
 import { QRAddress } from './QRAddress';
 import { useWalletState } from '../recoil';
-import { QRScan } from './QRScan';
+import { useWalrusScan } from './WalrusScan';
 import { NotiVariant } from '../utils/types';
 import { FloatCoinBalance } from '../utils/walletStandard';
 
@@ -42,9 +42,9 @@ export const ActionDrawer = ({
 }) => {
   const [isScannerEnabled, setIsScannerEnabled] = useState<boolean>(false);
 
+  const { scan } = useWalrusScan();
   const { mode, wallet } = useWalletState();
   const [open, setOpen] = useState<boolean>(false);
-  const [openScan, setOpenScan] = useState<boolean>(false);
   const [openAddress, setOpenAddress] = useState<boolean>(false);
   const [openBalances, setOpenBalances] = useState<boolean>(false);
   const [openSystem, setOpenSystem] = useState<boolean>(false);
@@ -66,8 +66,10 @@ export const ActionDrawer = ({
   );
 
   const handleScan = () => {
-    setOpen(false);
-    setOpenScan(true);
+    if (wallet && wallet.signer) {
+      setOpen(false);
+      scan(wallet.signer);
+    }
   };
 
   const handleAddress = () => {
@@ -248,20 +250,6 @@ export const ActionDrawer = ({
         `}
         </style>
       </DlgRoot>
-
-      {wallet && wallet.signer && (
-        <QRScan
-          open={openScan}
-          mode={mode}
-          signer={wallet.signer}
-          network={wallet.signer.network}
-          onEvent={onEvent}
-          onClose={(isBack: boolean) => {
-            isBack && setOpen(true);
-            setOpenScan(false);
-          }}
-        />
-      )}
       <QRAddress
         icon={icon}
         open={openAddress}
