@@ -15,7 +15,6 @@ import {
 } from './modal';
 import { connectQRLogin } from './QRLoginCode';
 import { connectQRSign } from './QRSignCode';
-import { useWalletState } from '../recoil';
 import { NETWORK, NotiVariant } from '../utils/types';
 
 type QRScanType = 'login' | 'sign' | 'verification';
