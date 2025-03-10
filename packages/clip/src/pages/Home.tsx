@@ -37,75 +37,72 @@ export const Home = () => {
   const onScan = async () => {
     if (account) {
       await scan({
-        signer: {
-          toSuiAddress: () => account.address,
-          getPublicKey: () => {
-            switch (account.publicKey[0]) {
-              case 0x00:
-                return new Ed25519PublicKey(account.publicKey.slice(1));
-              case 0x01:
-                return new Secp256k1PublicKey(account.publicKey.slice(1));
-              case 0x02:
-                return new Secp256r1PublicKey(account.publicKey.slice(1));
-              case 0x03:
-                return new MultiSigPublicKey(account.publicKey.slice(1));
-              case 0x05:
-                return new ZkLoginPublicIdentifier(account.publicKey);
-              case 0x06:
-                return new PasskeyPublicKey(account.publicKey.slice(1));  
-              default:
-                break;
-            }
-            throw new Error('Not implemented (getPublicKey)');
-          },
-          getKeyScheme: () => {
-            throw new Error('Not implemented (getKeyScheme)');
-          },
-          signPersonalMessage: async (bytes: Uint8Array) => {
-            return new Promise((resolve, reject) => {
-              signPersonalMessage(
-                {
-                  message: bytes,
-                },
-                {
-                  onSuccess: (result) => {
-                    resolve(result);
-                  },
-                  onError: (error) => {
-                    reject(error);
-                  },
-                },
-              );
-            });
-          },
-          signTransaction: async (bytes: Uint8Array) => {
-            const transaction = await Transaction.from(bytes).toJSON();
-            return new Promise((resolve, reject) => {
-              signTransaction(
-                {
-                  transaction,
-                },
-                {
-                  onSuccess: (result) => {
-                    resolve(result);
-                  },
-                  onError: (error) => {
-                    reject(error);
-                  },
-                },
-              );
-            });
-          },
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          signWithIntent: (_bytes: Uint8Array, _intent: IntentScope) => {
-            throw new Error('Not implemented (signWithIntent)');
-          },
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          sign: async (_bytes: Uint8Array) => {
-            throw new Error('Not implemented (sign)');
-          },
+        toSuiAddress: () => account.address,
+        getPublicKey: () => {
+          switch (account.publicKey[0]) {
+            case 0x00:
+              return new Ed25519PublicKey(account.publicKey.slice(1));
+            case 0x01:
+              return new Secp256k1PublicKey(account.publicKey.slice(1));
+            case 0x02:
+              return new Secp256r1PublicKey(account.publicKey.slice(1));
+            case 0x03:
+              return new MultiSigPublicKey(account.publicKey.slice(1));
+            case 0x05:
+              return new ZkLoginPublicIdentifier(account.publicKey);
+            case 0x06:
+              return new PasskeyPublicKey(account.publicKey.slice(1));
+            default:
+              break;
+          }
+          throw new Error('Not implemented (getPublicKey)');
         },
-        chain: `sui:${NETWORK}`,
+        getKeyScheme: () => {
+          throw new Error('Not implemented (getKeyScheme)');
+        },
+        signPersonalMessage: async (bytes: Uint8Array) => {
+          return new Promise((resolve, reject) => {
+            signPersonalMessage(
+              {
+                message: bytes,
+              },
+              {
+                onSuccess: (result) => {
+                  resolve(result);
+                },
+                onError: (error) => {
+                  reject(error);
+                },
+              },
+            );
+          });
+        },
+        signTransaction: async (bytes: Uint8Array) => {
+          const transaction = await Transaction.from(bytes).toJSON();
+          return new Promise((resolve, reject) => {
+            signTransaction(
+              {
+                transaction,
+              },
+              {
+                onSuccess: (result) => {
+                  resolve(result);
+                },
+                onError: (error) => {
+                  reject(error);
+                },
+              },
+            );
+          });
+        },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        signWithIntent: (_bytes: Uint8Array, _intent: IntentScope) => {
+          throw new Error('Not implemented (signWithIntent)');
+        },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        sign: async (_bytes: Uint8Array) => {
+          throw new Error('Not implemented (sign)');
+        },
       });
     }
   };
@@ -130,7 +127,7 @@ export const Home = () => {
         if (currentWallet && currentWallet.name === WALLET_NAME) {
           const result = await signAndExecuteSponsoredTransaction({
             transaction,
-            chain: `sui:${NETWORK}`,
+            network: NETWORK,
           });
           enqueueSnackbar(`${result.digest}`, {
             variant: 'success',
@@ -176,7 +173,7 @@ export const Home = () => {
 
   const onDisconnect = () => {
     disconnect();
-  }
+  };
 
   useEffect(() => {
     if (
