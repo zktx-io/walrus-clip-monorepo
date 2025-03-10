@@ -22,11 +22,8 @@ export const Home = () => {
   const { mutate: disconnect } = useDisconnectWallet();
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
-  const {
-    isConnected,
-    signAndExecuteSponsoredTransaction,
-    pay,
-  } = useWalrusWallet();
+  const { isConnected, signAndExecuteSponsoredTransaction, pay } =
+    useWalrusWallet();
 
   const onSignAndExcuteTx = async () => {
     if (account) {
@@ -48,7 +45,7 @@ export const Home = () => {
         if (currentWallet && currentWallet.name === WALLET_NAME) {
           const result = await signAndExecuteSponsoredTransaction({
             transaction,
-            chain: `sui:${NETWORK}`,
+            network: NETWORK,
           });
           enqueueSnackbar(`${result.digest}`, {
             variant: 'success',
