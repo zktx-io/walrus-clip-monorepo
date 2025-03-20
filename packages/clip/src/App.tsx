@@ -14,6 +14,7 @@ import { Home } from './pages/Home';
 import { ICON, WALLET_NAME } from './utils/config';
 import { NETWORK } from './utils/config';
 import { getProviderUrl } from './utils/getProviderUrl';
+import { WalrusScan } from '@zktx.io/walrus-scan';
 
 const router = createBrowserRouter([
   {
@@ -62,27 +63,41 @@ function App() {
         });
       }}
     >
-      <SuiClientProvider
-        networks={{
-          mainnet: { url: getFullnodeUrl('mainnet') },
-          testnet: { url: getFullnodeUrl('testnet') },
-          devnet: { url: getFullnodeUrl('devnet') },
-        }}
-        defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
-        onNetworkChange={(network) => {
-          setActiveNetwork(network);
+      <WalrusScan
+        network={activeNetwork}
+        onEvent={(notification) => {
+          enqueueSnackbar(notification.message, {
+            variant: notification.variant,
+            style: {
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            },
+          });
         }}
       >
-        <WalletProvider
-          autoConnect
-          stashedWallet={{
-            name: 'stashed wallet',
-            network: activeNetwork as 'mainnet' | 'testnet',
+        <SuiClientProvider
+          networks={{
+            mainnet: { url: getFullnodeUrl('mainnet') },
+            testnet: { url: getFullnodeUrl('testnet') },
+            devnet: { url: getFullnodeUrl('devnet') },
+          }}
+          defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
+          onNetworkChange={(network) => {
+            setActiveNetwork(network);
           }}
         >
-          <RouterProvider router={router} />
-        </WalletProvider>
-      </SuiClientProvider>
+          <WalletProvider
+            autoConnect
+            stashedWallet={{
+              name: 'stashed wallet',
+              network: activeNetwork as 'mainnet' | 'testnet',
+            }}
+          >
+            <RouterProvider router={router} />
+          </WalletProvider>
+        </SuiClientProvider>
+      </WalrusScan>
     </WalrusWallet>
   );
 }

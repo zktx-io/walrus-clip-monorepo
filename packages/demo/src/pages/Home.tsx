@@ -22,8 +22,7 @@ export const Home = () => {
   const { mutate: disconnect } = useDisconnectWallet();
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
-  const { isConnected, signAndExecuteSponsoredTransaction, pay } =
-    useWalrusWallet();
+  const { isConnected, signAndExecuteSponsoredTransaction } = useWalrusWallet();
 
   const onSignAndExcuteTx = async () => {
     if (account) {
@@ -44,8 +43,8 @@ export const Home = () => {
 
         if (currentWallet && currentWallet.name === WALLET_NAME) {
           const result = await signAndExecuteSponsoredTransaction({
-            transaction,
             network: NETWORK,
+            transaction,
           });
           enqueueSnackbar(`${result.digest}`, {
             variant: 'success',
@@ -99,6 +98,7 @@ export const Home = () => {
   };
 
   const onShowBill = async () => {
+    /*
     try {
       const transaction = new Transaction();
       transaction.moveCall({
@@ -132,6 +132,7 @@ export const Home = () => {
         },
       });
     }
+      */
   };
 
   useEffect(() => {

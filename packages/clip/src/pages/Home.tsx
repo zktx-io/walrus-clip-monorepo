@@ -17,6 +17,7 @@ import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
 import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import { MultiSigPublicKey } from '@mysten/sui/multisig';
 import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
+import { useWalrusScan } from '@zktx.io/walrus-scan';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
 
@@ -24,6 +25,7 @@ import { NETWORK, WALLET_NAME } from '../utils/config';
 
 export const Home = () => {
   const { connectionStatus, currentWallet } = useCurrentWallet();
+  const { scan } = useWalrusScan();
   const account = useCurrentAccount();
 
   const { mutate: disconnect } = useDisconnectWallet();
@@ -31,8 +33,7 @@ export const Home = () => {
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
   const { mutate: signTransaction } = useSignTransaction();
 
-  const { isConnected, signAndExecuteSponsoredTransaction, scan } =
-    useWalrusWallet();
+  const { isConnected, signAndExecuteSponsoredTransaction } = useWalrusWallet();
 
   const onScan = async () => {
     if (account) {
@@ -49,7 +50,7 @@ export const Home = () => {
             case 0x03:
               return new MultiSigPublicKey(account.publicKey.slice(1));
             case 0x05:
-              return new ZkLoginPublicIdentifier(account.publicKey);
+              return new ZkLoginPublicIdentifier(account.publicKey.slice(1));
             case 0x06:
               return new PasskeyPublicKey(account.publicKey.slice(1));
             default:
@@ -126,8 +127,8 @@ export const Home = () => {
 
         if (currentWallet && currentWallet.name === WALLET_NAME) {
           const result = await signAndExecuteSponsoredTransaction({
-            transaction,
             network: NETWORK,
+            transaction,
           });
           enqueueSnackbar(`${result.digest}`, {
             variant: 'success',
