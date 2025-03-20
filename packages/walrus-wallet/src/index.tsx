@@ -34,7 +34,7 @@ import { WalletStandard } from './utils/walletStandard';
 
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<void>;
-  isConnected: boolean;
+  walrusWalletStatus: () => 'connected' | 'disconnected';
   scan: (signer: Signer) => Promise<void>;
   openSignTxModal: (
     title: string,
@@ -256,7 +256,7 @@ const WalrusWalletRoot = ({
     <WalrusWalletContext.Provider
       value={{
         updateJwt,
-        isConnected,
+        walrusWalletStatus: () => (isConnected ? 'connected' : 'disconnected'),
         scan,
         openSignTxModal,
         signAndExecuteSponsoredTransaction:

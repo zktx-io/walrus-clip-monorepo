@@ -259,12 +259,14 @@ export class WalletStandard implements Wallet {
   };
 
   #connected = async () => {
-    if (this.#account && this.#signer) {
+    if (this.#account) {
       this.#setIsConnected(true);
       this.#accounts = [
         new ReadonlyWalletAccount({
           address: this.#account.address,
-          publicKey: this.#signer.getPublicKey().toSuiBytes(),
+          publicKey: this.#signer
+            ? this.#signer.getPublicKey().toSuiBytes()
+            : new Uint8Array(),
           chains: [`sui:${this.#network}`],
           features: [
             'sui:signTransaction',
@@ -306,13 +308,11 @@ export class WalletStandard implements Wallet {
   };
 
   #disconnect: StandardDisconnectMethod = (): Promise<void> => {
-    if (this.#accounts.length > 0) {
-      disconnect();
-      this.#accounts = [];
-      this.#account = undefined;
-      this.#signer = undefined;
-      this.#events.emit('change', { accounts: undefined });
-    }
+    disconnect();
+    this.#accounts = [];
+    this.#account = undefined;
+    this.#signer = undefined;
+    this.#events.emit('change', { accounts: undefined });
     return Promise.resolve();
   };
 
