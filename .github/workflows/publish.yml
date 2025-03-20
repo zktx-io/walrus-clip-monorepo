@@ -19,7 +19,7 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - name: publish walrus wallet package
+      - name: publish walrus scan package
         uses: JS-DevTools/npm-publish@v3
         id: walrus-scan
         with:
