@@ -59,7 +59,9 @@ export const signAndExecuteSponsoredTransaction = async (
   wallet: WalletStandard,
   url: string,
   input: {
-    transaction: Transaction;
+    transaction: {
+      toJSON: () => Promise<string>;
+    };
     network: NETWORK;
   },
 ): Promise<{
@@ -69,13 +71,14 @@ export const signAndExecuteSponsoredTransaction = async (
   effects: string;
 }> => {
   const account = getAccountData();
+  const txb = Transaction.from(await input.transaction.toJSON());
   if (!!account) {
     if (!!wallet.signer) {
       if (account.network === input.network) {
         const client = new SuiClient({
           url: getFullnodeUrl(account.network),
         });
-        const txBytes = await input.transaction.build({
+        const txBytes = await txb.build({
           client,
           onlyTransactionKind: true,
         });
@@ -109,7 +112,7 @@ export const signAndExecuteSponsoredTransaction = async (
         'Bill',
         'Please scan the QR code to pay.',
         {
-          transaction: input.transaction,
+          transaction: txb,
           isSponsored: true,
         },
       );

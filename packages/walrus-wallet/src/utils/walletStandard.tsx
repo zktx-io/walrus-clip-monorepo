@@ -33,6 +33,7 @@ import {
   SuiSignTransactionMethod,
   Wallet,
 } from '@mysten/wallet-standard';
+import { QRLogin, QRSign } from '@zktx.io/walrus-scan';
 import mitt, { type Emitter } from 'mitt';
 import ReactDOM from 'react-dom/client';
 
@@ -46,8 +47,6 @@ import {
 import { IAccount, NETWORK, NotiVariant } from './types';
 import { cleanup, ZkLoginSigner } from './zkLoginSigner';
 import { PwCreate } from '../components/PwCreate';
-import { QRLoginCode } from '../components/QRLoginCode';
-import { QRSignCode, TxResult } from '../components/QRSignCode';
 
 type WalletEventsMap = {
   [E in keyof StandardEventsListeners]: Parameters<
@@ -214,7 +213,7 @@ export class WalletStandard implements Wallet {
       document.body.appendChild(container);
       const root = ReactDOM.createRoot(container);
       root.render(
-        <QRLoginCode
+        <QRLogin
           mode={this.#mode}
           icon={this.#icon}
           network={this.#network}
@@ -239,12 +238,12 @@ export class WalletStandard implements Wallet {
   };
 
   #connected = async () => {
-    if (this.#account) {
+    if (this.#account && this.#signer) {
       this.#setIsConnected(true);
       this.#accounts = [
         new ReadonlyWalletAccount({
           address: this.#account.address,
-          publicKey: new Uint8Array(),
+          publicKey: this.#signer.getPublicKey().toSuiBytes(),
           chains: [`sui:${this.#network}`],
           features: [
             'sui:signTransaction',
@@ -301,26 +300,33 @@ export class WalletStandard implements Wallet {
     this.#disconnect();
   };
 
-  pay = async (
+  #qrSignTransaction = async (
     title: string,
     description: string,
-    data: { transaction: Transaction; isSponsored?: boolean },
-  ): Promise<TxResult> => {
+    data: {
+      transaction: {
+        toJSON: () => Promise<string>;
+      };
+      isSponsored?: boolean;
+    },
+  ): Promise<SuiSignAndExecuteTransactionOutput> => {
     return new Promise((resolve) => {
       const container = document.createElement('div');
       document.body.appendChild(container);
       const root = ReactDOM.createRoot(container);
       root.render(
-        <QRSignCode
+        <QRSign
           mode={this.#mode}
+          data={{
+            network: this.#network,
+            transaction: data.transaction,
+            sponsored: data.isSponsored ? this.#sponsored : undefined,
+          }}
+          icon={this.icon}
           option={{
             title,
             description,
-            transaction: data.transaction,
           }}
-          network={this.#network}
-          sponsored={data.isSponsored ? this.#sponsored : undefined}
-          icon={this.icon}
           onEvent={this.#onEvent}
           onClose={(result) => {
             cleanup(container, root);
@@ -366,7 +372,7 @@ export class WalletStandard implements Wallet {
         };
       } else {
         const tx = await transaction.toJSON();
-        const txResult = await this.pay(
+        const txResult = await this.#qrSignTransaction(
           'Sign Transaction',
           'Please scan the QR code to sign.',
           {
@@ -421,7 +427,7 @@ export class WalletStandard implements Wallet {
         };
       } else {
         const tx = await transaction.toJSON();
-        const txResult = await this.pay(
+        const txResult = await this.#qrSignTransaction(
           'Sign and Execute',
           'Please scan the QR code to sign.',
           {

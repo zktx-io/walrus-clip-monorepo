@@ -4,6 +4,7 @@ import { KioskOwnerCap } from '@mysten/kiosk';
 import { SuiObjectData } from '@mysten/sui/client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
+import { QRAddress, useWalrusScan } from '@zktx.io/walrus-scan';
 import { motion } from 'framer-motion';
 import {
   HiOutlineCamera,
@@ -23,9 +24,7 @@ import { DlgNFTs } from './DlgNFTs';
 import { DlgTransferCoin } from './DlgTransferCoin';
 import { DlgTransferNFT } from './DlgTransferNFT';
 import { DlgOverlay, DlgPortal, DlgRoot, DlgTitle, DlgTrigger } from './modal';
-import { QRAddress } from './QRAddress';
 import { useWalletState } from '../recoil';
-import { useWalrusScan } from './WalrusScan';
 import { NotiVariant } from '../utils/types';
 import { FloatCoinBalance } from '../utils/walletStandard';
 
@@ -252,6 +251,8 @@ export const ActionDrawer = ({
       </DlgRoot>
       <QRAddress
         icon={icon}
+        mode={mode}
+        address={wallet?.address || ''}
         open={openAddress}
         onClose={() => {
           setOpenAddress(false);

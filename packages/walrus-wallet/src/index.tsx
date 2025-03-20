@@ -6,15 +6,13 @@ import React, {
   useRef,
 } from 'react';
 
-import { Signer } from '@mysten/sui/cryptography';
-import { Transaction } from '@mysten/sui/transactions';
 import { genAddressSeed } from '@mysten/sui/zklogin';
 import { registerWallet } from '@mysten/wallet-standard';
+import { WalrusScan } from '@zktx.io/walrus-scan';
 import { decodeJwt } from 'jose';
 import { RecoilRoot } from 'recoil';
 
 import { ActionDrawer } from './components/ActionDrawer';
-import { useWalrusScan, WalrusScan } from './components/WalrusScan';
 import { useWalletState } from './recoil';
 import { createProof } from './utils/createProof';
 import {
@@ -29,14 +27,10 @@ import { WalletStandard } from './utils/walletStandard';
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<void>;
   isConnected: boolean;
-  scan: (signer: Signer) => Promise<void>;
-  pay: (
-    title: string,
-    description: string,
-    data: { transaction: Transaction; isSponsored?: boolean },
-  ) => Promise<{ digest: string; effects: string }>;
   signAndExecuteSponsoredTransaction: (input: {
-    transaction: Transaction;
+    transaction: {
+      toJSON: () => Promise<string>;
+    };
     network: NETWORK;
   }) => Promise<{
     digest: string;
@@ -76,7 +70,6 @@ const WalrusWalletRoot = ({
   children,
 }: IWalrusWalletProps) => {
   const initialized = useRef<boolean>(false);
-  const { scan } = useWalrusScan();
   const { wallet, setWallet, setMode } = useWalletState();
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
 
@@ -164,13 +157,6 @@ const WalrusWalletRoot = ({
       value={{
         updateJwt,
         isConnected,
-        scan,
-        pay: (title, description, data) => {
-          if (wallet) {
-            return wallet.pay(title, description, data);
-          }
-          throw new Error('Wallet not initialized');
-        },
         signAndExecuteSponsoredTransaction:
           sponsored && wallet
             ? (input) =>
@@ -200,7 +186,7 @@ const WalrusWalletRoot = ({
 export const WalrusWallet = ({ children, ...others }: IWalrusWalletProps) => {
   return (
     <RecoilRoot>
-      <WalrusScan {...others}>
+      <WalrusScan mode={others.mode || 'light'} {...others}>
         <WalrusWalletRoot {...others}>{children}</WalrusWalletRoot>
       </WalrusScan>
     </RecoilRoot>

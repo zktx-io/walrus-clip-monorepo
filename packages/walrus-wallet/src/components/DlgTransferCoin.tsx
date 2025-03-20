@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { Transaction } from '@mysten/sui/transactions';
+import { QRAddressScan } from '@zktx.io/walrus-scan';
 import { HiOutlineXMark } from 'react-icons/hi2';
 
 import {
@@ -24,7 +25,6 @@ import {
   DlgTitle,
 } from './modal';
 import { useWalletState } from '../recoil';
-import { QRScanAddress } from './QRScanAddress';
 import { NotiVariant } from '../utils/types';
 import { FloatCoinBalance } from '../utils/walletStandard';
 
@@ -249,7 +249,7 @@ export const DlgTransferCoin = ({
                   }}
                   style={{ flexGrow: 1, border: 'none' }}
                 />
-                <QRScanAddress scanAddress={setRecipient} />
+                <QRAddressScan mode={mode} onClose={setRecipient} />
               </FormInputWithButton>
             </FormField>
           </FormRoot>
