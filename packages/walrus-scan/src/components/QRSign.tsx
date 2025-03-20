@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Signer } from '@mysten/sui/cryptography';
-import { BuildTransactionOptions, Transaction } from '@mysten/sui/transactions';
+import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { generateRandomness } from '@mysten/sui/zklogin';
 import Peer from 'peerjs';
@@ -143,7 +143,7 @@ export const connectQRSign = ({
 
 export const QRSign = ({
   mode,
-  data: { network, transaction, sponsored },
+  data: { network, transaction, sponsoredUrl },
   icon,
   option,
   onEvent,
@@ -155,7 +155,7 @@ export const QRSign = ({
     transaction: {
       toJSON: () => Promise<string>;
     };
-    sponsored?: string;
+    sponsoredUrl?: string;
   };
   icon: string;
   option: {
@@ -211,7 +211,7 @@ export const QRSign = ({
           switch (message.type) {
             case MessageType.STEP_0:
               {
-                if (sponsored !== undefined) {
+                if (sponsoredUrl !== undefined) {
                   onEvent({
                     variant: 'info',
                     message: 'create sponsored transaction...',
@@ -226,14 +226,14 @@ export const QRSign = ({
                 const txb = Transaction.from(await transaction.toJSON());
                 txb.setSenderIfNotSet(message.value);
 
-                if (sponsored !== undefined) {
+                if (sponsoredUrl !== undefined) {
                   const txBytes = await txb.build({
                     client,
                     onlyTransactionKind: true,
                   });
                   const { bytes: sponsoredTxBytes, digest } =
                     await createSponsoredTransaction(
-                      sponsored,
+                      sponsoredUrl,
                       network,
                       message.value,
                       txBytes,
@@ -264,16 +264,16 @@ export const QRSign = ({
                 onEvent({
                   variant: 'info',
                   message:
-                    sponsored !== undefined
+                    sponsoredUrl !== undefined
                       ? 'Executing sponsored transaction...'
                       : 'Executing transaction...',
                 });
-                if (sponsored !== undefined) {
+                if (sponsoredUrl !== undefined) {
                   const { digest, signature, txBytes } = JSON.parse(
                     message.value,
                   );
                   await executeSponsoredTransaction(
-                    sponsored,
+                    sponsoredUrl,
                     digest!,
                     signature,
                   );
