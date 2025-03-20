@@ -1,7 +1,7 @@
 {
   "name": "demo",
   "private": true,
-  "version": "0.1.19",
+  "version": "0.1.20",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,7 +14,7 @@
     "@mysten/dapp-kit": "^0.14.50",
     "@mysten/sui": "^1.21.2",
     "@tanstack/react-query": "^5.64.2",
-    "@zktx.io/walrus-wallet": "^0.1.19",
+    "@zktx.io/walrus-wallet": "^0.1.20",
     "notistack": "^3.0.2",
     "query-string": "^9.1.1",
     "react": "^18.3.1",
