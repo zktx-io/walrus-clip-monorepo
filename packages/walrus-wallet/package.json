@@ -9,7 +9,7 @@
     "wallet standard",
     "customizable"
   ],
-  "version": "0.1.17",
+  "version": "0.1.18",
   "type": "module",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
@@ -56,7 +56,7 @@
     "@radix-ui/react-visually-hidden": "^1.1.2",
     "@stitches/react": "^1.2.8",
     "@yudiel/react-qr-scanner": "^2.1.0",
-    "@zktx.io/walrus-scan": "^0.1.17",
+    "@zktx.io/walrus-scan": "^0.1.18",
     "framer-motion": "^12.4.3",
     "jose": "^5.9.6",
     "mitt": "^3.0.1",
