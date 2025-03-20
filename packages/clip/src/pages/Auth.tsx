@@ -11,7 +11,7 @@ export const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { isConnected, updateJwt } = useWalrusWallet();
+  const { walrusWalletStatus, updateJwt } = useWalrusWallet();
   const wallets = useWallets();
   const { mutate: connect } = useConnectWallet();
 
@@ -21,7 +21,7 @@ export const Auth = () => {
         const { id_token: jwt } = queryString.parse(location.hash) as {
           id_token: string;
         };
-        if (isConnected || !jwt) {
+        if (walrusWalletStatus() === 'connected' || !jwt) {
           navigate('/');
           return;
         }
@@ -40,7 +40,7 @@ export const Auth = () => {
       }
     };
     init();
-  }, [location, navigate, updateJwt, wallets, connect, isConnected]);
+  }, [location, navigate, updateJwt, wallets, connect, walrusWalletStatus]);
 
   return (
     <div className="flex flex-col items-center p-4">

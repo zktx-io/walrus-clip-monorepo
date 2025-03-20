@@ -1,5 +1,3 @@
-import { useEffect } from 'react';
-
 import {
   ConnectButton,
   useCurrentAccount,
@@ -22,7 +20,7 @@ export const Home = () => {
   const { mutate: disconnect } = useDisconnectWallet();
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
-  const { isConnected, signAndExecuteSponsoredTransaction } = useWalrusWallet();
+  const { signAndExecuteSponsoredTransaction } = useWalrusWallet();
 
   const onSignAndExcuteTx = async () => {
     if (account) {
@@ -40,7 +38,6 @@ export const Home = () => {
             ),
           ],
         });
-
         if (currentWallet && currentWallet.name === WALLET_NAME) {
           const result = await signAndExecuteSponsoredTransaction({
             network: NETWORK,
@@ -97,23 +94,13 @@ export const Home = () => {
     }
   };
 
-  useEffect(() => {
-    if (
-      connectionStatus === 'connected' &&
-      !isConnected &&
-      currentWallet.name === WALLET_NAME
-    ) {
-      disconnect();
-    }
-  }, [isConnected, connectionStatus, disconnect, currentWallet?.name]);
-
   return (
     <div className="flex flex-col items-center p-4">
       <img src={'/logo-walrus.png'} className="w-32 h-32 mb-4" alt="logo" />
       <h1 className="text-3xl font-bold">Walrus Clip Demo</h1>
       <h2 className="text-xl text-gray-600">Home</h2>
       <div className="w-full max-w-md p-4 rounded-lg shadow-md mt-4">
-        {connectionStatus === 'connected' ? (
+        {connectionStatus === 'connected' && account ? (
           <div className="flex flex-col items-center">
             <h3 className="text-xl font-bold text-green-600">Connected</h3>
             <div className="w-full text-center">
@@ -123,6 +110,20 @@ export const Home = () => {
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full mt-4">
+              <div className="flex flex-col gap-2 mt-2">
+                <button
+                  className="py-1 bg-white text-black rounded-lg border-2 border-transparent hover:border-white hover:bg-transparent hover:text-white transition-all cursor-pointer"
+                  onClick={() => navigate('/kiosk')}
+                >
+                  Go to Kiosk Page
+                </button>
+                <button
+                  className="py-1 bg-white text-black rounded-lg border-2 border-transparent hover:border-white hover:bg-transparent hover:text-white transition-all cursor-pointer"
+                  onClick={() => navigate('/ticket')}
+                >
+                  Go to Ticket Page
+                </button>
+              </div>
               <div className="flex gap-2 w-full">
                 <button
                   className="w-full bg-blue-500 text-white py-2 rounded-lg cursor-pointer"
@@ -132,26 +133,18 @@ export const Home = () => {
                     ? 'Sponsored Transaction'
                     : 'Transaction'}
                 </button>
+                <button
+                  className="w-full bg-red-500 text-white py-2 rounded-lg cursor-pointer"
+                  onClick={() => disconnect()}
+                >
+                  Disconnect
+                </button>
               </div>
             </div>
           </div>
         ) : (
           <ConnectButton />
         )}
-        <div className="flex flex-col gap-2 mt-2">
-          <button
-            className="py-1 bg-white text-black rounded-lg border-2 border-transparent hover:border-white hover:bg-transparent hover:text-white transition-all cursor-pointer"
-            onClick={() => navigate('/kiosk')}
-          >
-            Go to Kiosk Page
-          </button>
-          <button
-            className="py-1 bg-white text-black rounded-lg border-2 border-transparent hover:border-white hover:bg-transparent hover:text-white transition-all cursor-pointer"
-            onClick={() => navigate('/ticket')}
-          >
-            Go to Ticket Page
-          </button>
-        </div>
       </div>
     </div>
   );

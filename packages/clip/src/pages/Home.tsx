@@ -1,5 +1,3 @@
-import { useEffect } from 'react';
-
 import {
   ConnectButton,
   useCurrentAccount,
@@ -31,7 +29,7 @@ export const Home = () => {
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
   const { mutate: signTransaction } = useSignTransaction();
 
-  const { isConnected, signAndExecuteSponsoredTransaction } = useWalrusWallet();
+  const { signAndExecuteSponsoredTransaction } = useWalrusWallet();
 
   const onScan = async () => {
     if (account) {
@@ -170,27 +168,13 @@ export const Home = () => {
     }
   };
 
-  const onDisconnect = () => {
-    disconnect();
-  };
-
-  useEffect(() => {
-    if (
-      connectionStatus === 'connected' &&
-      !isConnected &&
-      currentWallet.name === WALLET_NAME
-    ) {
-      disconnect();
-    }
-  }, [isConnected, connectionStatus, disconnect, currentWallet?.name]);
-
   return (
     <div className="flex flex-col items-center p-4">
       <img src={'/logo-walrus.png'} className="w-32 h-32 mb-4" alt="logo" />
       <h1 className="text-3xl font-bold">Walrus Clip</h1>
       <h2 className="text-xl text-gray-600">Home</h2>
       <div className="w-full max-w-md p-4 rounded-lg shadow-md mt-4">
-        {connectionStatus === 'connected' ? (
+        {connectionStatus === 'connected' && account ? (
           <div className="flex flex-col items-center">
             <h3 className="text-xl font-bold text-green-600">Connected</h3>
             <div className="w-full text-center">
@@ -219,7 +203,7 @@ export const Home = () => {
               <div className="flex gap-2 w-full">
                 <button
                   className="w-full bg-red-500 text-white py-2 px-2 rounded-lg cursor-pointer"
-                  onClick={onDisconnect}
+                  onClick={() => disconnect()}
                 >
                   Disconnect
                 </button>
