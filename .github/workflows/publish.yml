@@ -21,6 +21,16 @@ jobs:
 
       - name: publish walrus wallet package
         uses: JS-DevTools/npm-publish@v3
+        id: walrus-scan
+        with:
+            access: public
+            provenance: true
+            token: ${{ secrets.NPM_TOKEN }}
+            package: "packages/walrus-scan/package.json"
+            strategy: upgrade
+
+      - name: publish walrus wallet package
+        uses: JS-DevTools/npm-publish@v3
         id: walrus-wallet
         with:
             access: public

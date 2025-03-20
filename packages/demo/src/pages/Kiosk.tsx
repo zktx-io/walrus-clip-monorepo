@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-import { Transaction } from '@mysten/sui/transactions';
-import { useWalrusWallet } from '@zktx.io/walrus-wallet';
+// import { Transaction } from '@mysten/sui/transactions';
+// import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface Item {
@@ -20,10 +20,12 @@ const menuItems: Item[] = [
 
 export const Kiosk = () => {
   const [cart, setCart] = useState<Item[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [orderedItems, setOrderedItems] = useState<Item[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [txDigest, setTxDigest] = useState<string | null>(null);
-  const { pay } = useWalrusWallet();
+  // const { pay } = useWalrusWallet();
 
   const addToCart = (item: Item) => {
     setCart((prev) => [...prev, item]);
@@ -38,6 +40,7 @@ export const Kiosk = () => {
   };
 
   const onShowPay = async () => {
+    /*
     try {
       const transaction = new Transaction();
       transaction.moveCall({
@@ -62,6 +65,7 @@ export const Kiosk = () => {
     } catch (error) {
       alert(`Payment failed: ${error}`);
     }
+    */
   };
 
   return (

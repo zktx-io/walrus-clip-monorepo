@@ -1,0 +1,58 @@
+{
+  "name": "@zktx.io/walrus-scan",
+  "description": "Experience Sui Wallet Standard with zkLogin, customizable with your DApp's unique name and icon.",
+  "keywords": [
+    "sui",
+    "wallet",
+    "standard",
+    "qr",
+    "scan"
+  ],
+  "version": "0.1.16",
+  "type": "module",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/types/index.d.ts",
+  "author": "daoauth",
+  "license": "ISC",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && rollup -c",
+    "lint": "npm run lint --prefix ../..",
+    "format": "npm run format --prefix ../..",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zktx-io/walrus-clip-monorepo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zktx-io/walrus-clip-monorepo/issues"
+  },
+  "homepage": "https://github.com/zktx-io/walrus-clip-monorepo#readme",
+  "files": [
+    "dist/"
+  ],
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/react": "^19.0.11",
+    "@types/react-dom": "^19.0.4",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@mysten/sui": "^1.24.0",
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-form": "^0.1.2",
+    "@stitches/react": "^1.2.8",
+    "@yudiel/react-qr-scanner": "^2.2.1",
+    "react-qrcode-logo": "^3.0.0"
+  }
+}
