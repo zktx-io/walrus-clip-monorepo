@@ -108,14 +108,15 @@ export const signAndExecuteSponsoredTransaction = async (
         };
       }
     } else {
-      const { digest, bytes, signature, effects } = await wallet.pay(
-        'Bill',
-        'Please scan the QR code to pay.',
-        {
-          transaction: txb,
-          isSponsored: true,
-        },
-      );
+      const { digest, bytes, signature, effects } =
+        await wallet.openQrSignModal(
+          'Bill',
+          'Please scan the QR code to pay.',
+          {
+            transaction: txb,
+            isSponsored: true,
+          },
+        );
       return {
         digest,
         bytes,

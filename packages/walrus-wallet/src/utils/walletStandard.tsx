@@ -232,6 +232,45 @@ export class WalletStandard implements Wallet {
     });
   }
 
+  openQrSignModal = async (
+    title: string,
+    description: string,
+    data: {
+      transaction: {
+        toJSON: () => Promise<string>;
+      };
+      isSponsored?: boolean;
+    },
+  ): Promise<SuiSignAndExecuteTransactionOutput> => {
+    return new Promise((resolve) => {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const root = ReactDOM.createRoot(container);
+      root.render(
+        <QRSign
+          mode={this.#mode}
+          data={{
+            network: this.#network,
+            transaction: data.transaction,
+            sponsored: data.isSponsored ? this.#sponsored : undefined,
+          }}
+          icon={this.icon}
+          option={{
+            title,
+            description,
+          }}
+          onEvent={this.#onEvent}
+          onClose={(result) => {
+            cleanup(container, root);
+            if (!!result) {
+              resolve(result);
+            }
+          }}
+        />,
+      );
+    });
+  };
+
   #on: StandardEventsOnMethod = (event, listener) => {
     this.#events.on(event, listener);
     return () => this.#events.off(event, listener);
@@ -278,7 +317,6 @@ export class WalletStandard implements Wallet {
         this.#account.zkLogin,
         this.#account.address,
         this.#mode,
-        this.#onEvent,
       );
     }
     await this.#connected();
@@ -298,45 +336,6 @@ export class WalletStandard implements Wallet {
 
   logout = () => {
     this.#disconnect();
-  };
-
-  #qrSignTransaction = async (
-    title: string,
-    description: string,
-    data: {
-      transaction: {
-        toJSON: () => Promise<string>;
-      };
-      isSponsored?: boolean;
-    },
-  ): Promise<SuiSignAndExecuteTransactionOutput> => {
-    return new Promise((resolve) => {
-      const container = document.createElement('div');
-      document.body.appendChild(container);
-      const root = ReactDOM.createRoot(container);
-      root.render(
-        <QRSign
-          mode={this.#mode}
-          data={{
-            network: this.#network,
-            transaction: data.transaction,
-            sponsored: data.isSponsored ? this.#sponsored : undefined,
-          }}
-          icon={this.icon}
-          option={{
-            title,
-            description,
-          }}
-          onEvent={this.#onEvent}
-          onClose={(result) => {
-            cleanup(container, root);
-            if (!!result) {
-              resolve(result);
-            }
-          }}
-        />,
-      );
-    });
   };
 
   public signAndExecuteTransaction = async (
@@ -372,7 +371,7 @@ export class WalletStandard implements Wallet {
         };
       } else {
         const tx = await transaction.toJSON();
-        const txResult = await this.#qrSignTransaction(
+        const txResult = await this.openQrSignModal(
           'Sign Transaction',
           'Please scan the QR code to sign.',
           {
@@ -427,7 +426,7 @@ export class WalletStandard implements Wallet {
         };
       } else {
         const tx = await transaction.toJSON();
-        const txResult = await this.#qrSignTransaction(
+        const txResult = await this.openQrSignModal(
           'Sign and Execute',
           'Please scan the QR code to sign.',
           {

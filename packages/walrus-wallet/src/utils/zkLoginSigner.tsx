@@ -14,7 +14,7 @@ import {
 } from '@mysten/sui/zklogin';
 import ReactDOM from 'react-dom/client';
 
-import { IZkLogin, NETWORK, NotiVariant } from './types';
+import { IZkLogin, NETWORK } from './types';
 import { decryptText } from './utils';
 import { PwConfirm } from '../components/PwConfirm';
 
@@ -32,7 +32,6 @@ export class ZkLoginSigner extends Signer {
   #zkLogin: IZkLogin;
   #address: string;
   #mode: 'dark' | 'light';
-  #onEvent: (data: { variant: NotiVariant; message: string }) => void;
 
   get network(): NETWORK {
     return this.#network;
@@ -43,14 +42,12 @@ export class ZkLoginSigner extends Signer {
     zkLogin: IZkLogin,
     address: string,
     mode: 'dark' | 'light',
-    onEvent: (data: { variant: NotiVariant; message: string }) => void,
   ) {
     super();
     this.#network = network;
     this.#zkLogin = zkLogin;
     this.#address = address;
     this.#mode = mode;
-    this.#onEvent = onEvent;
   }
 
   #openPasswordModal(): Promise<string> {
