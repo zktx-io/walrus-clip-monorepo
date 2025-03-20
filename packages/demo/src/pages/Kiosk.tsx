@@ -20,10 +20,8 @@ const menuItems: Item[] = [
 
 export const Kiosk = () => {
   const [cart, setCart] = useState<Item[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [orderedItems, setOrderedItems] = useState<Item[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [txDigest, setTxDigest] = useState<string | null>(null);
   // const { pay } = useWalrusWallet();
 
@@ -40,6 +38,8 @@ export const Kiosk = () => {
   };
 
   const onShowPay = async () => {
+    setOrderedItems([]);
+    setTxDigest(null);
     /*
     try {
       const transaction = new Transaction();
