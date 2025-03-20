@@ -17,7 +17,6 @@ import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
 import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import { MultiSigPublicKey } from '@mysten/sui/multisig';
 import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
-import { useWalrusScan } from '@zktx.io/walrus-scan';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
 
@@ -25,9 +24,8 @@ import { NETWORK, WALLET_NAME } from '../utils/config';
 
 export const Home = () => {
   const { connectionStatus, currentWallet } = useCurrentWallet();
-  const { scan } = useWalrusScan();
   const account = useCurrentAccount();
-
+  const { scan } = useWalrusWallet();
   const { mutate: disconnect } = useDisconnectWallet();
   const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
   const { mutate: signPersonalMessage } = useSignPersonalMessage();

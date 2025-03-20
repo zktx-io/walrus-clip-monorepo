@@ -47,7 +47,7 @@ function App() {
       name={WALLET_NAME}
       icon={ICON}
       network={activeNetwork}
-      sponsored={SPONSORED_URL}
+      sponsoredUrl={SPONSORED_URL}
       onEvent={(notification) => {
         enqueueSnackbar(notification.message, {
           variant: notification.variant,

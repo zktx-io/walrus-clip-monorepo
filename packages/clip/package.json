@@ -14,7 +14,6 @@
     "@mysten/dapp-kit": "^0.14.50",
     "@mysten/sui": "^1.21.2",
     "@tanstack/react-query": "^5.64.2",
-    "@zktx.io/walrus-scan": "^0.1.18",
     "@zktx.io/walrus-wallet": "^0.1.18",
     "notistack": "^3.0.2",
     "query-string": "^9.1.1",

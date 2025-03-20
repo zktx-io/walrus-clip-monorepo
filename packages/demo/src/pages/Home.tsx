@@ -97,44 +97,6 @@ export const Home = () => {
     }
   };
 
-  const onShowBill = async () => {
-    /*
-    try {
-      const transaction = new Transaction();
-      transaction.moveCall({
-        target:
-          '0x06314af232888760ff6eb65d6acd0e9307546f89e30d8000d162bc3ae21bf639::counter::increment',
-        arguments: [
-          transaction.object(
-            '0xd69afff191858d4dae9cfc7ed166306f9ca90e534833352f67b02abf8e6418be',
-          ),
-        ],
-      });
-      const { digest } = await pay('Bill', 'Please scan the QR code to pay.', {
-        transaction,
-        isSponsored: true,
-      });
-      enqueueSnackbar(digest, {
-        variant: 'success',
-        style: {
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        },
-      });
-    } catch (error) {
-      enqueueSnackbar(`${error}`, {
-        variant: 'error',
-        style: {
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        },
-      });
-    }
-      */
-  };
-
   useEffect(() => {
     if (
       connectionStatus === 'connected' &&
@@ -169,12 +131,6 @@ export const Home = () => {
                   {currentWallet && currentWallet.name === WALLET_NAME
                     ? 'Sponsored Transaction'
                     : 'Transaction'}
-                </button>
-                <button
-                  className="w-full bg-blue-500 text-white py-2 rounded-lg disabled:bg-gray-300 cursor-pointer"
-                  onClick={onShowBill}
-                >
-                  Bill
                 </button>
               </div>
             </div>

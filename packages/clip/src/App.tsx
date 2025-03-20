@@ -14,7 +14,6 @@ import { Home } from './pages/Home';
 import { ICON, WALLET_NAME } from './utils/config';
 import { NETWORK } from './utils/config';
 import { getProviderUrl } from './utils/getProviderUrl';
-import { WalrusScan } from '@zktx.io/walrus-scan';
 
 const router = createBrowserRouter([
   {
@@ -47,7 +46,7 @@ function App() {
       name={WALLET_NAME}
       icon={ICON}
       network={activeNetwork}
-      sponsored={SPONSORED_URL}
+      sponsoredUrl={SPONSORED_URL}
       zklogin={{
         enokey: ENOKI_KEY!,
         callbackNonce: callbackNonce,
@@ -63,41 +62,27 @@ function App() {
         });
       }}
     >
-      <WalrusScan
-        network={activeNetwork}
-        onEvent={(notification) => {
-          enqueueSnackbar(notification.message, {
-            variant: notification.variant,
-            style: {
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            },
-          });
+      <SuiClientProvider
+        networks={{
+          mainnet: { url: getFullnodeUrl('mainnet') },
+          testnet: { url: getFullnodeUrl('testnet') },
+          devnet: { url: getFullnodeUrl('devnet') },
+        }}
+        defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
+        onNetworkChange={(network) => {
+          setActiveNetwork(network);
         }}
       >
-        <SuiClientProvider
-          networks={{
-            mainnet: { url: getFullnodeUrl('mainnet') },
-            testnet: { url: getFullnodeUrl('testnet') },
-            devnet: { url: getFullnodeUrl('devnet') },
-          }}
-          defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
-          onNetworkChange={(network) => {
-            setActiveNetwork(network);
+        <WalletProvider
+          autoConnect
+          stashedWallet={{
+            name: 'stashed wallet',
+            network: activeNetwork as 'mainnet' | 'testnet',
           }}
         >
-          <WalletProvider
-            autoConnect
-            stashedWallet={{
-              name: 'stashed wallet',
-              network: activeNetwork as 'mainnet' | 'testnet',
-            }}
-          >
-            <RouterProvider router={router} />
-          </WalletProvider>
-        </SuiClientProvider>
-      </WalrusScan>
+          <RouterProvider router={router} />
+        </WalletProvider>
+      </SuiClientProvider>
     </WalrusWallet>
   );
 }

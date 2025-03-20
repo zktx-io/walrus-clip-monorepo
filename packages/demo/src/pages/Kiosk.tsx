@@ -1,8 +1,9 @@
 import { useState } from 'react';
 
-// import { Transaction } from '@mysten/sui/transactions';
-// import { useWalrusWallet } from '@zktx.io/walrus-wallet';
+import { Transaction } from '@mysten/sui/transactions';
+
 import { AnimatePresence, motion } from 'framer-motion';
+import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 
 interface Item {
   id: number;
@@ -18,12 +19,15 @@ const menuItems: Item[] = [
   { id: 4, name: 'Coke (Medium)', price: 2000, image: '/items/mac-4.jpeg' },
 ];
 
+const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
+
 export const Kiosk = () => {
+  const { openSignTxModal } = useWalrusWallet();
+
   const [cart, setCart] = useState<Item[]>([]);
   const [orderedItems, setOrderedItems] = useState<Item[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [txDigest, setTxDigest] = useState<string | null>(null);
-  // const { pay } = useWalrusWallet();
 
   const addToCart = (item: Item) => {
     setCart((prev) => [...prev, item]);
@@ -40,7 +44,6 @@ export const Kiosk = () => {
   const onShowPay = async () => {
     setOrderedItems([]);
     setTxDigest(null);
-    /*
     try {
       const transaction = new Transaction();
       transaction.moveCall({
@@ -53,10 +56,14 @@ export const Kiosk = () => {
         ],
       });
 
-      const { digest } = await pay('Pay', 'Please scan the QR code to pay.', {
-        transaction,
-        isSponsored: true,
-      });
+      const { digest } = await openSignTxModal(
+        'Pay',
+        'Please scan the QR code to pay.',
+        {
+          transaction,
+          sponsoredUrl: SPONSORED_URL,
+        },
+      );
 
       setTxDigest(digest);
       setOrderedItems(cart);
@@ -65,7 +72,6 @@ export const Kiosk = () => {
     } catch (error) {
       alert(`Payment failed: ${error}`);
     }
-    */
   };
 
   return (
