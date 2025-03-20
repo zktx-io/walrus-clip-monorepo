@@ -17,7 +17,7 @@ interface IWalrusScanContext {
       transaction: {
         toJSON: () => Promise<string>;
       };
-      isSponsored?: boolean;
+      sponsoredUrl?: string;
     },
   ) => Promise<{
     bytes: string;
@@ -112,7 +112,7 @@ export const WalrusScan = ({
         );
       });
     },
-    [],
+    [icon, mode, network, onEvent],
   );
 
   return (

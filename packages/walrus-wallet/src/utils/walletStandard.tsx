@@ -33,7 +33,7 @@ import {
   SuiSignTransactionMethod,
   Wallet,
 } from '@mysten/wallet-standard';
-import { QRLogin, QRSign } from '@zktx.io/walrus-scan';
+import { QRLogin } from '@zktx.io/walrus-scan';
 import mitt, { type Emitter } from 'mitt';
 import ReactDOM from 'react-dom/client';
 
@@ -81,7 +81,17 @@ export class WalletStandard implements Wallet {
   #epochOffset?: number;
   #onEvent: (data: { variant: NotiVariant; message: string }) => void;
   #setIsConnected: (isConnected: boolean) => void;
-  #sponsored: string | undefined;
+  #sponsoredUrl: string | undefined;
+  #openSignTxModal: (
+    title: string,
+    description: string,
+    data: {
+      transaction: {
+        toJSON: () => Promise<string>;
+      };
+      sponsoredUrl?: string;
+    },
+  ) => Promise<SuiSignAndExecuteTransactionOutput>;
 
   #account: IAccount | undefined;
   #signer: ZkLoginSigner | undefined;
@@ -126,10 +136,20 @@ export class WalletStandard implements Wallet {
     name: string,
     icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`,
     network: NETWORK,
-    sponsored: string,
+    sponsoredUrl: string,
     mode: 'dark' | 'light',
     onEvent: (data: { variant: NotiVariant; message: string }) => void,
     setIsConnected: (isConnected: boolean) => void,
+    openSignTxModal: (
+      title: string,
+      description: string,
+      data: {
+        transaction: {
+          toJSON: () => Promise<string>;
+        };
+        sponsoredUrl?: string;
+      },
+    ) => Promise<SuiSignAndExecuteTransactionOutput>,
     zklogin?: {
       callbackNonce?: (nonce: string) => void;
       epochOffset?: number;
@@ -139,11 +159,12 @@ export class WalletStandard implements Wallet {
     this.#name = name;
     this.#icon = icon;
     this.#network = network;
-    this.#sponsored = sponsored === '' ? undefined : sponsored;
+    this.#sponsoredUrl = sponsoredUrl === '' ? undefined : sponsoredUrl;
     this.#mode = mode;
     this.#onEvent = onEvent;
     this.#setIsConnected = setIsConnected;
     this.#epochOffset = zklogin?.epochOffset;
+    this.#openSignTxModal = openSignTxModal;
     this.#zkLoginNonceCallback = zklogin?.callbackNonce;
   }
 
@@ -231,45 +252,6 @@ export class WalletStandard implements Wallet {
       );
     });
   }
-
-  openQrSignModal = async (
-    title: string,
-    description: string,
-    data: {
-      transaction: {
-        toJSON: () => Promise<string>;
-      };
-      isSponsored?: boolean;
-    },
-  ): Promise<SuiSignAndExecuteTransactionOutput> => {
-    return new Promise((resolve) => {
-      const container = document.createElement('div');
-      document.body.appendChild(container);
-      const root = ReactDOM.createRoot(container);
-      root.render(
-        <QRSign
-          mode={this.#mode}
-          data={{
-            network: this.#network,
-            transaction: data.transaction,
-            sponsored: data.isSponsored ? this.#sponsored : undefined,
-          }}
-          icon={this.icon}
-          option={{
-            title,
-            description,
-          }}
-          onEvent={this.#onEvent}
-          onClose={(result) => {
-            cleanup(container, root);
-            if (!!result) {
-              resolve(result);
-            }
-          }}
-        />,
-      );
-    });
-  };
 
   #on: StandardEventsOnMethod = (event, listener) => {
     this.#events.on(event, listener);
@@ -371,12 +353,12 @@ export class WalletStandard implements Wallet {
         };
       } else {
         const tx = await transaction.toJSON();
-        const txResult = await this.openQrSignModal(
+        const txResult = await this.#openSignTxModal(
           'Sign Transaction',
           'Please scan the QR code to sign.',
           {
             transaction: Transaction.from(tx),
-            isSponsored: false,
+            sponsoredUrl: this.#sponsoredUrl,
           },
         );
         return {
@@ -426,12 +408,12 @@ export class WalletStandard implements Wallet {
         };
       } else {
         const tx = await transaction.toJSON();
-        const txResult = await this.openQrSignModal(
+        const txResult = await this.#openSignTxModal(
           'Sign and Execute',
           'Please scan the QR code to sign.',
           {
             transaction: Transaction.from(tx),
-            isSponsored: false,
+            sponsoredUrl: this.#sponsoredUrl,
           },
         );
         return {

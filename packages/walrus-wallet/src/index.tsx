@@ -6,9 +6,18 @@ import React, {
   useRef,
 } from 'react';
 
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { Signer } from '@mysten/sui/cryptography';
+import { Transaction } from '@mysten/sui/transactions';
+import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { genAddressSeed } from '@mysten/sui/zklogin';
 import { registerWallet } from '@mysten/wallet-standard';
-import { WalrusScan } from '@zktx.io/walrus-scan';
+import {
+  createSponsoredTransaction,
+  executeSponsoredTransaction,
+  useWalrusScan,
+  WalrusScan,
+} from '@zktx.io/walrus-scan';
 import { decodeJwt } from 'jose';
 import { RecoilRoot } from 'recoil';
 
@@ -20,13 +29,28 @@ import {
   getZkLoginData,
   setAccountData,
 } from './utils/localStorage';
-import { signAndExecuteSponsoredTransaction } from './utils/sponsoredTransaction';
 import { NETWORK, NotiVariant } from './utils/types';
 import { WalletStandard } from './utils/walletStandard';
 
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<void>;
   isConnected: boolean;
+  scan: (signer: Signer) => Promise<void>;
+  openSignTxModal: (
+    title: string,
+    description: string,
+    data: {
+      transaction: {
+        toJSON: () => Promise<string>;
+      };
+      sponsoredUrl?: string;
+    },
+  ) => Promise<{
+    bytes: string;
+    signature: string;
+    digest: string;
+    effects: string;
+  }>;
   signAndExecuteSponsoredTransaction: (input: {
     transaction: {
       toJSON: () => Promise<string>;
@@ -45,7 +69,7 @@ interface IWalrusWalletProps {
   icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
   network: NETWORK;
   mode?: 'dark' | 'light';
-  sponsored?: string;
+  sponsoredUrl?: string;
   zklogin?: {
     enokey: string;
     callbackNonce: (nonce: string) => void;
@@ -64,12 +88,13 @@ const WalrusWalletRoot = ({
   icon,
   network,
   mode,
-  sponsored,
+  sponsoredUrl,
   zklogin,
   onEvent,
   children,
 }: IWalrusWalletProps) => {
   const initialized = useRef<boolean>(false);
+  const { scan, openSignTxModal } = useWalrusScan();
   const { wallet, setWallet, setMode } = useWalletState();
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
 
@@ -117,6 +142,79 @@ const WalrusWalletRoot = ({
     [zklogin],
   );
 
+  const signAndExecuteSponsoredTransaction = async (
+    wallet: WalletStandard,
+    url: string,
+    input: {
+      transaction: {
+        toJSON: () => Promise<string>;
+      };
+      network: NETWORK;
+    },
+  ): Promise<{
+    digest: string;
+    bytes: string;
+    signature: string;
+    effects: string;
+  }> => {
+    const account = getAccountData();
+    const txb = Transaction.from(await input.transaction.toJSON());
+    if (!!account && sponsoredUrl) {
+      if (!!wallet.signer) {
+        if (account.network === input.network) {
+          const client = new SuiClient({
+            url: getFullnodeUrl(account.network),
+          });
+          const txBytes = await txb.build({
+            client,
+            onlyTransactionKind: true,
+          });
+          const { bytes: sponsoredTxBuytes, digest } =
+            await createSponsoredTransaction(
+              url,
+              account.network,
+              account.address,
+              txBytes,
+            );
+          const { signature } = await wallet.signer.signTransaction(
+            fromBase64(sponsoredTxBuytes),
+          );
+          await executeSponsoredTransaction(url, digest, signature);
+
+          const { rawEffects } = await client.waitForTransaction({
+            digest,
+            options: {
+              showRawEffects: true,
+            },
+          });
+          return {
+            digest,
+            bytes: toBase64(txBytes),
+            signature,
+            effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
+          };
+        }
+      } else {
+        const { digest, bytes, signature, effects } = await openSignTxModal(
+          'Sign Transaction',
+          'Please scan the QR code to sign.',
+          {
+            transaction: txb,
+            sponsoredUrl,
+          },
+        );
+        return {
+          digest,
+          bytes,
+          signature,
+          effects,
+        };
+      }
+      throw new Error('Chain error');
+    }
+    throw new Error("Can't sign and execute sponsored transaction");
+  };
+
   useEffect(() => {
     if (!initialized.current) {
       initialized.current = true;
@@ -124,10 +222,11 @@ const WalrusWalletRoot = ({
         name,
         icon,
         network,
-        sponsored || '',
+        sponsoredUrl || '',
         mode || 'light',
         onEvent,
         setIsConnected,
+        openSignTxModal,
         {
           epochOffset: zklogin?.epochOffset,
           callbackNonce: zklogin?.callbackNonce,
@@ -145,11 +244,12 @@ const WalrusWalletRoot = ({
     icon,
     network,
     mode,
-    sponsored,
+    sponsoredUrl,
     zklogin,
     onEvent,
     setWallet,
     setMode,
+    openSignTxModal,
   ]);
 
   return (
@@ -157,10 +257,12 @@ const WalrusWalletRoot = ({
       value={{
         updateJwt,
         isConnected,
+        scan,
+        openSignTxModal,
         signAndExecuteSponsoredTransaction:
-          sponsored && wallet
+          sponsoredUrl && wallet
             ? (input) =>
-                signAndExecuteSponsoredTransaction(wallet, sponsored, input)
+                signAndExecuteSponsoredTransaction(wallet, sponsoredUrl, input)
             : () => {
                 throw new Error('Sponsored transaction not configured');
               },
