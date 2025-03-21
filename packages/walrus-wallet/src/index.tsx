@@ -17,7 +17,7 @@ import {
   executeSponsoredTransaction,
   useWalrusScan,
   WalrusScan,
-} from '@zktx.io/walrus-scan';
+} from '@zktx.io/walrus-connect';
 import { decodeJwt } from 'jose';
 import { RecoilRoot } from 'recoil';
 

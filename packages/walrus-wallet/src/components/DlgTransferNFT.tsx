@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { SuiObjectData } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { QRAddressScan } from '@zktx.io/walrus-scan';
+import { QRAddressScan } from '@zktx.io/walrus-connect';
 import { HiOutlineXMark } from 'react-icons/hi2';
 
 import {

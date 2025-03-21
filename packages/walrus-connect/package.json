@@ -1,5 +1,5 @@
 {
-  "name": "@zktx.io/walrus-scan",
+  "name": "@zktx.io/walrus-connect",
   "description": "Experience Sui Wallet Standard with zkLogin, customizable with your DApp's unique name and icon.",
   "keywords": [
     "sui",

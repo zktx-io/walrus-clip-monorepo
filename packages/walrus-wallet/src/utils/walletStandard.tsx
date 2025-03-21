@@ -33,7 +33,7 @@ import {
   SuiSignTransactionMethod,
   Wallet,
 } from '@mysten/wallet-standard';
-import { QRLogin } from '@zktx.io/walrus-scan';
+import { QRLogin } from '@zktx.io/walrus-connect';
 import mitt, { type Emitter } from 'mitt';
 import ReactDOM from 'react-dom/client';
 

@@ -4,7 +4,7 @@ import { KioskOwnerCap } from '@mysten/kiosk';
 import { SuiObjectData } from '@mysten/sui/client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
-import { QRAddress, useWalrusScan } from '@zktx.io/walrus-scan';
+import { QRAddress, useWalrusScan } from '@zktx.io/walrus-connect';
 import { motion } from 'framer-motion';
 import {
   HiOutlineCamera,
