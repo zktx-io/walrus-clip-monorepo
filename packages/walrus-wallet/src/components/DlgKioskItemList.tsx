@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
+import { KioskData, KioskOwnerCap } from '@mysten/kiosk';
 import { SuiObjectData } from '@mysten/sui/client';
 import { HiMiniClipboard, HiOutlineXMark } from 'react-icons/hi2';
 
@@ -15,35 +16,46 @@ import {
 import { useWalletState } from '../recoil';
 import { shortenAddress } from '../utils/utils';
 
-export const DlgNFTs = ({
+export const DlgKioskItemList = ({
   open,
   onClose,
-  openTransfer,
-  openKioskPlace,
+  kioskTake,
 }: {
-  open: boolean;
+  open: KioskOwnerCap | undefined;
   onClose: (isBack: boolean) => void;
-  openTransfer: (objData: SuiObjectData) => void;
-  openKioskPlace: (objData: SuiObjectData) => void;
+  kioskTake: (objData: {
+    kiosk: KioskOwnerCap;
+    object: SuiObjectData;
+    recipient?: string;
+  }) => Promise<void>;
 }) => {
   const { mode, wallet } = useWalletState();
-  const [assets, setAssets] = useState<SuiObjectData[]>([]);
+  const [kioskData, setKioskData] = useState<
+    { kiosk: KioskData; items: SuiObjectData[] } | undefined
+  >(undefined);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const update = async () => {
       if (open && wallet) {
         setLoading(true);
-        const allAssets = await wallet.getOwnedObjects();
-        setAssets(allAssets || []);
+        const data = await wallet.getKiosk(open.kioskId);
+        setKioskData(data);
         setLoading(false);
       }
     };
     update();
   }, [open, wallet]);
 
+  useEffect(() => {
+    if (open) {
+      setLoading(false);
+      setKioskData(undefined);
+    }
+  }, [open]);
+
   return (
-    <DlgRoot open={open}>
+    <DlgRoot open={!!open}>
       <DlgPortal>
         <DlgOverlay mode={mode} onClick={() => onClose(false)} />
         <DlgContentBottom
@@ -60,11 +72,12 @@ export const DlgNFTs = ({
               width: '100%',
             }}
           >
-            <DlgTitle mode={mode}>NFTs</DlgTitle>
+            <DlgTitle mode={mode}>Kiosk Item List</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
               <HiOutlineXMark />
             </DlgButtonIcon>
           </div>
+
           <div
             style={{
               display: 'flex',
@@ -75,7 +88,7 @@ export const DlgNFTs = ({
               overflowY: 'auto',
             }}
           >
-            {loading && assets.length === 0 ? (
+            {loading && !kioskData ? (
               <div
                 style={{
                   display: 'flex',
@@ -89,7 +102,7 @@ export const DlgNFTs = ({
               >
                 Loading...
               </div>
-            ) : assets.length === 0 ? (
+            ) : kioskData?.items.length === 0 ? (
               <div
                 style={{
                   display: 'flex',
@@ -104,7 +117,7 @@ export const DlgNFTs = ({
                 No Assets Available
               </div>
             ) : (
-              assets.map((asset, index) => (
+              kioskData?.items.map((asset, index) => (
                 <div
                   key={index}
                   style={{
@@ -165,6 +178,7 @@ export const DlgNFTs = ({
                       style={{
                         fontWeight: 'bold',
                         fontSize: '14px',
+                        whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
@@ -198,6 +212,7 @@ export const DlgNFTs = ({
                         fontSize: '12px',
                         color: '#777',
                         marginTop: '4px',
+                        whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
@@ -210,26 +225,25 @@ export const DlgNFTs = ({
                         display: 'flex',
                         justifyContent: 'flex-end',
                         marginTop: '4px',
-                        gap: '6px',
                       }}
                     >
                       <DlgButton
                         mode={mode}
                         disabled={loading}
-                        onClick={() => {
-                          openTransfer(asset);
+                        onClick={async () => {
+                          try {
+                            if (open) {
+                              setLoading(true);
+                              await kioskTake({ kiosk: open, object: asset });
+                            }
+                          } catch (error) {
+                            //
+                          } finally {
+                            setLoading(false);
+                          }
                         }}
                       >
-                        Transfer
-                      </DlgButton>
-                      <DlgButton
-                        mode={mode}
-                        disabled={loading}
-                        onClick={() => {
-                          openKioskPlace(asset);
-                        }}
-                      >
-                        Place
+                        Take
                       </DlgButton>
                     </div>
                   </div>

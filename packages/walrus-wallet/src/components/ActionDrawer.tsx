@@ -17,10 +17,10 @@ import {
 import { DlgBalances } from './DlgBalances';
 import { DlgCredentials } from './DlgCredentials';
 import { DlgDashboard } from './DlgDashboard';
-import { DlgKioskPlace } from './DlgKioskPlace';
+import { DlgKioskItemList } from './DlgKioskItemList';
 import { DlgKiosks } from './DlgKiosks';
-import { DlgKioskTake } from './DlgKioskTake';
 import { DlgNFTs } from './DlgNFTs';
+import { DlgPlaceNFT } from './DlgPlaceNFT';
 import { DlgTransferCoin } from './DlgTransferCoin';
 import { DlgTransferNFT } from './DlgTransferNFT';
 import { DlgOverlay, DlgPortal, DlgRoot, DlgTitle, DlgTrigger } from './modal';
@@ -321,14 +321,16 @@ export const ActionDrawer = ({
           isBack && setOpenNFTs(true);
           setOpen(false);
           setOpenTransferNFT(undefined);
+          setOpenKioskPlace(undefined);
         }}
         onEvent={onEvent}
       />
-      <DlgKioskPlace
+      <DlgPlaceNFT
         object={openKioskPlace}
         onClose={(isBack: boolean) => {
           isBack && setOpenNFTs(true);
           setOpen(false);
+          setOpenTransferNFT(undefined);
           setOpenKioskPlace(undefined);
         }}
         kioskPlace={async (objData) => {
@@ -346,7 +348,8 @@ export const ActionDrawer = ({
           }
         }}
       />
-      <DlgKioskTake
+
+      <DlgKioskItemList
         open={openKioskTake}
         onClose={(isBack: boolean) => {
           isBack && setOpenKiosk(true);

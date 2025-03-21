@@ -205,7 +205,7 @@ export const DlgTransferCoin = ({
               width: '100%',
             }}
           >
-            <DlgTitle mode={mode}>Send Coins</DlgTitle>
+            <DlgTitle mode={mode}>Transfer Coins</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
               <HiOutlineXMark />
             </DlgButtonIcon>

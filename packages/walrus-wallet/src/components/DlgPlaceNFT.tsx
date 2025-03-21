@@ -17,7 +17,7 @@ import {
 } from './modal';
 import { useWalletState } from '../recoil';
 
-export const DlgKioskPlace = ({
+export const DlgPlaceNFT = ({
   object,
   onClose,
   kioskPlace,

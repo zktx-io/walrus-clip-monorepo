@@ -71,3 +71,6 @@ export const decryptText = async (
     return '';
   }
 };
+
+export const shortenAddress = (addr: string) =>
+  addr.slice(0, 12) + '...' + addr.slice(-10);

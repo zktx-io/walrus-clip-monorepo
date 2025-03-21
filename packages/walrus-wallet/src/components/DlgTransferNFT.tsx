@@ -82,7 +82,7 @@ export const DlgTransferNFT = ({
               width: '100%',
             }}
           >
-            <DlgTitle mode={mode}>Send NFT</DlgTitle>
+            <DlgTitle mode={mode}>Transfer NFT</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
               <HiOutlineXMark />
             </DlgButtonIcon>
