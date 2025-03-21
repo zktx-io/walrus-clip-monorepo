@@ -19,14 +19,14 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - name: publish walrus scan package
+      - name: publish walrus connect package
         uses: JS-DevTools/npm-publish@v3
-        id: walrus-scan
+        id: walrus-connect
         with:
             access: public
             provenance: true
             token: ${{ secrets.NPM_TOKEN }}
-            package: "packages/walrus-scan/package.json"
+            package: "packages/walrus-connect/package.json"
             strategy: upgrade
 
       - name: publish walrus wallet package
