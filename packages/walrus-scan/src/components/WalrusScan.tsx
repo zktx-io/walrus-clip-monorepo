@@ -1,4 +1,10 @@
-import React, { createContext, useCallback, useContext } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 
 import { Signer } from '@mysten/sui/cryptography';
 import ReactDOM from 'react-dom/client';
@@ -44,28 +50,37 @@ export const WalrusScan = ({
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   children: React.ReactNode;
 }) => {
+  const [isScannerEnabled, setIsScannerEnabled] = useState<boolean>(false);
+
   const scan = useCallback(
     (signer: Signer): Promise<void> => {
       return new Promise((resolve) => {
-        const container = document.createElement('div');
-        document.body.appendChild(container);
-        const root = ReactDOM.createRoot(container);
-        root.render(
-          <QRScan
-            open
-            mode={mode || 'light'}
-            signer={signer}
-            network={network}
-            onEvent={onEvent}
-            onClose={() => {
-              cleanup(container, root);
-              resolve();
-            }}
-          />,
-        );
+        if (isScannerEnabled) {
+          const container = document.createElement('div');
+          document.body.appendChild(container);
+          const root = ReactDOM.createRoot(container);
+          root.render(
+            <QRScan
+              open
+              mode={mode || 'light'}
+              signer={signer}
+              network={network}
+              onEvent={onEvent}
+              onClose={() => {
+                cleanup(container, root);
+                resolve();
+              }}
+            />,
+          );
+        } else {
+          onEvent({
+            variant: 'warning',
+            message: 'No camera found on this device.',
+          });
+        }
       });
     },
-    [mode, network, onEvent],
+    [isScannerEnabled, mode, network, onEvent],
   );
 
   const openSignTxModal = useCallback(
@@ -114,6 +129,25 @@ export const WalrusScan = ({
     },
     [icon, mode, network, onEvent],
   );
+
+  useEffect(() => {
+    const testCamera = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputDevices = devices.filter(
+          (device) => device.kind === 'videoinput',
+        );
+        if (videoInputDevices.length > 0) {
+          setIsScannerEnabled(true);
+        } else {
+          setIsScannerEnabled(false);
+        }
+      } catch (error) {
+        setIsScannerEnabled(false);
+      }
+    };
+    testCamera();
+  }, []);
 
   return (
     <WalrusScanContext.Provider
