@@ -33,7 +33,7 @@ import { NETWORK, NotiVariant } from './utils/types';
 import { WalletStandard } from './utils/walletStandard';
 
 interface IWalrusWalletContext {
-  updateJwt: (jwt: string) => Promise<void>;
+  updateJwt: (jwt: string) => Promise<boolean>;
   walrusWalletStatus: () => 'connected' | 'disconnected';
   scan: (signer: Signer) => Promise<void>;
   openSignTxModal: (
@@ -93,13 +93,18 @@ const WalrusWalletRoot = ({
   onEvent,
   children,
 }: IWalrusWalletProps) => {
+  const calledOnceRef = useRef<boolean>(false);
   const initialized = useRef<boolean>(false);
   const { scan, openSignTxModal } = useWalrusScan();
   const { wallet, setWallet, setMode } = useWalletState();
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
 
   const updateJwt = useCallback(
-    async (jwt: string): Promise<void> => {
+    async (jwt: string): Promise<boolean> => {
+      if (calledOnceRef.current) {
+        return false;
+      }
+      calledOnceRef.current = true;
       const data = getZkLoginData();
       if (data && zklogin) {
         const decodedJwt = decodeJwt(jwt) as {
@@ -135,9 +140,9 @@ const WalrusWalletRoot = ({
           address: address,
         });
         setIsConnected(true);
-      } else {
-        throw new Error('Nonce not found');
+        return true;
       }
+      throw new Error('Nonce not found');
     },
     [zklogin],
   );
@@ -274,7 +279,6 @@ const WalrusWalletRoot = ({
         onLogout={() => {
           if (wallet) {
             wallet.logout();
-            setIsConnected(false);
             onEvent({ variant: 'success', message: 'Logged out' });
           }
         }}

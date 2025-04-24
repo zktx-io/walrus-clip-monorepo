@@ -313,6 +313,7 @@ export class WalletStandard implements Wallet {
     this.#account = undefined;
     this.#signer = undefined;
     this.#events.emit('change', { accounts: undefined });
+    this.#setIsConnected(false);
     return Promise.resolve();
   };
 
