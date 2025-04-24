@@ -27,13 +27,15 @@ export const Auth = () => {
         }
         const wallet = wallets.find((w) => w.name === WALLET_NAME);
         if (wallet) {
-          await updateJwt(jwt);
-          connect(
-            { wallet },
-            {
-              onSuccess: () => navigate('/'),
-            },
-          );
+          const isSuccess = await updateJwt(jwt);
+          if (isSuccess) {
+            connect(
+              { wallet },
+              {
+                onSuccess: () => navigate('/'),
+              },
+            );
+          }
         }
       } catch (error) {
         alert(`${error}`);
