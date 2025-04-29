@@ -1,0 +1,17 @@
+{
+  "network": "mainnet",
+  "owner": "0x54db5a65ded3365f3b4906c6822d95d78eee10ecbdd150bc58380e047a930189",
+  "site_name": "walrus-clip",
+  "metadata": {
+    "link": "https://clip.wal.app",
+    "image_url": "https://docs.zktx.io/images/clip-light",
+    "name": "walrus-clip",
+    "description": "Walrus Clip is building a communal wallet designed for the Walrus and Sui ecosystems.",
+    "project_url": "https://github.com/zktx-io/walrus-clip-monorepo",
+    "creator": "zktx.io"
+  },
+  "epochs": 10,
+  "path": "./dist",
+  "gas_budget": 100000000,
+  "write_retry_limit": 15
+}
