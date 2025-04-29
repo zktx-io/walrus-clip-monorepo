@@ -44,12 +44,36 @@ jobs:
             package: "packages/walrus-wallet/package.json"
             strategy: upgrade
 
-  deploy-frontend:
-     # Frontend deployment step (only when `-front` IS in the tag)
+  build_deploy:
+    # Frontend deployment step (only when `-front` IS in the tag)
     if: contains(github.event.release.tag_name, '-front') == true
-    uses: zktx-io/walrus-sites-provenance/.github/workflows/deploy_with_slsa3.yml@v0.4.4
-    with:
-      working-directory: './packages/clip'
-    secrets:
-      GIT_SIGNER_PIN: ${{ secrets.GIT_SIGNER_PIN }}
-      ED25519_PRIVATE_KEY: ${{ secrets.ED25519_PRIVATE_KEY }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout only packages/clip
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            packages/clip
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies in packages/clip directory and Build
+        env:
+          VITE_APP_CLIENT_ID: ${{ secrets.VITE_APP_CLIENT_ID }}
+          VITE_APP_ENOKI_KEY: ${{ secrets.VITE_APP_ENOKI_KEY }}
+          VITE_APP_SPONSORED_URL: ${{ secrets.VITE_APP_SPONSORED_URL }}
+        run: |
+          cd ./packages/clip
+          npm install
+          npm run build
+          cp -r ./dist ../../dist
+          cp ./site.config.json ../../site.config.json
+
+      - name: Deploy to Walrus Sites
+        uses: zktx-io/walrus-sites-provenance@v0.4.4
+        env:
+          ED25519_PRIVATE_KEY: ${{ secrets.ED25519_PRIVATE_KEY }}
