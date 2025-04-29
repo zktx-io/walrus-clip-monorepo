@@ -1,9 +1,8 @@
 import { useState } from 'react';
 
 import { Transaction } from '@mysten/sui/transactions';
-
-import { AnimatePresence, motion } from 'framer-motion';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface Item {
   id: number;

@@ -8,13 +8,13 @@ import {
   useSignTransaction,
 } from '@mysten/dapp-kit';
 import { IntentScope } from '@mysten/sui/cryptography';
-import { Transaction } from '@mysten/sui/transactions';
 import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
+import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
 import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
 import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
-import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import { MultiSigPublicKey } from '@mysten/sui/multisig';
-import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
+import { Transaction } from '@mysten/sui/transactions';
+import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
 
@@ -92,11 +92,11 @@ export const Home = () => {
             );
           });
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         signWithIntent: (_bytes: Uint8Array, _intent: IntentScope) => {
           throw new Error('Not implemented (signWithIntent)');
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         sign: async (_bytes: Uint8Array) => {
           throw new Error('Not implemented (sign)');
         },
