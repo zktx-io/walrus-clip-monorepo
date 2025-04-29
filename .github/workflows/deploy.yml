@@ -1,15 +1,20 @@
-name: Publish
+name: Deploy and Publish
 
 on:
   release:
     types: [published]
 
+permissions:
+  id-token: write
+  contents: write
+  actions: read
+
 jobs:
-  publish:
+  deploy-and-publish:
+    # Publish the packages (only when `-front` is NOT in the tag)
+    if: contains(github.event.release.tag_name, '-front') == false
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,3 +43,13 @@ jobs:
             token: ${{ secrets.NPM_TOKEN }}
             package: "packages/walrus-wallet/package.json"
             strategy: upgrade
+
+  deploy-frontend:
+     # Frontend deployment step (only when `-front` IS in the tag)
+    if: contains(github.event.release.tag_name, '-front') == true
+    uses: zktx-io/walrus-sites-provenance/.github/workflows/deploy_with_slsa3.yml@v0.4.4
+    with:
+      working-directory: './packages/clip'
+    secrets:
+      GIT_SIGNER_PIN: ${{ secrets.GIT_SIGNER_PIN }}
+      ED25519_PRIVATE_KEY: ${{ secrets.ED25519_PRIVATE_KEY }}

@@ -49,7 +49,6 @@
   },
   "dependencies": {
     "@mysten/kiosk": "^0.12.3",
-    "@mysten/seal": "^0.4.0",
     "@mysten/sui": "^1.28.2",
     "@mysten/wallet-standard": "^0.13.29",
     "@mysten/walrus": "^0.0.19",

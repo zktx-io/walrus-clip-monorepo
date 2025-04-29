@@ -128,3 +128,5 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+/packages/walrus-sign/move/build
+packages/walrus-sign/move/bytecode.dump.json
