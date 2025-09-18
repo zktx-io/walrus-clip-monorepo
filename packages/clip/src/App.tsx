@@ -11,7 +11,6 @@ import '@mysten/dapp-kit/dist/index.css';
 
 import { Auth } from './pages/Auth';
 import { Home } from './pages/Home';
-import { ICON, WALLET_NAME } from './utils/config';
 import { NETWORK } from './utils/config';
 import { getProviderUrl } from './utils/getProviderUrl';
 
@@ -42,42 +41,40 @@ function App() {
   };
 
   return (
-    <WalrusWallet
-      name={WALLET_NAME}
-      icon={ICON}
-      network={activeNetwork}
-      sponsoredUrl={SPONSORED_URL}
-      zklogin={{
-        enokey: ENOKI_KEY!,
-        callbackNonce: callbackNonce,
+    <SuiClientProvider
+      networks={{
+        mainnet: { url: getFullnodeUrl('mainnet') },
+        testnet: { url: getFullnodeUrl('testnet') },
+        devnet: { url: getFullnodeUrl('devnet') },
       }}
-      onEvent={(notification) => {
-        enqueueSnackbar(notification.message, {
-          variant: notification.variant,
-          style: {
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          },
-        });
+      defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
+      onNetworkChange={(network) => {
+        setActiveNetwork(network);
       }}
     >
-      <SuiClientProvider
-        networks={{
-          mainnet: { url: getFullnodeUrl('mainnet') },
-          testnet: { url: getFullnodeUrl('testnet') },
-          devnet: { url: getFullnodeUrl('devnet') },
-        }}
-        defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
-        onNetworkChange={(network) => {
-          setActiveNetwork(network);
-        }}
-      >
-        <WalletProvider autoConnect>
+      <WalletProvider autoConnect>
+        <WalrusWallet
+          network={activeNetwork}
+          sponsoredUrl={SPONSORED_URL}
+          zklogin={{
+            enokey: ENOKI_KEY!,
+            callbackNonce: callbackNonce,
+          }}
+          onEvent={(notification) => {
+            enqueueSnackbar(notification.message, {
+              variant: notification.variant,
+              style: {
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              },
+            });
+          }}
+        >
           <RouterProvider router={router} />
-        </WalletProvider>
-      </SuiClientProvider>
-    </WalrusWallet>
+        </WalrusWallet>
+      </WalletProvider>
+    </SuiClientProvider>
   );
 }
 

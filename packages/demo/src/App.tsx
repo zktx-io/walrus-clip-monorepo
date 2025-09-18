@@ -43,44 +43,38 @@ function App() {
   >(NETWORK);
 
   return (
-    <WalrusWallet
-      name={WALLET_NAME}
-      icon={ICON}
-      network={activeNetwork}
-      sponsoredUrl={SPONSORED_URL}
-      onEvent={(notification) => {
-        enqueueSnackbar(notification.message, {
-          variant: notification.variant,
-          style: {
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          },
-        });
+    <SuiClientProvider
+      networks={{
+        mainnet: { url: getFullnodeUrl('mainnet') },
+        testnet: { url: getFullnodeUrl('testnet') },
+        devnet: { url: getFullnodeUrl('devnet') },
+      }}
+      defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
+      onNetworkChange={(network) => {
+        setActiveNetwork(network);
       }}
     >
-      <SuiClientProvider
-        networks={{
-          mainnet: { url: getFullnodeUrl('mainnet') },
-          testnet: { url: getFullnodeUrl('testnet') },
-          devnet: { url: getFullnodeUrl('devnet') },
-        }}
-        defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
-        onNetworkChange={(network) => {
-          setActiveNetwork(network);
-        }}
-      >
-        <WalletProvider
-          autoConnect
-          stashedWallet={{
-            name: 'stashed wallet',
-            network: activeNetwork as 'mainnet' | 'testnet',
+      <WalletProvider autoConnect>
+        <WalrusWallet
+          name={WALLET_NAME}
+          icon={ICON}
+          network={activeNetwork}
+          sponsoredUrl={SPONSORED_URL}
+          onEvent={(notification) => {
+            enqueueSnackbar(notification.message, {
+              variant: notification.variant,
+              style: {
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              },
+            });
           }}
         >
           <RouterProvider router={router} />
-        </WalletProvider>
-      </SuiClientProvider>
-    </WalrusWallet>
+        </WalrusWallet>
+      </WalletProvider>
+    </SuiClientProvider>
   );
 }
 
