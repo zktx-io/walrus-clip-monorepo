@@ -18,24 +18,35 @@ export default {
     },
   ],
   plugins: [
+    // Exclude peerDependencies from the bundle
     peerDepsExternal(),
-    resolve({
-      browser: true,
-      preferBuiltins: false,
-    }),
-    resolve(),
-    commonjs({
-      include: /node_modules/,
-    }),
+
+    // Resolve modules in node_modules (browser-compatible)
+    resolve({ browser: true, preferBuiltins: false }),
+
+    // Convert CommonJS modules to ES6
+    commonjs({ include: /node_modules/ }),
+
+    // Compile TypeScript
     typescript({
       tsconfig: './tsconfig.json',
       typescript: await import('typescript').then((ts) => ts.default),
     }),
+
+    // Minify output
     terser(),
   ],
-  external: ['react', 'react-dom'],
+  external: [
+    // React + JSX runtime externals
+    /^react(\/.*)?$/,
+    /^react-dom(\/.*)?$/,
+
+    // Sui SDK should be installed by the consumer
+    '@mysten/sui',
+  ],
   context: 'this',
   onwarn: (warning, warn) => {
+    // Suppress circular dependency and "use client" warnings
     if (
       warning.code === 'CIRCULAR_DEPENDENCY' ||
       warning.message.includes('"use client"')
