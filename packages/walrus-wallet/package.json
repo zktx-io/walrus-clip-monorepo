@@ -9,7 +9,7 @@
     "wallet standard",
     "customizable"
   ],
-  "version": "0.2.1",
+  "version": "0.3.0",
   "type": "module",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
@@ -34,8 +34,8 @@
     "dist/"
   ],
   "peerDependencies": {
-    "@mysten/sui": "^1.38.0",
     "@mysten/dapp-kit": "^0.18.0",
+    "@mysten/sui": "^1.38.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },
@@ -59,7 +59,7 @@
     "@radix-ui/react-visually-hidden": "^1.2.3",
     "@stitches/react": "^1.2.8",
     "@yudiel/react-qr-scanner": "^2.3.1",
-    "@zktx.io/walrus-connect": "^0.2.1",
+    "@zktx.io/walrus-connect": "^0.3.0",
     "framer-motion": "^12.23.14",
     "jose": "^5.9.6",
     "lucide-react": "^0.544.0",
