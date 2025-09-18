@@ -316,6 +316,8 @@ export const WalrusWallet = ({
   );
 };
 
+export const WALLET_NAME = DEFAULT_NAME;
+
 export const useWalrusWallet = () => {
   const context = useContext(WalrusWalletContext);
   if (!context) {
