@@ -1,10 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-import {
-  HiOutlineChevronDown,
-  HiOutlineChevronUp,
-  HiOutlineXMark,
-} from 'react-icons/hi2';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 
 import {
   DlgButtonIcon,
@@ -83,7 +79,7 @@ export const DlgBalances = ({
           >
             <DlgTitle mode={mode}>Balances</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
-              <HiOutlineXMark />
+              <X />
             </DlgButtonIcon>
           </div>
           <div
@@ -188,12 +184,12 @@ export const DlgBalances = ({
                         <span>{formatNumberFromString(balance.fBalance)}</span>
                         {hasLockedBalances ? (
                           expandedIndex === index ? (
-                            <HiOutlineChevronUp />
+                            <ChevronUp />
                           ) : (
-                            <HiOutlineChevronDown />
+                            <ChevronDown />
                           )
                         ) : (
-                          <HiOutlineChevronDown style={{ color: '#aaa' }} />
+                          <ChevronDown style={{ color: '#aaa' }} />
                         )}
                       </div>
                     </div>

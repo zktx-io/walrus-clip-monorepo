@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { SuiObjectData } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { QRAddressScan } from '@zktx.io/walrus-connect';
-import { HiOutlineXMark } from 'react-icons/hi2';
+import { CameraIcon } from 'lucide-react';
 
 import {
   FormField,
@@ -84,7 +84,7 @@ export const DlgTransferNFT = ({
           >
             <DlgTitle mode={mode}>Transfer NFT</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
-              <HiOutlineXMark />
+              <CameraIcon />
             </DlgButtonIcon>
           </div>
           <DlgDescription mode={mode}>

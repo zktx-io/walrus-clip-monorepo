@@ -1,11 +1,6 @@
 import React from 'react';
 
-import {
-  HiOutlineArrowRightOnRectangle,
-  HiOutlineIdentification,
-  HiOutlineSquare2Stack,
-  HiOutlineXMark,
-} from 'react-icons/hi2';
+import { LogOut, QrCode, ScanQrCode, X } from 'lucide-react';
 
 import {
   DlgButtonIcon,
@@ -21,14 +16,14 @@ export const DlgDashboard = ({
   open,
   onClose,
   onLogout,
-  openCredentials,
-  openKiosk,
+  openAddress,
+  openScan,
 }: {
   open: boolean;
   onClose: (isBack: boolean) => void;
   onLogout: () => void;
-  openCredentials: () => void;
-  openKiosk: () => void;
+  openAddress: () => void;
+  openScan: () => void;
 }) => {
   const { mode } = useWalletState();
   return (
@@ -50,7 +45,7 @@ export const DlgDashboard = ({
           >
             <DlgTitle mode={mode}>Dashboard</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
-              <HiOutlineXMark />
+              <X />
             </DlgButtonIcon>
           </div>
           <div
@@ -66,14 +61,19 @@ export const DlgDashboard = ({
           >
             {[
               {
-                label: 'Credentials',
-                icon: HiOutlineIdentification,
-                action: openCredentials,
+                label: 'Address',
+                icon: QrCode,
+                action: openAddress,
               },
               {
-                label: 'Kiosks',
-                icon: HiOutlineSquare2Stack,
-                action: openKiosk,
+                label: 'Scan',
+                icon: ScanQrCode,
+                action: openScan,
+              },
+              {
+                label: 'Logout',
+                icon: LogOut,
+                action: onLogout,
               },
             ].map(({ label, icon: Icon, action }) => (
               <button
@@ -106,38 +106,6 @@ export const DlgDashboard = ({
                 {label}
               </button>
             ))}
-
-            <button
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                background: 'transparent',
-                color: 'black',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '16px',
-                transition: 'background 0.3s, color 0.3s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(220, 53, 69, 1)';
-                e.currentTarget.style.color = 'white';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'black';
-              }}
-              onClick={onLogout}
-            >
-              <HiOutlineArrowRightOnRectangle
-                size={24}
-                style={{ marginRight: '10px' }}
-              />
-              Logout
-            </button>
           </div>
         </DlgContentBottom>
       </DlgPortal>

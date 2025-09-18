@@ -24,17 +24,14 @@ Core Features & Technology Stack
 Walrus Wallet leverages **QR code** and **WebRTC** technologies to enable smooth connectivity and authentication between dApps. This allows users to experience boundary-free payments and verifications across all dApps that support Walrus Wallet using a single wallet.
 
 1. QR Code-Based Payments (No Login Required)
-
    - After logging into the Walrus Wallet dApp once, users can complete payments on other sites simply by scanning a QR code—no additional login required.
    - Example: Scanning a QR code at a restaurant kiosk to process a quick payment.
 
 1. QR Code-Based Authentication (Digital Certificate Verification)
-
    - Users can submit digital certificates received via Walrus Wallet through QR codes for verification by an authenticator.
    - Example: Instantly verifying the validity of a concert ticket through QR code scanning.
 
 1. Automated Access Control
-
    - QR codes are scanned at entry points such as buildings, event venues, or clubs to verify access.
    - Example: Managing hotel check-ins, accessing secure areas, or controlling entry to co-working spaces.
 

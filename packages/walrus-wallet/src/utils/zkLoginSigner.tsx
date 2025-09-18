@@ -126,7 +126,7 @@ export class ZkLoginSigner extends Signer {
     return this.#address;
   }
 
-  async sign(bytes: Uint8Array): Promise<Uint8Array> {
+  async sign(bytes: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
     const { signature } = await this.#zkSign(bytes, 'sign');
     return fromBase64(signature);
   }

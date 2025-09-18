@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
 import { SuiObjectData } from '@mysten/sui/client';
-import { HiMiniClipboard, HiOutlineXMark } from 'react-icons/hi2';
+import { Copy, Send, X } from 'lucide-react';
 
 import {
-  DlgButton,
   DlgButtonIcon,
   DlgContentBottom,
   DlgOverlay,
@@ -19,12 +18,10 @@ export const DlgNFTs = ({
   open,
   onClose,
   openTransfer,
-  openKioskPlace,
 }: {
   open: boolean;
   onClose: (isBack: boolean) => void;
   openTransfer: (objData: SuiObjectData) => void;
-  openKioskPlace: (objData: SuiObjectData) => void;
 }) => {
   const { mode, wallet } = useWalletState();
   const [assets, setAssets] = useState<SuiObjectData[]>([]);
@@ -62,7 +59,7 @@ export const DlgNFTs = ({
           >
             <DlgTitle mode={mode}>NFTs</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
-              <HiOutlineXMark />
+              <X />
             </DlgButtonIcon>
           </div>
           <div
@@ -181,16 +178,15 @@ export const DlgNFTs = ({
                       <div style={{ fontSize: '12px', color: '#555' }}>
                         {shortenAddress(asset.objectId)}
                       </div>
-                      <HiMiniClipboard
+                      <Copy
                         style={{
                           cursor: 'pointer',
-                          fontSize: '14px',
                           color: '#888',
                         }}
+                        size={14}
                         onClick={() =>
                           navigator.clipboard.writeText(asset.objectId)
                         }
-                        title="Copy address"
                       />
                     </div>
                     <div
@@ -213,24 +209,15 @@ export const DlgNFTs = ({
                         gap: '6px',
                       }}
                     >
-                      <DlgButton
+                      <DlgButtonIcon
                         mode={mode}
                         disabled={loading}
                         onClick={() => {
                           openTransfer(asset);
                         }}
                       >
-                        Transfer
-                      </DlgButton>
-                      <DlgButton
-                        mode={mode}
-                        disabled={loading}
-                        onClick={() => {
-                          openKioskPlace(asset);
-                        }}
-                      >
-                        Place
-                      </DlgButton>
+                        <Send />
+                      </DlgButtonIcon>
                     </div>
                   </div>
                 </div>

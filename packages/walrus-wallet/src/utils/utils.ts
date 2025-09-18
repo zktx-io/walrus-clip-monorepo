@@ -1,5 +1,14 @@
-import { sha256 } from '@noble/hashes/sha256';
+import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+
+const toArrayBuffer = (u8: Uint8Array): ArrayBuffer => {
+  if (u8.buffer instanceof ArrayBuffer) {
+    return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
+  }
+  const ab = new ArrayBuffer(u8.byteLength);
+  new Uint8Array(ab).set(u8);
+  return ab;
+};
 
 export const PEER_CONFIG = {
   config: {
@@ -26,7 +35,7 @@ export const encryptText = async (
 
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    sha256(key),
+    toArrayBuffer(sha256(new TextEncoder().encode(key))),
     { name: 'AES-GCM' },
     false,
     ['encrypt'],
@@ -53,16 +62,16 @@ export const decryptText = async (
   try {
     const cryptoKey = await crypto.subtle.importKey(
       'raw',
-      sha256(key),
+      toArrayBuffer(sha256(new TextEncoder().encode(key))),
       { name: 'AES-GCM' },
       false,
       ['decrypt'],
     );
 
     const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: hexToBytes(iv) },
+      { name: 'AES-GCM', iv: toArrayBuffer(hexToBytes(iv)) },
       cryptoKey,
-      hexToBytes(encrypted),
+      toArrayBuffer(hexToBytes(encrypted)),
     );
 
     const decoder = new TextDecoder();

@@ -1,13 +1,6 @@
 import React from 'react';
 
 import {
-  KioskClient,
-  KioskData,
-  KioskOwnerCap,
-  KioskTransaction,
-  Network,
-} from '@mysten/kiosk';
-import {
   CoinMetadata,
   CoinStruct,
   getFullnodeUrl,
@@ -194,7 +187,7 @@ export class WalletStandard implements Wallet {
         signAndExecuteTransaction: this.#signAndExecuteTransaction,
       },
       'sui:signPersonalMessage': {
-        version: '1.0.0',
+        version: '1.1.0',
         signPersonalMessage: this.#signPersonalMessage,
       },
     };
@@ -581,164 +574,5 @@ export class WalletStandard implements Wallet {
           !!item.data && !!item.data.display && !!item.data.display.data,
       )
       .map((item) => item.data!);
-  };
-
-  public createKiosk = async (isPersonal: boolean) => {
-    if (
-      this.#account &&
-      (this.#network === 'mainnet' || this.#network === 'testnet')
-    ) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(this.#network),
-      });
-      const kioskClient = new KioskClient({
-        client,
-        network: this.#network as Network,
-      });
-
-      const transaction = new Transaction();
-      const kioskTx = new KioskTransaction({ transaction, kioskClient });
-
-      if (isPersonal) {
-        kioskTx.createPersonal(true).finalize();
-      } else {
-        kioskTx.create();
-        kioskTx.shareAndTransferCap(this.#account.address);
-        kioskTx.finalize();
-      }
-
-      await this.signAndExecuteTransaction(transaction);
-    }
-  };
-
-  public getOwnedKiosks = async (): Promise<KioskOwnerCap[] | undefined> => {
-    if (
-      this.#account &&
-      (this.#network === 'mainnet' || this.#network === 'testnet')
-    ) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(this.#network),
-      });
-      const kioskClient = new KioskClient({
-        client,
-        network: this.#network as Network,
-      });
-
-      let allKioskOwnerCaps: KioskOwnerCap[] = [];
-      let allKioskIds: string[] = [];
-      let cursor: string | undefined = undefined;
-      let hasNextPage = true;
-
-      while (hasNextPage) {
-        const response = await kioskClient.getOwnedKiosks({
-          address: this.#account.address,
-          pagination: { cursor },
-        });
-
-        if (response) {
-          allKioskOwnerCaps.push(...response.kioskOwnerCaps);
-          allKioskIds.push(...response.kioskIds);
-          hasNextPage = response.hasNextPage;
-          cursor = response.nextCursor || undefined;
-        } else {
-          hasNextPage = false;
-        }
-      }
-
-      return allKioskOwnerCaps;
-    }
-    return undefined;
-  };
-
-  public getKiosk = async (
-    id: string,
-  ): Promise<{ kiosk: KioskData; items: SuiObjectData[] } | undefined> => {
-    if (
-      this.#account &&
-      (this.#network === 'mainnet' || this.#network === 'testnet')
-    ) {
-      try {
-        const client = new SuiClient({
-          url: getFullnodeUrl(this.#network),
-        });
-        const kioskClient = new KioskClient({
-          client,
-          network: this.#network as Network,
-        });
-        const kiosk = await kioskClient.getKiosk({
-          id,
-          options: {
-            withKioskFields: true,
-            withListingPrices: true,
-            withObjects: true,
-            objectOptions: {
-              showType: true,
-              showDisplay: true,
-              showContent: true,
-            },
-          },
-        });
-        const items = await this.getObjects(kiosk.itemIds);
-        return {
-          kiosk,
-          items,
-        };
-      } catch (error) {
-        //
-      }
-    }
-    return undefined;
-  };
-
-  public kioskPlace = async (
-    cap: KioskOwnerCap,
-    nftId: { item: string; itemType: string },
-  ) => {
-    if (
-      this.#account &&
-      (this.#network === 'mainnet' || this.#network === 'testnet')
-    ) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(this.#network),
-      });
-      const kioskClient = new KioskClient({
-        client,
-        network: this.#network as Network,
-      });
-      const transaction = new Transaction();
-      const kioskTx = new KioskTransaction({ transaction, kioskClient, cap });
-      kioskTx.place(nftId).finalize();
-      await this.signAndExecuteTransaction(transaction);
-    }
-    return undefined;
-  };
-
-  public kiosTake = async (
-    cap: KioskOwnerCap,
-    nftId: { itemId: string; itemType: string },
-    recipient?: string,
-  ) => {
-    if (
-      this.#account &&
-      (this.#network === 'mainnet' || this.#network === 'testnet')
-    ) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(this.#network),
-      });
-      const kioskClient = new KioskClient({
-        client,
-        network: this.#network as Network,
-      });
-      const transaction = new Transaction();
-      const kioskTx = new KioskTransaction({ transaction, kioskClient, cap });
-      const item = kioskTx.take(nftId);
-      transaction.transferObjects(
-        [item],
-        recipient ? recipient : this.#account.address,
-      );
-      kioskTx.finalize();
-      await this.signAndExecuteTransaction(transaction);
-    }
-    return undefined;
   };
 }

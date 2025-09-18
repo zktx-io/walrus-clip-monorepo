@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { Transaction } from '@mysten/sui/transactions';
 import { QRAddressScan } from '@zktx.io/walrus-connect';
-import { HiOutlineXMark } from 'react-icons/hi2';
+import { CameraIcon } from 'lucide-react';
 
 import {
   FormCoinSelect,
@@ -207,7 +207,7 @@ export const DlgTransferCoin = ({
           >
             <DlgTitle mode={mode}>Transfer Coins</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
-              <HiOutlineXMark />
+              <CameraIcon />
             </DlgButtonIcon>
           </div>
           <DlgDescription mode={mode}>

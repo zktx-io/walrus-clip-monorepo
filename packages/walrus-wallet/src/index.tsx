@@ -6,8 +6,8 @@ import React, {
   useRef,
 } from 'react';
 
+import { useDisconnectWallet } from '@mysten/dapp-kit';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { Signer } from '@mysten/sui/cryptography';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { genAddressSeed } from '@mysten/sui/zklogin';
@@ -24,6 +24,7 @@ import { RecoilRoot } from 'recoil';
 import { ActionDrawer } from './components/ActionDrawer';
 import { useWalletState } from './recoil';
 import { createProof } from './utils/createProof';
+import { DEFAULT_ICON, DEFAULT_NAME } from './utils/default';
 import {
   getAccountData,
   getZkLoginData,
@@ -35,7 +36,6 @@ import { WalletStandard } from './utils/walletStandard';
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<boolean>;
   walrusWalletStatus: () => 'connected' | 'disconnected';
-  scan: (signer: Signer) => Promise<void>;
   openSignTxModal: (
     title: string,
     description: string,
@@ -65,8 +65,8 @@ interface IWalrusWalletContext {
 }
 
 interface IWalrusWalletProps {
-  name: string;
-  icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
+  name?: string;
+  icon?: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
   network: NETWORK;
   mode?: 'dark' | 'light';
   sponsoredUrl?: string;
@@ -95,7 +95,8 @@ const WalrusWalletRoot = ({
 }: IWalrusWalletProps) => {
   const calledOnceRef = useRef<boolean>(false);
   const initialized = useRef<boolean>(false);
-  const { scan, openSignTxModal } = useWalrusScan();
+  const { openSignTxModal } = useWalrusScan();
+  const { mutate: dappKitDisconnect } = useDisconnectWallet();
   const { wallet, setWallet, setMode } = useWalletState();
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
 
@@ -224,8 +225,8 @@ const WalrusWalletRoot = ({
     if (!initialized.current) {
       initialized.current = true;
       const walletStandard = new WalletStandard(
-        name,
-        icon,
+        name || DEFAULT_NAME,
+        icon || DEFAULT_ICON,
         network,
         sponsoredUrl || '',
         mode || 'light',
@@ -262,7 +263,6 @@ const WalrusWalletRoot = ({
       value={{
         updateJwt,
         walrusWalletStatus: () => (isConnected ? 'connected' : 'disconnected'),
-        scan,
         openSignTxModal,
         signAndExecuteSponsoredTransaction:
           sponsoredUrl && wallet
@@ -275,10 +275,12 @@ const WalrusWalletRoot = ({
     >
       <ActionDrawer
         isConnected={isConnected}
-        icon={icon}
+        icon={icon || DEFAULT_ICON}
         onLogout={() => {
-          if (wallet) {
-            wallet.logout();
+          try {
+            wallet?.logout();
+          } finally {
+            dappKitDisconnect();
             onEvent({ variant: 'success', message: 'Logged out' });
           }
         }}
@@ -289,11 +291,26 @@ const WalrusWalletRoot = ({
   );
 };
 
-export const WalrusWallet = ({ children, ...others }: IWalrusWalletProps) => {
+export const WalrusWallet = ({
+  children,
+  icon,
+  name,
+  ...others
+}: IWalrusWalletProps) => {
   return (
     <RecoilRoot>
-      <WalrusScan mode={others.mode || 'light'} {...others}>
-        <WalrusWalletRoot {...others}>{children}</WalrusWalletRoot>
+      <WalrusScan
+        mode={others.mode || 'light'}
+        icon={icon || DEFAULT_ICON}
+        {...others}
+      >
+        <WalrusWalletRoot
+          name={name || DEFAULT_NAME}
+          icon={icon || DEFAULT_ICON}
+          {...others}
+        >
+          {children}
+        </WalrusWalletRoot>
       </WalrusScan>
     </RecoilRoot>
   );

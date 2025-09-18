@@ -1,26 +1,15 @@
 import React, { useEffect, useState } from 'react';
 
-import { KioskOwnerCap } from '@mysten/kiosk';
 import { SuiObjectData } from '@mysten/sui/client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { QRAddress, useWalrusScan } from '@zktx.io/walrus-connect';
 import { motion } from 'framer-motion';
-import {
-  HiOutlineCamera,
-  HiOutlinePhoto,
-  HiOutlineQrCode,
-  HiOutlineSquares2X2,
-  HiOutlineWallet,
-} from 'react-icons/hi2';
+import { EllipsisVertical, Images, WalletMinimal } from 'lucide-react';
 
 import { DlgBalances } from './DlgBalances';
-import { DlgCredentials } from './DlgCredentials';
 import { DlgDashboard } from './DlgDashboard';
-import { DlgKioskItemList } from './DlgKioskItemList';
-import { DlgKiosks } from './DlgKiosks';
 import { DlgNFTs } from './DlgNFTs';
-import { DlgPlaceNFT } from './DlgPlaceNFT';
 import { DlgTransferCoin } from './DlgTransferCoin';
 import { DlgTransferNFT } from './DlgTransferNFT';
 import { DlgOverlay, DlgPortal, DlgRoot, DlgTitle, DlgTrigger } from './modal';
@@ -54,27 +43,7 @@ export const ActionDrawer = ({
   const [openTransferNFT, setOpenTransferNFT] = useState<
     SuiObjectData | undefined
   >(undefined);
-  const [openCredentials, setOpenCredentials] = useState<boolean>(false);
   const [openNFTs, setOpenNFTs] = useState<boolean>(false);
-  const [openKiosk, setOpenKiosk] = useState<boolean>(false);
-  const [openKioskPlace, setOpenKioskPlace] = useState<
-    SuiObjectData | undefined
-  >(undefined);
-  const [openKioskTake, setOpenKioskTake] = useState<KioskOwnerCap | undefined>(
-    undefined,
-  );
-
-  const handleScan = () => {
-    if (wallet && wallet.signer) {
-      setOpen(false);
-      scan(wallet.signer);
-    }
-  };
-
-  const handleAddress = () => {
-    setOpen(false);
-    setOpenAddress(true);
-  };
 
   const handleBalances = () => {
     setOpen(false);
@@ -140,41 +109,13 @@ export const ActionDrawer = ({
               </DlgTitle>
               <div className="action-buttons">
                 <button className="action-icon-button" onClick={handleBalances}>
-                  <HiOutlineWallet
-                    className="action-icon"
-                    width={32}
-                    height={32}
-                  />
+                  <WalletMinimal className="action-icon" size={16} />
                 </button>
                 <button className="action-icon-button" onClick={handleNFTs}>
-                  <HiOutlinePhoto
-                    className="action-icon"
-                    width={32}
-                    height={32}
-                  />
+                  <Images className="action-icon" size={16} />
                 </button>
-                <button className="action-icon-button" onClick={handleAddress}>
-                  <HiOutlineQrCode
-                    className="action-icon"
-                    width={32}
-                    height={32}
-                  />
-                </button>
-                {isScannerEnabled && wallet && wallet.signer && (
-                  <button className="action-icon-button" onClick={handleScan}>
-                    <HiOutlineCamera
-                      className="action-icon"
-                      width={32}
-                      height={32}
-                    />
-                  </button>
-                )}
                 <button className="action-icon-button" onClick={handleSystem}>
-                  <HiOutlineSquares2X2
-                    className="action-icon"
-                    width={32}
-                    height={32}
-                  />
+                  <EllipsisVertical className="action-icon" size={16} />
                 </button>
               </div>
             </motion.div>
@@ -264,21 +205,22 @@ export const ActionDrawer = ({
           isBack && setOpen(true);
           setOpenSystem(false);
         }}
+        openAddress={() => {
+          setOpen(false);
+          setOpenSystem(false);
+          setOpenAddress(true);
+        }}
+        openScan={() => {
+          setOpen(false);
+          setOpenSystem(false);
+          isScannerEnabled && wallet && wallet.signer && scan(wallet.signer);
+        }}
         onLogout={() => {
           setOpen(false);
           setOpenSystem(false);
           onLogout();
         }}
-        openCredentials={() => {
-          setOpenSystem(false);
-          setOpenCredentials(true);
-        }}
-        openKiosk={() => {
-          setOpenSystem(false);
-          setOpenKiosk(true);
-        }}
       />
-
       <DlgBalances
         open={openBalances}
         onClose={(isBack: boolean) => {
@@ -300,12 +242,7 @@ export const ActionDrawer = ({
           setOpenNFTs(false);
           setOpenTransferNFT(objData);
         }}
-        openKioskPlace={(objData) => {
-          setOpenNFTs(false);
-          setOpenKioskPlace(objData);
-        }}
       />
-
       <DlgTransferCoin
         open={openTransferCoin}
         onClose={(isBack: boolean) => {
@@ -321,77 +258,8 @@ export const ActionDrawer = ({
           isBack && setOpenNFTs(true);
           setOpen(false);
           setOpenTransferNFT(undefined);
-          setOpenKioskPlace(undefined);
         }}
         onEvent={onEvent}
-      />
-      <DlgPlaceNFT
-        object={openKioskPlace}
-        onClose={(isBack: boolean) => {
-          isBack && setOpenNFTs(true);
-          setOpen(false);
-          setOpenTransferNFT(undefined);
-          setOpenKioskPlace(undefined);
-        }}
-        kioskPlace={async (objData) => {
-          if (wallet) {
-            await wallet.kioskPlace(objData.kiosk, {
-              item: objData.object.objectId,
-              itemType: objData.object.type!,
-            });
-            setOpen(false);
-            setOpenKioskPlace(undefined);
-            onEvent({
-              variant: 'success',
-              message: 'Item placed in kiosk',
-            });
-          }
-        }}
-      />
-
-      <DlgKioskItemList
-        open={openKioskTake}
-        onClose={(isBack: boolean) => {
-          isBack && setOpenKiosk(true);
-          setOpenKioskTake(undefined);
-        }}
-        kioskTake={async (objData) => {
-          if (wallet) {
-            await wallet.kiosTake(
-              objData.kiosk,
-              {
-                itemId: objData.object.objectId,
-                itemType: objData.object.type!,
-              },
-              objData.recipient,
-            );
-            setOpenKioskTake(undefined);
-            setOpen(false);
-            onEvent({
-              variant: 'success',
-              message: 'Item taken from kiosk',
-            });
-          }
-        }}
-      />
-
-      <DlgCredentials
-        open={openCredentials}
-        onClose={(isBack: boolean) => {
-          isBack && setOpenSystem(true);
-          setOpenCredentials(false);
-        }}
-      />
-      <DlgKiosks
-        open={openKiosk}
-        onClose={(isBack: boolean) => {
-          isBack && setOpenSystem(true);
-          setOpenKiosk(false);
-        }}
-        onSelectKiosk={(kiosk) => {
-          setOpenKiosk(false);
-          setOpenKioskTake(kiosk);
-        }}
       />
     </>
   );
