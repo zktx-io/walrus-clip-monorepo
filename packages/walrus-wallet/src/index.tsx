@@ -33,6 +33,8 @@ import {
 import { NETWORK, NotiVariant } from './utils/types';
 import { WalletStandard } from './utils/walletStandard';
 
+import './index.css';
+
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<boolean>;
   walrusWalletStatus: () => 'connected' | 'disconnected';
@@ -93,8 +95,12 @@ const WalrusWalletRoot = ({
   onEvent,
   children,
 }: IWalrusWalletProps) => {
-  const calledOnceRef = useRef<boolean>(false);
   const initialized = useRef<boolean>(false);
+  const inflightMapRef = useRef<Map<string, Promise<boolean>>>(new Map());
+  const lastSuccessRef = useRef<{ jwt?: string; address?: string } | null>(
+    // eslint-disable-next-line no-restricted-syntax
+    null,
+  );
   const { openSignTxModal } = useWalrusScan();
   const { mutate: dappKitDisconnect } = useDisconnectWallet();
   const { wallet, setWallet, setMode } = useWalletState();
@@ -102,50 +108,73 @@ const WalrusWalletRoot = ({
 
   const updateJwt = useCallback(
     async (jwt: string): Promise<boolean> => {
-      if (calledOnceRef.current) {
-        return false;
-      }
-      calledOnceRef.current = true;
+      if (!jwt || !zklogin) return false;
+
+      const existing = getAccountData();
+      if (existing?.address && isConnected) return true;
+
       const data = getZkLoginData();
-      if (data && zklogin) {
-        const decodedJwt = decodeJwt(jwt) as {
-          sub?: string;
-          aud?: string;
-          iss?: string;
-        };
+      if (!data) return false;
+
+      const dec = decodeJwt(jwt) as Partial<{
+        sub: string;
+        aud: string;
+        iss: string;
+        exp: number;
+      }>;
+      if (!dec.sub || !dec.aud || !dec.iss)
+        throw new Error('Invalid JWT: missing sub/aud/iss');
+      if (dec.exp && Date.now() / 1000 > dec.exp)
+        throw new Error('JWT expired');
+
+      if (
+        lastSuccessRef.current?.jwt === jwt &&
+        existing?.address === lastSuccessRef.current?.address
+      ) {
+        setIsConnected(true);
+        return true;
+      }
+
+      const inflight = inflightMapRef.current.get(jwt);
+      if (inflight) return inflight;
+
+      const p = (async () => {
         const { address, proof, salt } = await createProof(
           zklogin.enokey,
           data.network,
           data.zkLogin,
           jwt,
         );
+
         const addressSeed = genAddressSeed(
           BigInt(salt),
           'sub',
-          decodedJwt.sub!,
-          decodedJwt.aud as string,
+          dec.sub!,
+          dec.aud!,
         ).toString();
+
         setAccountData({
           zkLogin: {
-            expiration: data.zkLogin.expiration,
-            randomness: data.zkLogin.randomness,
-            keypair: data.zkLogin.keypair,
-            proofInfo: {
-              addressSeed,
-              proof,
-              jwt,
-              iss: decodedJwt.iss!,
-            },
+            ...data.zkLogin,
+            proofInfo: { addressSeed, proof, jwt, iss: dec.iss! },
           },
           network: data.network,
-          address: address,
+          address,
         });
+
+        lastSuccessRef.current = { jwt, address };
         setIsConnected(true);
         return true;
+      })();
+
+      inflightMapRef.current.set(jwt, p);
+      try {
+        return await p;
+      } finally {
+        inflightMapRef.current.delete(jwt);
       }
-      throw new Error('Nonce not found');
     },
-    [zklogin],
+    [zklogin, isConnected],
   );
 
   const signAndExecuteSponsoredTransaction = async (

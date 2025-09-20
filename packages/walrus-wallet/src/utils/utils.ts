@@ -1,14 +1,4 @@
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
-
-const toArrayBuffer = (u8: Uint8Array): ArrayBuffer => {
-  if (u8.buffer instanceof ArrayBuffer) {
-    return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
-  }
-  const ab = new ArrayBuffer(u8.byteLength);
-  new Uint8Array(ab).set(u8);
-  return ab;
-};
+import { fromHex, toHex } from '@mysten/sui/utils';
 
 export const PEER_CONFIG = {
   config: {
@@ -17,6 +7,7 @@ export const PEER_CONFIG = {
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun.services.mozilla.com' },
       { urls: 'stun:stun.stunprotocol.org' },
+      // TEMPORARY TURN SERVERS FOR TESTING
       {
         urls: 'turn:numb.viagenie.ca',
         username: 'webrtc@live.com',
@@ -26,60 +17,70 @@ export const PEER_CONFIG = {
   },
 };
 
+const PBKDF2_ITERATIONS = 250_000;
+const enc = new TextEncoder();
+
+const deriveKey = async (password: string, saltHex: string) => {
+  const salt = fromHex(saltHex);
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: PBKDF2_ITERATIONS },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+};
+
 export const encryptText = async (
   text: string,
-  key: string,
-): Promise<{ encrypted: string; iv: string }> => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    toArrayBuffer(sha256(new TextEncoder().encode(key))),
-    { name: 'AES-GCM' },
-    false,
-    ['encrypt'],
-  );
-
+  password: string,
+): Promise<{ encrypted: string; iv: string; salt: string }> => {
+  const data = new TextEncoder().encode(text);
   const iv = crypto.getRandomValues(new Uint8Array(12));
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveKey(password, toHex(salt));
   const encrypted = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
-    cryptoKey,
+    key,
     data,
   );
-
   return {
-    encrypted: bytesToHex(new Uint8Array(encrypted)),
-    iv: bytesToHex(iv),
+    encrypted: toHex(new Uint8Array(encrypted)),
+    iv: toHex(iv),
+    salt: toHex(salt),
   };
 };
 
 export const decryptText = async (
-  key: string,
+  password: string,
   encrypted: string,
   iv: string,
+  salt: string,
 ): Promise<string> => {
   try {
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      toArrayBuffer(sha256(new TextEncoder().encode(key))),
-      { name: 'AES-GCM' },
-      false,
-      ['decrypt'],
+    const key = await deriveKey(password, salt);
+    const plain = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: fromHex(iv) },
+      key,
+      fromHex(encrypted),
     );
-
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: toArrayBuffer(hexToBytes(iv)) },
-      cryptoKey,
-      toArrayBuffer(hexToBytes(encrypted)),
-    );
-
-    const decoder = new TextDecoder();
-    return decoder.decode(decrypted);
-  } catch (error) {
+    return new TextDecoder().decode(plain);
+  } catch {
     return '';
   }
 };
 
-export const shortenAddress = (addr: string) =>
-  addr.slice(0, 12) + '...' + addr.slice(-10);
+export const shortenAddress = (addr: string) => {
+  if (!addr) return '';
+  if (addr.length <= 25) return addr;
+  return addr.slice(0, 12) + '...' + addr.slice(-10);
+};
+
+export const isSuiAddress = (a: string) => /^0x[0-9a-fA-F]{1,64}$/.test(a);

@@ -59,6 +59,7 @@ export const PwConfirm = ({
           <DlgDescription mode={mode}>
             Please confirm your password to proceed.
           </DlgDescription>
+
           <FormRoot>
             <FormField name="password">
               <FormControl asChild>
@@ -69,26 +70,18 @@ export const PwConfirm = ({
                   mode={mode}
                   placeholder="password"
                   type="password"
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                  }}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </FormControl>
               {error && (
-                <FormMessage mode={mode} error={error}>
+                <FormMessage mode={mode} error>
                   incorrect password
                 </FormMessage>
               )}
             </FormField>
           </FormRoot>
-          <div
-            style={{
-              display: 'flex',
-              marginTop: 16,
-              justifyContent: 'flex-end',
-              gap: '12px',
-            }}
-          >
+
+          <div className="dlg-actions-right">
             <DlgButton
               mode={mode}
               disabled={password.length < 1 || loading}
@@ -98,7 +91,7 @@ export const PwConfirm = ({
                   setError(false);
                   await onConfirm(password);
                   setOpen(false);
-                } catch (error) {
+                } catch {
                   setError(true);
                 } finally {
                   setLoading(false);

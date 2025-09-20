@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { SuiObjectData } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { QRAddressScan } from '@zktx.io/walrus-connect';
-import { CameraIcon } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import {
   FormField,
@@ -24,6 +24,7 @@ import {
 } from './modal';
 import { useWalletState } from '../recoil';
 import { NotiVariant } from '../utils/types';
+import { isSuiAddress } from '../utils/utils';
 
 export const DlgTransferNFT = ({
   object,
@@ -37,22 +38,38 @@ export const DlgTransferNFT = ({
   const { mode, wallet } = useWalletState();
   const [loading, setLoading] = useState<boolean>(false);
   const [recipient, setRecipient] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
+
+  const validateRecipient = (value: string) => {
+    if (!value) {
+      setErrorMsg('');
+      return false;
+    }
+    if (!isSuiAddress(value)) {
+      setErrorMsg('Invalid Sui address');
+      return false;
+    }
+    setErrorMsg('');
+    return true;
+  };
+
+  const handleRecipientChange = (value: string) => {
+    setRecipient(value);
+    validateRecipient(value);
+  };
 
   const handleTransfer = async () => {
-    if (!wallet || !wallet.address || !recipient || !object) return;
+    if (!wallet || !wallet.address || !object) return;
+    if (!validateRecipient(recipient)) return;
 
     setLoading(true);
     try {
       const tx = new Transaction();
       tx.transferObjects([tx.object(object.objectId)], recipient);
-
       await wallet.signAndExecuteTransaction(tx);
-      onEvent({
-        variant: 'success',
-        message: 'NFT Transfer Successful',
-      });
-    } catch (error) {
-      //
+      onEvent({ variant: 'success', message: 'NFT Transfer Successful' });
+    } catch (err) {
+      onEvent({ variant: 'error', message: String(err) });
     } finally {
       setLoading(false);
       onClose(true);
@@ -60,11 +77,14 @@ export const DlgTransferNFT = ({
   };
 
   useEffect(() => {
-    if (!!object) {
+    if (object) {
       setRecipient('');
+      setErrorMsg('');
       setLoading(false);
     }
   }, [object]);
+
+  const isSendDisabled = !recipient || !!errorMsg || loading;
 
   return (
     <DlgRoot open={!!object}>
@@ -74,19 +94,17 @@ export const DlgTransferNFT = ({
           mode={mode}
           onOpenAutoFocus={(event) => event.preventDefault()}
         >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
-            }}
-          >
+          <div className="transfer-header">
             <DlgTitle mode={mode}>Transfer NFT</DlgTitle>
-            <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
-              <CameraIcon />
+            <DlgButtonIcon
+              mode={mode}
+              onClick={() => onClose(true)}
+              aria-label="Close"
+            >
+              <X />
             </DlgButtonIcon>
           </div>
+
           <DlgDescription mode={mode}>
             Enter the recipient address and send the NFT.
           </DlgDescription>
@@ -100,30 +118,33 @@ export const DlgTransferNFT = ({
                   autoComplete="off"
                   autoCorrect="off"
                   mode={mode}
-                  disabled={loading || !!recipient}
+                  disabled={loading}
                   placeholder="Enter recipient address"
                   value={recipient}
-                  onChange={(e) => {
-                    setRecipient(e.target.value);
-                  }}
-                  style={{ flexGrow: 1, border: 'none' }}
+                  onChange={(e) => handleRecipientChange(e.target.value)}
+                  className="transfernft-input-grow"
+                  aria-label="Recipient address"
                 />
-                <QRAddressScan mode={mode} onClose={setRecipient} />
+                <QRAddressScan
+                  mode={mode}
+                  onClose={(addr) => handleRecipientChange(addr)}
+                />
               </FormInputWithButton>
             </FormField>
           </FormRoot>
 
-          <div
-            style={{
-              display: 'flex',
-              marginTop: 16,
-              justifyContent: 'flex-end',
-              gap: '12px',
-            }}
-          >
+          <div className="transfer-actions">
+            <div
+              className="transfer-error"
+              data-mode={mode}
+              role="alert"
+              aria-live="polite"
+            >
+              {errorMsg}
+            </div>
             <DlgButton
               mode={mode}
-              disabled={!recipient || loading}
+              disabled={isSendDisabled}
               onClick={handleTransfer}
             >
               Send

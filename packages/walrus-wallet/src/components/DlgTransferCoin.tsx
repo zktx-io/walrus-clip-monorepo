@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { Transaction } from '@mysten/sui/transactions';
 import { QRAddressScan } from '@zktx.io/walrus-connect';
-import { CameraIcon } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import {
   FormCoinSelect,
@@ -26,6 +26,7 @@ import {
 } from './modal';
 import { useWalletState } from '../recoil';
 import { NotiVariant } from '../utils/types';
+import { isSuiAddress } from '../utils/utils';
 import { FloatCoinBalance } from '../utils/walletStandard';
 
 export const DlgTransferCoin = ({
@@ -45,14 +46,33 @@ export const DlgTransferCoin = ({
   );
   const [amount, setAmount] = useState<string>('');
   const [recipient, setRecipient] = useState<string>('');
-  const [error, setError] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
+
+  const getRecipientError = (value: string) => {
+    if (!value) return '';
+    return isSuiAddress(value) ? '' : 'Invalid Sui address';
+  };
+  const getAmountError = (value: string, coin?: FloatCoinBalance) => {
+    if (!value) return '';
+    const num = parseFloat(value);
+    if (isNaN(num) || num < 0) return 'Invalid amount';
+    if (!coin) return '';
+    const balanceInDecimals =
+      parseFloat(coin.balance) / Math.pow(10, coin.decimals);
+    if (num > balanceInDecimals) return 'Insufficient balance';
+    return '';
+  };
+  const recomputeError = (r: string, a: string, coin?: FloatCoinBalance) => {
+    const rErr = getRecipientError(r);
+    const aErr = getAmountError(a, coin);
+    setErrorMsg(rErr || aErr);
+  };
 
   const handleCoinChange = (coinType: string) => {
     const coin = coins?.find((t) => t.coinType === coinType);
     if (coin) {
       setSelectCoin(coin);
-      setAmount('');
-      setError('');
+      recomputeError(recipient, amount, coin);
     }
   };
 
@@ -60,83 +80,76 @@ export const DlgTransferCoin = ({
     if (selectCoin) {
       const balanceInDecimals =
         parseFloat(selectCoin.balance) / Math.pow(10, selectCoin.decimals);
-      setAmount(balanceInDecimals.toString());
-      setError('');
+      const v = balanceInDecimals.toString();
+      setAmount(v);
+      recomputeError(recipient, v, selectCoin);
     }
   };
 
   const handleAmountChange = (value: string) => {
-    const num = parseFloat(value);
-    if (isNaN(num) || num < 0) {
-      setAmount('');
-      setError('Invalid amount');
-      return;
-    }
+    setAmount(value);
+    recomputeError(recipient, value, selectCoin);
+  };
 
-    if (selectCoin) {
-      const balanceInDecimals =
-        parseFloat(selectCoin.balance) / Math.pow(10, selectCoin.decimals);
-
-      if (num > balanceInDecimals) {
-        setAmount(value);
-        setError('Insufficient balance');
-      } else {
-        setAmount(value);
-        setError('');
-      }
-    }
+  const handleRecipientChange = (value: string) => {
+    setRecipient(value);
+    recomputeError(value, amount, selectCoin);
   };
 
   const handleTransfer = async () => {
+    if (errorMsg) return;
+
     if (wallet && wallet.address && selectCoin && amount) {
       setLoading(true);
       try {
-        const coins = await wallet.getCoins(selectCoin.coinType);
-        const transferAmount = BigInt(
-          parseFloat(amount) * Math.pow(10, selectCoin.decimals),
-        );
-        const tx = new Transaction();
-        let total = BigInt(0);
-        for (const item of coins) {
-          const coinBalance = BigInt(item.balance);
-          total += coinBalance;
-        }
+        const coinsList = await wallet.getCoins(selectCoin.coinType);
 
-        if (coins.length === 0 || total < transferAmount) {
+        const decimalToBigInt = (val: string, decimals: number): bigint => {
+          const [i, f = ''] = val.trim().split('.');
+          const frac = (f + '0'.repeat(decimals)).slice(0, decimals);
+          return BigInt((i || '0') + frac.padStart(decimals, '0'));
+        };
+
+        const transferAmount = decimalToBigInt(amount, selectCoin.decimals);
+        const tx = new Transaction();
+
+        let total = BigInt(0);
+        for (const item of coinsList) total += BigInt(item.balance);
+
+        if (coinsList.length === 0 || total < transferAmount) {
           setLoading(false);
-          onEvent({
-            variant: 'error',
-            message: 'Insufficient balance',
-          });
+          onEvent({ variant: 'error', message: 'Insufficient balance' });
           return;
         }
 
         if (selectCoin.coinType === '0x2::sui::SUI') {
-          if (transferAmount === total) {
-            tx.transferObjects([tx.gas], recipient);
+          const MIN_GAS = BigInt(10n ** BigInt(selectCoin.decimals)) / 100n; // 0.01
+          tx.setGasPayment([
+            {
+              objectId: coinsList[0].coinObjectId,
+              version: coinsList[0].version,
+              digest: coinsList[0].digest,
+            },
+          ]);
+          if (coinsList.length > 1) {
+            tx.mergeCoins(
+              tx.gas,
+              coinsList.slice(1).map((c) => tx.object(c.coinObjectId)),
+            );
+          }
+          if (transferAmount + MIN_GAS >= total) {
+            const [sendCoin] = tx.splitCoins(tx.gas, [total - MIN_GAS]);
+            tx.transferObjects([sendCoin], recipient);
           } else {
-            tx.setGasPayment([
-              {
-                objectId: coins[0].coinObjectId,
-                version: coins[0].version,
-                digest: coins[0].digest,
-              },
-            ]);
-            if (coins.length > 1) {
-              tx.mergeCoins(
-                tx.gas,
-                coins.slice(1).map((coin) => tx.object(coin.coinObjectId)),
-              );
-            }
             const [transferCoin] = tx.splitCoins(tx.gas, [transferAmount]);
             tx.transferObjects([transferCoin], recipient);
           }
         } else {
-          const destination = tx.object(coins[0].coinObjectId);
-          if (coins.length > 1) {
+          const destination = tx.object(coinsList[0].coinObjectId);
+          if (coinsList.length > 1) {
             tx.mergeCoins(
               destination,
-              coins.slice(1).map((coin) => tx.object(coin.coinObjectId)),
+              coinsList.slice(1).map((c) => tx.object(c.coinObjectId)),
             );
           }
           if (total === transferAmount) {
@@ -148,17 +161,11 @@ export const DlgTransferCoin = ({
         }
 
         await wallet.signAndExecuteTransaction(tx);
-        onEvent({
-          variant: 'success',
-          message: 'Transfer successful',
-        });
+        onEvent({ variant: 'success', message: 'Transfer successful' });
       } catch (error) {
-        onEvent({
-          variant: 'error',
-          message: `${error}`,
-        });
+        onEvent({ variant: 'error', message: `${error}` });
       } finally {
-        setLoading(true);
+        setLoading(false);
         onClose(false);
       }
     }
@@ -170,11 +177,11 @@ export const DlgTransferCoin = ({
         setLoading(true);
         setRecipient('');
         setAmount('');
-        setError('');
+        setErrorMsg('');
         const allBalances = await wallet.getAllBalances();
         if (allBalances !== undefined) {
           setCoins(allBalances);
-          if (open.coin) {
+          if (open?.coin) {
             setSelectCoin(open.coin);
           } else {
             allBalances.length && setSelectCoin(allBalances[0]);
@@ -185,35 +192,34 @@ export const DlgTransferCoin = ({
     };
     if (open?.address) {
       setRecipient(open.address);
+      setTimeout(() => recomputeError(open.address!, amount, selectCoin), 0);
     }
     update();
-  }, [open, wallet]);
+  }, [open, wallet]); // eslint-disable-line
+
+  const isSendDisabled = !!errorMsg || !amount || !recipient || loading;
 
   return (
     <DlgRoot open={!!open}>
       <DlgPortal>
         <DlgOverlay mode={mode} onClick={() => onClose(false)} />
-        <DlgContent
-          mode={mode}
-          onOpenAutoFocus={(event) => event.preventDefault()}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
-            }}
-          >
+        <DlgContent mode={mode}>
+          <div className="transfer-header">
             <DlgTitle mode={mode}>Transfer Coins</DlgTitle>
-            <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
-              <CameraIcon />
+            <DlgButtonIcon
+              mode={mode}
+              onClick={() => onClose(true)}
+              aria-label="Close"
+            >
+              <X />
             </DlgButtonIcon>
           </div>
+
           <DlgDescription mode={mode}>
             Please select the coin you want to send, enter the amount and the
             recipient address.
           </DlgDescription>
+
           <FormRoot>
             <FormField name="Select Coin">
               <FormLabel mode={mode}>Select Coin</FormLabel>
@@ -222,6 +228,7 @@ export const DlgTransferCoin = ({
                 disabled={loading || !!open?.coin}
                 value={selectCoin?.coinType}
                 onChange={(e) => handleCoinChange(e.target.value)}
+                aria-label="Select coin"
               >
                 {coins?.map((coin) => (
                   <option key={coin.coinType} value={coin.coinType}>
@@ -244,12 +251,17 @@ export const DlgTransferCoin = ({
                   disabled={loading || !!open?.address}
                   placeholder="Enter recipient address"
                   value={recipient}
-                  onChange={(e) => {
-                    setRecipient(e.target.value);
-                  }}
-                  style={{ flexGrow: 1, border: 'none' }}
+                  onChange={(e) => handleRecipientChange(e.target.value)}
+                  className="transfer-input-grow"
+                  aria-label="Recipient address"
                 />
-                <QRAddressScan mode={mode} onClose={setRecipient} />
+                <QRAddressScan
+                  mode={mode}
+                  onClose={(addr) => {
+                    setRecipient(addr);
+                    recomputeError(addr, amount, selectCoin);
+                  }}
+                />
               </FormInputWithButton>
             </FormField>
           </FormRoot>
@@ -260,12 +272,17 @@ export const DlgTransferCoin = ({
               <FormInputWithButton mode={mode}>
                 <FormInput
                   type="number"
+                  inputMode="decimal"
+                  step="any"
+                  min="0"
                   mode={mode}
                   disabled={loading}
                   placeholder="Enter amount"
                   value={amount}
                   onChange={(e) => handleAmountChange(e.target.value)}
-                  style={{ flexGrow: 1, border: 'none' }}
+                  onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
+                  className="transfer-input-grow"
+                  aria-label="Amount to send"
                 />
                 <FormInputButton
                   mode={mode}
@@ -277,25 +294,25 @@ export const DlgTransferCoin = ({
                   Max
                 </FormInputButton>
               </FormInputWithButton>
-              <FormMessage mode={mode} error={!!error}>
-                {error
-                  ? error
-                  : `Balance: ${selectCoin?.fBalance} ${selectCoin?.symbol}`}
+              <FormMessage mode={mode} error={false}>
+                {`Balance: ${selectCoin?.fBalance ?? '0'} ${selectCoin?.symbol ?? ''}`}
               </FormMessage>
             </FormField>
           </FormRoot>
 
-          <div
-            style={{
-              display: 'flex',
-              marginTop: 16,
-              justifyContent: 'flex-end',
-              gap: '12px',
-            }}
-          >
+          <div className="transfer-actions">
+            <div
+              className="transfer-error"
+              data-mode={mode}
+              role="alert"
+              aria-live="polite"
+            >
+              {errorMsg}
+            </div>
+
             <DlgButton
               mode={mode}
-              disabled={!!error || !amount || !recipient || loading}
+              disabled={isSendDisabled}
               onClick={handleTransfer}
             >
               Send

@@ -26,11 +26,13 @@ export const PwCreate = ({
   const [open, setOpen] = useState(true);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
   return (
     <DlgRoot open={open}>
       <DlgPortal>
         <DlgOverlay
           mode={mode}
+          className="dlg-topmost"
           onClick={() => {
             onEvent({
               variant: 'error',
@@ -39,19 +41,17 @@ export const PwCreate = ({
             setOpen(false);
             onClose();
           }}
-          style={{ zIndex: 2147483645 }}
         />
         <DlgContent
           mode={mode}
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-          }}
-          style={{ zIndex: 2147483645 }}
+          className="dlg-topmost"
+          onOpenAutoFocus={(event) => event.preventDefault()}
         >
           <DlgTitle mode={mode}>Confirm password</DlgTitle>
           <DlgDescription mode={mode}>
             Please confirm your password to proceed.
           </DlgDescription>
+
           <FormRoot>
             <FormField name="password">
               <FormControl asChild>
@@ -62,13 +62,12 @@ export const PwCreate = ({
                   mode={mode}
                   placeholder="password"
                   type="password"
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                  }}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </FormControl>
             </FormField>
           </FormRoot>
+
           <FormRoot>
             <FormField name="confirmPassword">
               <FormControl asChild>
@@ -79,21 +78,13 @@ export const PwCreate = ({
                   mode={mode}
                   placeholder="confirm password"
                   type="password"
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                  }}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </FormControl>
             </FormField>
           </FormRoot>
-          <div
-            style={{
-              display: 'flex',
-              marginTop: 16,
-              justifyContent: 'flex-end',
-              gap: '12px',
-            }}
-          >
+
+          <div className="dlg-actions-right">
             <DlgButton
               mode={mode}
               disabled={password !== confirmPassword || password.length < 1}

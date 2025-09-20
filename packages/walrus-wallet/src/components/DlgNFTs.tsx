@@ -43,178 +43,67 @@ export const DlgNFTs = ({
     <DlgRoot open={open}>
       <DlgPortal>
         <DlgOverlay mode={mode} onClick={() => onClose(false)} />
-        <DlgContentBottom
-          mode={mode}
-          aria-describedby={undefined}
-          onOpenAutoFocus={(event) => event.preventDefault()}
-          style={{ height: '40vh' }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
-            }}
-          >
+        <DlgContentBottom mode={mode} className="nfts-content">
+          <div className="nfts-header">
             <DlgTitle mode={mode}>NFTs</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
               <X />
             </DlgButtonIcon>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              width: '100%',
-              height: 'calc(100% - 10px)',
-              overflowY: 'auto',
-            }}
-          >
+
+          <div className="nfts-list" role="list" aria-busy={loading}>
             {loading && assets.length === 0 ? (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  width: '100%',
-                  height: '150px',
-                  fontSize: '16px',
-                  color: '#888',
-                }}
-              >
-                Loading...
-              </div>
+              <div className="nfts-empty">Loading...</div>
             ) : assets.length === 0 ? (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  width: '100%',
-                  height: '150px',
-                  fontSize: '16px',
-                  color: '#888',
-                }}
-              >
-                No Assets Available
-              </div>
+              <div className="nfts-empty">No Assets Available</div>
             ) : (
               assets.map((asset, index) => (
                 <div
-                  key={index}
-                  style={{
-                    display: 'flex',
-                    width: '100%',
-                    height: '120px',
-                    borderRadius: '10px',
-                    overflow: 'hidden',
-                    backgroundColor: '#f3f3f3',
-                    position: 'relative',
-                  }}
+                  key={asset.objectId ?? `nft-${index}`}
+                  className="nfts-card"
+                  role="listitem"
                 >
-                  <div
-                    style={{
-                      width: '120px',
-                      height: '100%',
-                      position: 'relative',
-                    }}
-                  >
+                  <div className="nfts-card-image">
                     {asset.display?.data?.image_url ? (
                       <img
                         src={asset.display.data.image_url}
-                        alt={`Asset ${index}`}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
+                        alt={asset.display?.data?.name ?? `Asset ${index}`}
+                        loading="lazy"
                       />
                     ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '12px',
-                          color: '#888',
-                        }}
-                      >
-                        No Image
-                      </div>
+                      <div className="nfts-no-image">No Image</div>
                     )}
                   </div>
 
-                  <div
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontWeight: 'bold',
-                        fontSize: '14px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
+                  <div className="nfts-card-body">
+                    <div className="nfts-title">
                       {asset.display?.data?.name ?? 'No Name'}
                     </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <div style={{ fontSize: '12px', color: '#555' }}>
+
+                    <div className="nfts-row">
+                      <div className="nfts-address">
                         {shortenAddress(asset.objectId)}
                       </div>
-                      <Copy
-                        style={{
-                          cursor: 'pointer',
-                          color: '#888',
-                        }}
-                        size={14}
+                      <button
+                        className="nfts-copy"
+                        aria-label="Copy object ID"
                         onClick={() =>
                           navigator.clipboard.writeText(asset.objectId)
                         }
-                      />
+                      >
+                        <Copy size={14} />
+                      </button>
                     </div>
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        color: '#777',
-                        marginTop: '4px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
+
+                    <div className="nfts-desc">
                       {asset.display?.data?.description ?? 'No Description'}
                     </div>
 
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        marginTop: '4px',
-                        gap: '6px',
-                      }}
-                    >
+                    <div className="nfts-actions">
                       <DlgButtonIcon
                         mode={mode}
                         disabled={loading}
-                        onClick={() => {
-                          openTransfer(asset);
-                        }}
+                        onClick={() => openTransfer(asset)}
                       >
                         <Send />
                       </DlgButtonIcon>

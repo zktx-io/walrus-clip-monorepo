@@ -10,6 +10,7 @@ export interface IZkLogin {
     privateKey: {
       iv: string;
       encrypted: string;
+      salt: string;
     };
   };
   proofInfo: {

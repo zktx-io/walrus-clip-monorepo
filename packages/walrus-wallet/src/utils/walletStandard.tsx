@@ -445,8 +445,11 @@ export class WalletStandard implements Wallet {
       const balances: FloatCoinBalance[] = [];
 
       const formatBalance = (value: string, dec: number) => {
-        const formatted = (parseInt(value) / Math.pow(10, dec)).toString();
-        return formatted;
+        const amount = BigInt(value);
+        const s = amount.toString().padStart(dec + 1, '0');
+        const i = s.slice(0, -dec) || '0';
+        const f = s.slice(-dec).replace(/0+$/, '');
+        return f ? `${i}.${f}` : i;
       };
 
       for (const balance of allBalances) {

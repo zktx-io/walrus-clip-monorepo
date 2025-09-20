@@ -27,7 +27,7 @@ export const createNonce = async (
       expiration,
       randomness,
     );
-    const { iv, encrypted } = await encryptText(
+    const { iv, encrypted, salt } = await encryptText(
       toBase64(decodeSuiPrivateKey(ephemeralKeyPair.getSecretKey()).secretKey),
       password,
     );
@@ -41,6 +41,7 @@ export const createNonce = async (
           privateKey: {
             iv,
             encrypted,
+            salt,
           },
         },
         proofInfo: {

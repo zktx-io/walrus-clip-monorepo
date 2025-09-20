@@ -28,15 +28,13 @@ export const ActionDrawer = ({
   onLogout: () => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
-  const [isScannerEnabled, setIsScannerEnabled] = useState<boolean>(false);
-
+  const [isScannerEnabled, setIsScannerEnabled] = useState(false);
   const { scan } = useWalrusScan();
   const { mode, wallet } = useWalletState();
-  const [open, setOpen] = useState<boolean>(false);
-  const [openAddress, setOpenAddress] = useState<boolean>(false);
-  const [openBalances, setOpenBalances] = useState<boolean>(false);
-  const [openSystem, setOpenSystem] = useState<boolean>(false);
-
+  const [open, setOpen] = useState(false);
+  const [openAddress, setOpenAddress] = useState(false);
+  const [openBalances, setOpenBalances] = useState(false);
+  const [openSystem, setOpenSystem] = useState(false);
   const [openTransferCoin, setOpenTransferCoin] = useState<
     { address?: string; coin?: FloatCoinBalance } | undefined
   >(undefined);
@@ -49,12 +47,10 @@ export const ActionDrawer = ({
     setOpen(false);
     setOpenBalances(true);
   };
-
   const handleNFTs = () => {
     setOpen(false);
     setOpenNFTs(true);
   };
-
   const handleSystem = () => {
     setOpen(false);
     setOpenSystem(true);
@@ -64,15 +60,9 @@ export const ActionDrawer = ({
     const testCamera = async () => {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputDevices = devices.filter(
-          (device) => device.kind === 'videoinput',
-        );
-        if (videoInputDevices.length > 0) {
-          setIsScannerEnabled(true);
-        } else {
-          setIsScannerEnabled(false);
-        }
-      } catch (error) {
+        const hasVideo = devices.some((d) => d.kind === 'videoinput');
+        setIsScannerEnabled(hasVideo);
+      } catch {
         setIsScannerEnabled(false);
       }
     };
@@ -84,125 +74,54 @@ export const ActionDrawer = ({
       <DlgRoot open={open} onOpenChange={setOpen}>
         {isConnected && (
           <DlgTrigger asChild>
-            <div className="action-floating-bar">
-              <div className="action-handle" />
+            <div className="drawer-floating-bar">
+              <div className="drawer-handle" />
             </div>
           </DlgTrigger>
         )}
 
         <DlgPortal>
           <DlgOverlay mode={mode} />
-          <Dialog.Content
-            asChild
-            aria-describedby={undefined}
-            onOpenAutoFocus={(event) => event.preventDefault()}
-          >
+          <Dialog.Content asChild onOpenAutoFocus={(e) => e.preventDefault()}>
             <motion.div
               initial={{ y: '100%', x: '-50%' }}
               animate={{ y: 0, x: '-50%' }}
               exit={{ y: '100%', x: '-50%' }}
               transition={{ type: 'spring', stiffness: 100 }}
-              className="action-dialog-content"
+              className="drawer-dialog-content"
+              style={{ left: '50%' }}
+              data-mode={mode}
             >
               <DlgTitle>
                 <VisuallyHidden.Root>Action Drawer</VisuallyHidden.Root>
               </DlgTitle>
-              <div className="action-buttons">
-                <button className="action-icon-button" onClick={handleBalances}>
-                  <WalletMinimal className="action-icon" size={16} />
+              <div className="drawer-buttons">
+                <button className="drawer-icon-button" onClick={handleBalances}>
+                  <WalletMinimal className="drawer-icon" size={16} />
                 </button>
-                <button className="action-icon-button" onClick={handleNFTs}>
-                  <Images className="action-icon" size={16} />
+                <button className="drawer-icon-button" onClick={handleNFTs}>
+                  <Images className="drawer-icon" size={16} />
                 </button>
-                <button className="action-icon-button" onClick={handleSystem}>
-                  <EllipsisVertical className="action-icon" size={16} />
+                <button className="drawer-icon-button" onClick={handleSystem}>
+                  <EllipsisVertical className="drawer-icon" size={16} />
                 </button>
               </div>
             </motion.div>
           </Dialog.Content>
         </DlgPortal>
-
-        <style>
-          {`
-          .action-floating-bar {
-            position: fixed;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 150px;
-            height: 25px;
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 10px 20px 0 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-          }
-
-          .action-handle {
-            width: 40px;
-            height: 5px;
-            background: white;
-            border-radius: 999px;
-          }
-
-          .action-dialog-content {
-            position: fixed;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            max-width: 500px;
-            background: white;
-            border-radius: 12px 12px 0 0;
-            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            z-index: 1234;
-          }
-
-          .action-buttons {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 16px;
-            padding: 8px 16px;
-            margin-top: 4px;
-            background: #f7f7f7;
-            border-radius: 12px;
-          }
-
-          .action-icon-button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 12px;
-            transition: background 0.2s ease-in-out;
-          }
-
-          .action-icon {
-            color: #030f1c;
-            transition: fill 0.2s ease-in-out;
-          }
-
-          .action-icon-button:hover {
-            background: rgba(0, 0, 0, 0.1);
-          }
-        `}
-        </style>
       </DlgRoot>
+
       <QRAddress
         icon={icon}
         mode={mode}
         address={wallet?.address || ''}
         open={openAddress}
-        onClose={() => {
-          setOpenAddress(false);
-        }}
+        onClose={() => setOpenAddress(false)}
       />
       <DlgDashboard
         open={openSystem}
-        onClose={(isBack: boolean) => {
-          isBack && setOpen(true);
+        onClose={(isBack) => {
+          if (isBack) setOpen(true);
           setOpenSystem(false);
         }}
         openAddress={() => {
@@ -213,7 +132,7 @@ export const ActionDrawer = ({
         openScan={() => {
           setOpen(false);
           setOpenSystem(false);
-          isScannerEnabled && wallet && wallet.signer && scan(wallet.signer);
+          isScannerEnabled && wallet?.signer && scan(wallet.signer);
         }}
         onLogout={() => {
           setOpen(false);
@@ -223,8 +142,8 @@ export const ActionDrawer = ({
       />
       <DlgBalances
         open={openBalances}
-        onClose={(isBack: boolean) => {
-          isBack && setOpen(true);
+        onClose={(isBack) => {
+          if (isBack) setOpen(true);
           setOpenBalances(false);
         }}
         openTransfer={(option) => {
@@ -234,8 +153,8 @@ export const ActionDrawer = ({
       />
       <DlgNFTs
         open={openNFTs}
-        onClose={(isBack: boolean) => {
-          isBack && setOpen(true);
+        onClose={(isBack) => {
+          if (isBack) setOpen(true);
           setOpenNFTs(false);
         }}
         openTransfer={(objData) => {
@@ -245,8 +164,8 @@ export const ActionDrawer = ({
       />
       <DlgTransferCoin
         open={openTransferCoin}
-        onClose={(isBack: boolean) => {
-          isBack && setOpenBalances(true);
+        onClose={(isBack) => {
+          if (isBack) setOpenBalances(true);
           setOpen(false);
           setOpenTransferCoin(undefined);
         }}
@@ -254,8 +173,8 @@ export const ActionDrawer = ({
       />
       <DlgTransferNFT
         object={openTransferNFT}
-        onClose={(isBack: boolean) => {
-          isBack && setOpenNFTs(true);
+        onClose={(isBack) => {
+          if (isBack) setOpenNFTs(true);
           setOpen(false);
           setOpenTransferNFT(undefined);
         }}

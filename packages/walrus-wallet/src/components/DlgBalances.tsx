@@ -27,14 +27,10 @@ export const DlgBalances = ({
   // eslint-disable-next-line no-restricted-syntax
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  // eslint-disable-next-line no-restricted-syntax
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   function formatNumberFromString(value: string): string {
     const num = parseFloat(value);
-    if (isNaN(num)) {
-      return '0.00';
-    }
+    if (isNaN(num)) return '0.00';
     return num.toFixed(2);
   }
 
@@ -50,9 +46,7 @@ export const DlgBalances = ({
         // eslint-disable-next-line no-restricted-syntax
         setExpandedIndex(null);
         const allBalances = await wallet.getAllBalances();
-        if (allBalances !== undefined) {
-          setCoins(allBalances);
-        }
+        if (allBalances !== undefined) setCoins(allBalances);
         setLoading(false);
       }
     };
@@ -63,50 +57,17 @@ export const DlgBalances = ({
     <DlgRoot open={open}>
       <DlgPortal>
         <DlgOverlay mode={mode} onClick={() => onClose(false)} />
-        <DlgContentBottom
-          mode={mode}
-          aria-describedby={undefined}
-          onOpenAutoFocus={(event) => event.preventDefault()}
-          style={{ height: '40vh' }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              width: '100%',
-            }}
-          >
+        <DlgContentBottom mode={mode}>
+          <div className="balances-header">
             <DlgTitle mode={mode}>Balances</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
               <X />
             </DlgButtonIcon>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              width: '100%',
-              height: 'calc(100% - 10px)',
-              overflowY: 'auto',
-            }}
-          >
+
+          <div className="balances-list">
             {loading && coins.length === 0 ? (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  width: '100%',
-                  height: '150px',
-                  fontSize: '16px',
-                  color: '#888',
-                  gridColumn: '1 / -1',
-                }}
-              >
-                Loading...
-              </div>
+              <div className="balances-loading">Loading...</div>
             ) : (
               coins.map((balance, index) => {
                 const hasLockedBalances =
@@ -114,73 +75,28 @@ export const DlgBalances = ({
 
                 return (
                   <div
-                    key={index}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'flex-start',
-                      width: '100%',
-                      padding: '4px',
-                      borderRadius: '8px',
-                      background: 'transparent',
-                      color: 'black',
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'background 0.3s, color 0.3s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)';
-                      e.currentTarget.style.color = 'black';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = 'black';
-                    }}
-                    onClick={() => {
-                      openTransfer({ coin: balance });
-                    }}
+                    key={balance.coinType ?? `coin-${index}`}
+                    className="balances-coin-item"
+                    onClick={() => openTransfer({ coin: balance })}
                   >
                     <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '8px 0',
+                      className="balances-coin-header"
+                      onClick={(e) => {
+                        if (hasLockedBalances) {
+                          e.stopPropagation();
+                          toggleLockedBalances(index);
+                        }
                       }}
-                      onClick={() =>
-                        hasLockedBalances && toggleLockedBalances(index)
-                      }
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-start',
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontWeight: 'bold',
-                          }}
-                        >
+                      <div className="balances-coin-left">
+                        <div className="balances-coin-title">
                           {balance.symbol}
                         </div>
-                        <div
-                          style={{
-                            fontSize: '0.8rem',
-                            color: '#555',
-                          }}
-                        >
+                        <div className="balances-coin-subtitle">
                           {balance.name}
                         </div>
                       </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                      >
+                      <div className="balances-coin-right">
                         <span>{formatNumberFromString(balance.fBalance)}</span>
                         {hasLockedBalances ? (
                           expandedIndex === index ? (
@@ -189,32 +105,19 @@ export const DlgBalances = ({
                             <ChevronDown />
                           )
                         ) : (
-                          <ChevronDown style={{ color: '#aaa' }} />
+                          <ChevronDown className="balances-chevron-disabled" />
                         )}
                       </div>
                     </div>
 
                     <div
-                      style={{
-                        overflow: 'hidden',
-                        maxHeight: expandedIndex === index ? '150px' : '0',
-                        opacity: expandedIndex === index ? 1 : 0,
-                        transition:
-                          'max-height 0.3s ease-in-out, opacity 0.2s ease-in-out',
-                      }}
+                      className={`balances-locked-list ${
+                        expandedIndex === index ? 'expanded' : ''
+                      }`}
                     >
                       {Object.entries(balance.lockedBalance).map(
                         ([lockType, { fBalance }]) => (
-                          <div
-                            key={lockType}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              width: '100%',
-                              paddingLeft: '16px',
-                              fontSize: '0.9em',
-                            }}
-                          >
+                          <div key={lockType} className="balances-locked-row">
                             <span>{lockType}</span>
                             <span>{formatNumberFromString(fBalance)}</span>
                           </div>

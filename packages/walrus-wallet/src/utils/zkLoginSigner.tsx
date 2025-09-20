@@ -64,8 +64,13 @@ export class ZkLoginSigner extends Signer {
           }}
           onConfirm={async (password: string) => {
             try {
-              const { iv, encrypted } = this.#zkLogin.keypair.privateKey;
-              const privateKey = await decryptText(password, encrypted, iv);
+              const { iv, encrypted, salt } = this.#zkLogin.keypair.privateKey;
+              const privateKey = await decryptText(
+                password,
+                encrypted,
+                iv,
+                salt,
+              );
               if (!!privateKey) {
                 cleanup(container, root);
                 resolve(privateKey);
