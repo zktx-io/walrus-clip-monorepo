@@ -8,6 +8,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import './App.css';
 import '@mysten/dapp-kit/dist/index.css';
+import '@zktx.io/walrus-wallet/index.css';
 
 import { Auth } from './pages/Auth';
 import { Home } from './pages/Home';
