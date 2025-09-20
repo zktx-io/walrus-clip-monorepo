@@ -13,6 +13,19 @@
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
   "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs.js"
+    },
+    "./index.css": "./dist/index.css"
+  },
+  "style": "dist/index.css",
+  "sideEffects": [
+    "*.css",
+    "dist/index.css"
+  ],
   "author": "daoauth",
   "license": "ISC",
   "scripts": {
@@ -35,24 +48,26 @@
   ],
   "peerDependencies": {
     "@mysten/sui": "^1.38.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": ">=18.0.0 <20.0.0",
+    "react-dom": ">=18.0.0 <20.0.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.3",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.1.2",
-    "@types/react": "^19.0.11",
-    "@types/react-dom": "^19.0.4",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
+    "rollup-plugin-postcss": "^4.0.2",
     "typescript": "^5.8.2"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-form": "^0.1.8",
-    "@stitches/react": "^1.2.8",
     "@yudiel/react-qr-scanner": "^2.3.1",
+    "lucide-react": "^0.544.0",
+    "peerjs": "^1.5.5",
     "react-qrcode-logo": "^4.0.0"
   }
 }

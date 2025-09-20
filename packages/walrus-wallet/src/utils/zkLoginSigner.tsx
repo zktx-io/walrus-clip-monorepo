@@ -12,9 +12,10 @@ import {
   getZkLoginSignature,
   toZkLoginPublicIdentifier,
 } from '@mysten/sui/zklogin';
+import { NETWORK } from '@zktx.io/walrus-connect';
 import ReactDOM from 'react-dom/client';
 
-import { IZkLogin, NETWORK } from './types';
+import { IZkLogin } from './types';
 import { decryptText } from './utils';
 import { PwConfirm } from '../components/PwConfirm';
 

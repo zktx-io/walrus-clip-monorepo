@@ -1,10 +1,9 @@
 import React, { useCallback, useState } from 'react';
 
 import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
+import { ScanQrCode, X } from 'lucide-react';
 
 import { FormInputButton } from './form';
-import { HiOutlineCamera } from './HiOutlineCamera';
-import { HiOutlineXMark } from './HiOutlineXMark';
 import {
   DlgButtonIcon,
   DlgContentQR,
@@ -28,8 +27,10 @@ export const QRAddressScan = ({
 
   const handleScan = useCallback(
     (result: IDetectedBarcode[]) => {
-      if (result[0].format === 'qr_code') {
-        onClose(result[0].rawValue);
+      const first = result?.[0];
+      if (!first) return;
+      if (first.format === 'qr_code') {
+        onClose(first.rawValue);
         setOpen(false);
       } else {
         setError('Invalid QR code');
@@ -48,7 +49,7 @@ export const QRAddressScan = ({
             setOpen(true);
           }}
         >
-          <HiOutlineCamera />
+          <ScanQrCode />
         </FormInputButton>
       </DlgTrigger>
       <DlgPortal>
@@ -78,7 +79,7 @@ export const QRAddressScan = ({
                 setOpen(false);
               }}
             >
-              <HiOutlineXMark />
+              <X />
             </DlgButtonIcon>
           </div>
           <div

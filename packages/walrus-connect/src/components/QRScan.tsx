@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 
 import { Signer } from '@mysten/sui/cryptography';
 import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
+import { X } from 'lucide-react';
 
 import {
   DlgButtonIcon,
@@ -15,7 +16,6 @@ import {
 import { connectQRLogin } from './QRLogin';
 import { connectQRSign } from './QRSign';
 import { NETWORK, NotiVariant, QRScanType } from '../types';
-import { HiOutlineXMark } from './HiOutlineXMark';
 
 export const QRScan = ({
   mode,
@@ -49,8 +49,10 @@ export const QRScan = ({
 
   const handleScan = useCallback(
     (result: IDetectedBarcode[]) => {
-      if (result[0].format === 'qr_code') {
-        const schema = result[0].rawValue.split('::');
+      const first = result?.[0];
+      if (!first) return;
+      if (first.format === 'qr_code') {
+        const schema = first.rawValue.split('::');
         if (
           schema.length === 4 &&
           schema[0] === 'sui' &&
@@ -127,7 +129,7 @@ export const QRScan = ({
                 handleClose();
               }}
             >
-              <HiOutlineXMark />
+              <X />
             </DlgButtonIcon>
           </div>
           <div

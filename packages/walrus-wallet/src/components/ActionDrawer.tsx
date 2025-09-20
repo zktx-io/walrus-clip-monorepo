@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { SuiObjectData } from '@mysten/sui/client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
-import { QRAddress, useWalrusScan } from '@zktx.io/walrus-connect';
+import {
+  DlgOverlay,
+  DlgPortal,
+  DlgRoot,
+  DlgTitle,
+  DlgTrigger,
+  NotiVariant,
+  QRAddress,
+  useWalrusScan,
+} from '@zktx.io/walrus-connect';
 import { motion } from 'framer-motion';
 import { EllipsisVertical, Images, WalletMinimal } from 'lucide-react';
 
@@ -12,9 +21,7 @@ import { DlgDashboard } from './DlgDashboard';
 import { DlgNFTs } from './DlgNFTs';
 import { DlgTransferCoin } from './DlgTransferCoin';
 import { DlgTransferNFT } from './DlgTransferNFT';
-import { DlgOverlay, DlgPortal, DlgRoot, DlgTitle, DlgTrigger } from './modal';
 import { useWalletState } from '../recoil';
-import { NotiVariant } from '../utils/types';
 import { FloatCoinBalance } from '../utils/walletStandard';
 
 export const ActionDrawer = ({
@@ -82,7 +89,11 @@ export const ActionDrawer = ({
 
         <DlgPortal>
           <DlgOverlay mode={mode} />
-          <Dialog.Content asChild onOpenAutoFocus={(e) => e.preventDefault()}>
+          <Dialog.Content
+            asChild
+            aria-describedby={undefined}
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
             <motion.div
               initial={{ y: '100%', x: '-50%' }}
               animate={{ y: 0, x: '-50%' }}
@@ -92,7 +103,7 @@ export const ActionDrawer = ({
               style={{ left: '50%' }}
               data-mode={mode}
             >
-              <DlgTitle>
+              <DlgTitle mode={mode}>
                 <VisuallyHidden.Root>Action Drawer</VisuallyHidden.Root>
               </DlgTitle>
               <div className="drawer-buttons">

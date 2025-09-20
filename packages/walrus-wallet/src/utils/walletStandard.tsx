@@ -26,7 +26,7 @@ import {
   SuiSignTransactionMethod,
   Wallet,
 } from '@mysten/wallet-standard';
-import { QRLogin } from '@zktx.io/walrus-connect';
+import { NETWORK, NotiVariant, QRLogin } from '@zktx.io/walrus-connect';
 import mitt, { type Emitter } from 'mitt';
 import ReactDOM from 'react-dom/client';
 
@@ -37,7 +37,7 @@ import {
   setAccountData,
   setZkLoginData,
 } from './localStorage';
-import { IAccount, NETWORK, NotiVariant } from './types';
+import { IAccount } from './types';
 import { cleanup, ZkLoginSigner } from './zkLoginSigner';
 import { PwCreate } from '../components/PwCreate';
 

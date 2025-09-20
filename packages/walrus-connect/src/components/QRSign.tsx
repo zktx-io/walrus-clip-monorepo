@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Signer } from '@mysten/sui/cryptography';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { generateRandomness } from '@mysten/sui/zklogin';
+import { X } from 'lucide-react';
 import Peer from 'peerjs';
 import { QRCode } from 'react-qrcode-logo';
 
@@ -19,7 +20,6 @@ import {
 } from './modal';
 import { PEER_CONFIG } from '../config';
 import { NETWORK, NotiVariant } from '../types';
-import { HiOutlineXMark } from './HiOutlineXMark';
 import { makeMessage, parseMessage } from '../utils/message';
 import {
   createSponsoredTransaction,
@@ -370,7 +370,7 @@ export const QRSign = ({
                 handleClose('User closed');
               }}
             >
-              <HiOutlineXMark />
+              <X />
             </DlgButtonIcon>
           </div>
           <QRCode

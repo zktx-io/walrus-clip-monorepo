@@ -1,6 +1,4 @@
-import React, { useEffect, useState } from 'react';
-
-import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import {
   DlgButtonIcon,
@@ -9,7 +7,9 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-} from './modal';
+} from '@zktx.io/walrus-connect';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
+
 import { useWalletState } from '../recoil';
 import { FloatCoinBalance } from '../utils/walletStandard';
 

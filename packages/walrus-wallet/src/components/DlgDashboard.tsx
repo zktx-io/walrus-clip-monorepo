@@ -1,7 +1,3 @@
-import React from 'react';
-
-import { LogOut, QrCode, ScanQrCode, X } from 'lucide-react';
-
 import {
   DlgButtonIcon,
   DlgContentBottom,
@@ -9,7 +5,9 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-} from './modal';
+} from '@zktx.io/walrus-connect';
+import { LogOut, QrCode, ScanQrCode, X } from 'lucide-react';
+
 import { useWalletState } from '../recoil';
 
 export const DlgDashboard = ({

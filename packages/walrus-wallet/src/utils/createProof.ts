@@ -4,9 +4,10 @@ import {
   getExtendedEphemeralPublicKey,
   jwtToAddress,
 } from '@mysten/sui/zklogin';
+import { NETWORK } from '@zktx.io/walrus-connect';
 
 import { getEnokiSalt } from './getEnokiSalt';
-import { ENOKI_URL, IZkLogin, NETWORK } from './types';
+import { ENOKI_URL, IZkLogin } from './types';
 
 const getProverUrl = (network: NETWORK): string => {
   switch (network) {

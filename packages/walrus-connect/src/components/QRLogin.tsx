@@ -12,6 +12,7 @@ import {
   generateRandomness,
   ZkLoginPublicIdentifier,
 } from '@mysten/sui/zklogin';
+import { X } from 'lucide-react';
 import Peer from 'peerjs';
 import { QRCode } from 'react-qrcode-logo';
 
@@ -26,7 +27,6 @@ import {
 } from './modal';
 import { PEER_CONFIG } from '../config';
 import { NETWORK, NotiVariant } from '../types';
-import { HiOutlineXMark } from './HiOutlineXMark';
 import { makeMessage, parseMessage } from '../utils/message';
 
 enum MessageType {
@@ -167,7 +167,7 @@ export const QRLogin = ({
               {
                 onEvent({
                   variant: 'info',
-                  message: 'verifing...',
+                  message: 'verifying...',
                 });
                 try {
                   const client = new SuiGraphQLClient({
@@ -299,7 +299,7 @@ export const QRLogin = ({
                 handleClose('Login canceled');
               }}
             >
-              <HiOutlineXMark />
+              <X />
             </DlgButtonIcon>
           </div>
           <QRCode

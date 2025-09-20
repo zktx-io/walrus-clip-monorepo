@@ -1,19 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Transaction } from '@mysten/sui/transactions';
-import { QRAddressScan } from '@zktx.io/walrus-connect';
-import { X } from 'lucide-react';
-
-import {
-  FormCoinSelect,
-  FormField,
-  FormInput,
-  FormInputButton,
-  FormInputWithButton,
-  FormLabel,
-  FormMessage,
-  FormRoot,
-} from './form';
 import {
   DlgButton,
   DlgButtonIcon,
@@ -23,9 +10,20 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-} from './modal';
+  FormCoinSelect,
+  FormField,
+  FormInput,
+  FormInputButton,
+  FormInputWithButton,
+  FormLabel,
+  FormMessage,
+  FormRoot,
+  NotiVariant,
+  QRAddressScan,
+} from '@zktx.io/walrus-connect';
+import { X } from 'lucide-react';
+
 import { useWalletState } from '../recoil';
-import { NotiVariant } from '../utils/types';
 import { isSuiAddress } from '../utils/utils';
 import { FloatCoinBalance } from '../utils/walletStandard';
 

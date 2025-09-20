@@ -3,8 +3,9 @@ import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { toBase64 } from '@mysten/sui/utils';
 import { generateNonce, generateRandomness } from '@mysten/sui/zklogin';
+import { NETWORK } from '@zktx.io/walrus-connect';
 
-import { IZkLogin, NETWORK } from './types';
+import { IZkLogin } from './types';
 import { encryptText } from './utils';
 
 export const createNonce = async (

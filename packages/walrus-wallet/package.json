@@ -49,16 +49,16 @@
   "peerDependencies": {
     "@mysten/dapp-kit": "^0.18.0",
     "@mysten/sui": "^1.38.0",
-    "react": "^18.x",
-    "react-dom": "^18.x"
+    "react": ">=18.0.0 <20.0.0",
+    "react-dom": ">=18.0.0 <20.0.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.2",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.1.2",
-    "@types/react": "^19.0.7",
-    "@types/react-dom": "^19.0.3",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2",
     "typescript": "^5.7.3"
@@ -70,14 +70,12 @@
     "@radix-ui/react-form": "^0.1.8",
     "@radix-ui/react-use-size": "^1.1.1",
     "@radix-ui/react-visually-hidden": "^1.2.3",
-    "@stitches/react": "^1.2.8",
     "@yudiel/react-qr-scanner": "^2.3.1",
     "@zktx.io/walrus-connect": "^0.3.0",
     "framer-motion": "^12.23.14",
     "jose": "^5.9.6",
     "lucide-react": "^0.544.0",
     "mitt": "^3.0.1",
-    "peerjs": "^1.5.4",
     "react-qrcode-logo": "^4.0.0",
     "recoil": "^0.7.7"
   }

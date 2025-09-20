@@ -1,12 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import {
-  FormControl,
-  FormField,
-  FormInput,
-  FormMessage,
-  FormRoot,
-} from './form';
 import {
   DlgButton,
   DlgContent,
@@ -15,7 +8,12 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-} from './modal';
+  FormControl,
+  FormField,
+  FormInput,
+  FormMessage,
+  FormRoot,
+} from '@zktx.io/walrus-connect';
 
 export const PwConfirm = ({
   mode = 'light',

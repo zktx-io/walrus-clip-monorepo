@@ -15,6 +15,8 @@ import { registerWallet } from '@mysten/wallet-standard';
 import {
   createSponsoredTransaction,
   executeSponsoredTransaction,
+  NETWORK,
+  NotiVariant,
   useWalrusScan,
   WalrusScan,
 } from '@zktx.io/walrus-connect';
@@ -30,9 +32,9 @@ import {
   getZkLoginData,
   setAccountData,
 } from './utils/localStorage';
-import { NETWORK, NotiVariant } from './utils/types';
 import { WalletStandard } from './utils/walletStandard';
 
+import '@zktx.io/walrus-connect/index.css';
 import './index.css';
 
 interface IWalrusWalletContext {

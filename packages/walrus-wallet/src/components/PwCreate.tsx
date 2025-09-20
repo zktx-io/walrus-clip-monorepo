@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
-import { FormControl, FormField, FormInput, FormRoot } from './form';
 import {
   DlgButton,
   DlgContent,
@@ -9,8 +8,12 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-} from './modal';
-import { NotiVariant } from '../utils/types';
+  FormControl,
+  FormField,
+  FormInput,
+  FormRoot,
+  NotiVariant,
+} from '@zktx.io/walrus-connect';
 
 export const PwCreate = ({
   mode = 'light',

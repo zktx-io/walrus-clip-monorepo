@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { SuiObjectData } from '@mysten/sui/client';
-import { Copy, Send, X } from 'lucide-react';
-
 import {
   DlgButtonIcon,
   DlgContentBottom,
@@ -10,7 +8,9 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-} from './modal';
+} from '@zktx.io/walrus-connect';
+import { Copy, Send, X } from 'lucide-react';
+
 import { useWalletState } from '../recoil';
 import { shortenAddress } from '../utils/utils';
 

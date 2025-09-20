@@ -3,6 +3,7 @@ import resolve from '@rollup/plugin-node-resolve';
 import terser from '@rollup/plugin-terser';
 import typescript from '@rollup/plugin-typescript';
 import peerDepsExternal from 'rollup-plugin-peer-deps-external';
+import postcss from 'rollup-plugin-postcss';
 
 export default {
   input: 'src/index.tsx',
@@ -18,35 +19,36 @@ export default {
     },
   ],
   plugins: [
-    // Exclude peerDependencies from the bundle
     peerDepsExternal(),
 
-    // Resolve modules in node_modules (browser-compatible)
     resolve({ browser: true, preferBuiltins: false }),
 
-    // Convert CommonJS modules to ES6
     commonjs({ include: /node_modules/ }),
 
-    // Compile TypeScript
-    typescript({
-      tsconfig: './tsconfig.json',
-      typescript: await import('typescript').then((ts) => ts.default),
+    postcss({
+      extensions: ['.css'],
+      extract: 'index.css',
+      minimize: true,
+      modules: false,
+      inject: false,
     }),
 
-    // Minify output
+    typescript({
+      tsconfig: './tsconfig.json',
+    }),
+
     terser(),
   ],
   external: [
-    // React + JSX runtime externals
     /^react(\/.*)?$/,
     /^react-dom(\/.*)?$/,
-
-    // Sui SDK should be installed by the consumer
-    '@mysten/sui',
+    /^@mysten\/sui(\/.*)?$/,
+    /^@radix-ui\/react-.+$/,
+    /^@yudiel\/react-qr-scanner$/,
+    /^react-qrcode-logo$/,
   ],
   context: 'this',
   onwarn: (warning, warn) => {
-    // Suppress circular dependency and "use client" warnings
     if (
       warning.code === 'CIRCULAR_DEPENDENCY' ||
       warning.message.includes('"use client"')

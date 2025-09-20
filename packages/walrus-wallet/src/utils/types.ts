@@ -1,6 +1,6 @@
-export const ENOKI_URL = 'https://api.enoki.mystenlabs.com/v1';
+import { NETWORK } from '@zktx.io/walrus-connect';
 
-export type NETWORK = 'mainnet' | 'testnet' | 'devnet';
+export const ENOKI_URL = 'https://api.enoki.mystenlabs.com/v1';
 
 export interface IZkLogin {
   expiration: number;
@@ -26,8 +26,6 @@ export interface IAccount {
   address: string;
   zkLogin?: IZkLogin;
 }
-
-export type NotiVariant = 'success' | 'warning' | 'info' | 'error';
 
 export const makeMessage = (type: string, value: string): string => {
   return JSON.stringify({ type, value });

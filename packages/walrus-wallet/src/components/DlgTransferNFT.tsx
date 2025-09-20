@@ -1,17 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { SuiObjectData } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { QRAddressScan } from '@zktx.io/walrus-connect';
-import { X } from 'lucide-react';
-
-import {
-  FormField,
-  FormInput,
-  FormInputWithButton,
-  FormLabel,
-  FormRoot,
-} from './form';
 import {
   DlgButton,
   DlgButtonIcon,
@@ -21,9 +11,17 @@ import {
   DlgPortal,
   DlgRoot,
   DlgTitle,
-} from './modal';
+  FormField,
+  FormInput,
+  FormInputWithButton,
+  FormLabel,
+  FormRoot,
+  NotiVariant,
+  QRAddressScan,
+} from '@zktx.io/walrus-connect';
+import { X } from 'lucide-react';
+
 import { useWalletState } from '../recoil';
-import { NotiVariant } from '../utils/types';
 import { isSuiAddress } from '../utils/utils';
 
 export const DlgTransferNFT = ({

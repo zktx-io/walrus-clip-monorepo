@@ -1,22 +1,5 @@
 import { fromHex, toHex } from '@mysten/sui/utils';
 
-export const PEER_CONFIG = {
-  config: {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun.services.mozilla.com' },
-      { urls: 'stun:stun.stunprotocol.org' },
-      // TEMPORARY TURN SERVERS FOR TESTING
-      {
-        urls: 'turn:numb.viagenie.ca',
-        username: 'webrtc@live.com',
-        credential: 'muazkh',
-      },
-    ],
-  },
-};
-
 const PBKDF2_ITERATIONS = 250_000;
 const enc = new TextEncoder();
 

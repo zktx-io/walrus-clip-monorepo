@@ -26,29 +26,20 @@ export default {
       inject: false,
     }),
 
-    typescript({
-      tsconfig: './tsconfig.json',
-      typescript: await import('typescript').then((ts) => ts.default),
-    }),
+    typescript({ tsconfig: './tsconfig.json' }),
 
     terser(),
   ],
   external: [
-    // React
     /^react(\/.*)?$/,
     /^react-dom(\/.*)?$/,
-
-    // Radix
     /^@radix-ui\/react-.*/,
-
+    /^@mysten\/sui(\/.*)?$/,
+    /^@mysten\/dapp-kit(\/.*)?$/,
+    '@zktx.io/walrus-connect',
+    /^recoil(\/.*)?$/,
     'lucide-react',
     'framer-motion',
-
-    '@mysten/sui',
-    '@mysten/dapp-kit',
-    '@zktx.io/walrus-connect',
-
-    /^recoil(\/.*)?$/,
   ],
   context: 'this',
   onwarn: (warning, warn) => {
