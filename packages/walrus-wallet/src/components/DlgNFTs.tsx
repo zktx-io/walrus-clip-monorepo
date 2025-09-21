@@ -43,7 +43,11 @@ export const DlgNFTs = ({
     <DlgRoot open={open}>
       <DlgPortal>
         <DlgOverlay mode={mode} onClick={() => onClose(false)} />
-        <DlgContentBottom mode={mode} className="nfts-content">
+        <DlgContentBottom
+          mode={mode}
+          className="nfts-content"
+          aria-describedby={undefined}
+        >
           <div className="nfts-header">
             <DlgTitle mode={mode}>NFTs</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>

@@ -24,8 +24,7 @@
   },
   "style": "dist/index.css",
   "sideEffects": [
-    "*.css",
-    "dist/index.css"
+    "*.css"
   ],
   "author": "daoauth",
   "license": "ISC",
@@ -49,6 +48,7 @@
   "peerDependencies": {
     "@mysten/dapp-kit": "^0.18.0",
     "@mysten/sui": "^1.38.0",
+    "jose": "^6.1.0",
     "react": ">=18.0.0 <20.0.0",
     "react-dom": ">=18.0.0 <20.0.0"
   },
@@ -73,7 +73,6 @@
     "@yudiel/react-qr-scanner": "^2.3.1",
     "@zktx.io/walrus-connect": "^0.3.3",
     "framer-motion": "^12.23.14",
-    "jose": "^5.9.6",
     "lucide-react": "^0.544.0",
     "mitt": "^3.0.1",
     "react-qrcode-logo": "^4.0.0",

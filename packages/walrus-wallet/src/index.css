@@ -1,6 +1,3 @@
-/* Bring shared styles from walrus-connect (Dialog + Form + resets) */
-@import '@zktx.io/walrus-connect/index.css';
-
 /* === Wallet-only styles below === */
 
 /* Drawer */

@@ -57,7 +57,7 @@ export const DlgBalances = ({
     <DlgRoot open={open}>
       <DlgPortal>
         <DlgOverlay mode={mode} onClick={() => onClose(false)} />
-        <DlgContentBottom mode={mode}>
+        <DlgContentBottom mode={mode} aria-describedby={undefined}>
           <div className="balances-header">
             <DlgTitle mode={mode}>Balances</DlgTitle>
             <DlgButtonIcon mode={mode} onClick={() => onClose(true)}>
