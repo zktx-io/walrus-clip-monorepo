@@ -1,80 +1,22 @@
-import { useState } from 'react';
-
-import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
-import { getFullnodeUrl } from '@mysten/sui/client';
-import { WalrusWallet } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { WalrusScan } from '@zktx.io/walrus-connect';
 
+import { ICON, NETWORK } from './utils/config';
 import './App.css';
-import '@mysten/dapp-kit/dist/index.css';
 
-import { GameBoy } from './pages/GameBoy';
-import { Home } from './pages/Home';
-import { Kiosk } from './pages/Kiosk';
-import { Ticket } from './pages/Ticket';
-import { ICON, WALLET_NAME } from './utils/config';
-import { NETWORK } from './utils/config';
-
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Home />,
-  },
-  {
-    path: 'kiosk',
-    element: <Kiosk />,
-  },
-  {
-    path: 'ticket',
-    element: <Ticket />,
-  },
-  {
-    path: 'game',
-    element: <GameBoy />,
-  },
-]);
-
-const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
+import '@zktx.io/walrus-connect/index.css';
+import { Kiosk } from './components/Kiosk';
 
 function App() {
-  const [activeNetwork, setActiveNetwork] = useState<
-    'testnet' | 'mainnet' | 'devnet'
-  >(NETWORK);
-
   return (
-    <SuiClientProvider
-      networks={{
-        mainnet: { url: getFullnodeUrl('mainnet') },
-        testnet: { url: getFullnodeUrl('testnet') },
-        devnet: { url: getFullnodeUrl('devnet') },
-      }}
-      defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
-      onNetworkChange={(network) => {
-        setActiveNetwork(network);
-      }}
+    <WalrusScan
+      mode="light"
+      icon={ICON}
+      network={NETWORK}
+      onEvent={enqueueSnackbar}
     >
-      <WalletProvider autoConnect>
-        <WalrusWallet
-          name={WALLET_NAME}
-          icon={ICON}
-          network={activeNetwork}
-          sponsoredUrl={SPONSORED_URL}
-          onEvent={(notification) => {
-            enqueueSnackbar(notification.message, {
-              variant: notification.variant,
-              style: {
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              },
-            });
-          }}
-        >
-          <RouterProvider router={router} />
-        </WalrusWallet>
-      </WalletProvider>
-    </SuiClientProvider>
+      <Kiosk />
+    </WalrusScan>
   );
 }
 

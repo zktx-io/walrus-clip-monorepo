@@ -1,8 +1,7 @@
 import { useState } from 'react';
-
-import { Transaction } from '@mysten/sui/transactions';
-import { useWalrusWallet } from '@zktx.io/walrus-wallet';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Transaction } from '@mysten/sui/transactions';
+import { useWalrusScan } from '@zktx.io/walrus-connect';
 
 interface Item {
   id: number;
@@ -21,7 +20,7 @@ const menuItems: Item[] = [
 const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
 
 export const Kiosk = () => {
-  const { openSignTxModal } = useWalrusWallet();
+  const { openSignTxModal } = useWalrusScan();
 
   const [cart, setCart] = useState<Item[]>([]);
   const [orderedItems, setOrderedItems] = useState<Item[]>([]);
