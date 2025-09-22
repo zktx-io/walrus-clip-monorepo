@@ -11,8 +11,8 @@ permissions:
 
 jobs:
   deploy-and-publish:
-    # Publish the packages (only when `-front` is NOT in the tag)
-    if: contains(github.event.release.tag_name, '-front') == false
+    # Publish the packages (only when neither '-clip' nor '-demo' are in the tag)
+    if: contains(github.event.release.tag_name, '-clip') == false && contains(github.event.release.tag_name, '-demo') == false
     runs-on: ubuntu-latest
 
     steps:
@@ -28,26 +28,27 @@ jobs:
         uses: JS-DevTools/npm-publish@v3
         id: walrus-connect
         with:
-            access: public
-            provenance: true
-            token: ${{ secrets.NPM_TOKEN }}
-            package: "packages/walrus-connect/package.json"
-            strategy: upgrade
+          access: public
+          provenance: true
+          token: ${{ secrets.NPM_TOKEN }}
+          package: "packages/walrus-connect/package.json"
+          strategy: upgrade
 
       - name: publish walrus wallet package
         uses: JS-DevTools/npm-publish@v3
         id: walrus-wallet
         with:
-            access: public
-            provenance: true
-            token: ${{ secrets.NPM_TOKEN }}
-            package: "packages/walrus-wallet/package.json"
-            strategy: upgrade
+          access: public
+          provenance: true
+          token: ${{ secrets.NPM_TOKEN }}
+          package: "packages/walrus-wallet/package.json"
+          strategy: upgrade
 
-  build_deploy:
-    # Frontend deployment step (only when `-front` IS in the tag)
-    if: contains(github.event.release.tag_name, '-front') == true
+  build_deploy_clip:
+    # Frontend deployment for Clip (when '-clip' IS in the tag)
+    if: contains(github.event.release.tag_name, '-clip') == true
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout only packages/clip
         uses: actions/checkout@v4
@@ -68,6 +69,42 @@ jobs:
           VITE_APP_SPONSORED_URL: ${{ secrets.VITE_APP_SPONSORED_URL }}
         run: |
           cd ./packages/clip
+          npm install
+          npm run build
+          cp -r ./dist ../../dist
+          cp ./site.config.json ../../site.config.json
+
+      - name: Deploy to Walrus Sites
+        uses: zktx-io/walrus-sites-provenance@v0.5.5
+        env:
+          GIT_SIGNER_PIN: ${{ secrets.GIT_SIGNER_PIN }}
+          ED25519_PRIVATE_KEY: ${{ secrets.ED25519_PRIVATE_KEY }}
+
+  build_deploy_demo:
+    # Frontend deployment for Demo (when '-demo' IS in the tag)
+    if: contains(github.event.release.tag_name, '-demo') == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout only packages/demo
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            packages/demo
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies in packages/demo directory and Build
+        env:
+          VITE_APP_CLIENT_ID: ${{ secrets.VITE_APP_CLIENT_ID }}
+          VITE_APP_ENOKI_KEY: ${{ secrets.VITE_APP_ENOKI_KEY }}
+          VITE_APP_SPONSORED_URL: ${{ secrets.VITE_APP_SPONSORED_URL }}
+        run: |
+          cd ./packages/demo
           npm install
           npm run build
           cp -r ./dist ../../dist
