@@ -12,5 +12,6 @@
   },
   "epochs": 10,
   "path": "./dist",
-  "write_retry_limit": 15
+  "write_retry_limit": 15,
+  "site_obj_id": "0x754d266e6f0d18bf8a97d9a97b71fb442128bebae70f46ac99fefd5c9fc20936"
 }
