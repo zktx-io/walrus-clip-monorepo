@@ -8,7 +8,7 @@ export {
   createSponsoredTransaction,
   executeSponsoredTransaction,
 } from './utils/sponsoredTransaction';
-export { NETWORK, NotiVariant } from './types';
+export { NETWORK, NotiVariant, ClipSigner } from './types';
 export * from './components/WalrusScan';
 export * from './components/form';
 export * from './components/modal';

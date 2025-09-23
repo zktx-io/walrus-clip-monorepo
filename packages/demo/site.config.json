@@ -3,7 +3,6 @@
   "owner": "0x54db5a65ded3365f3b4906c6822d95d78eee10ecbdd150bc58380e047a930189",
   "site_name": "walrus-clip-demo",
   "metadata": {
-    "link": "https://clip-demo.wal.app",
     "image_url": "https://docs.zktx.io/images/clip-light",
     "name": "walrus-clip-demo",
     "description": "Walrus Clip is building a communal wallet designed for the Walrus and Sui ecosystems.",

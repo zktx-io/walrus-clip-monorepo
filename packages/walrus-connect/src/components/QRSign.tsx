@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { Signer } from '@mysten/sui/cryptography';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { generateRandomness } from '@mysten/sui/zklogin';
@@ -19,7 +18,7 @@ import {
   DlgTitle,
 } from './modal';
 import { PEER_CONFIG } from '../config';
-import { NETWORK, NotiVariant } from '../types';
+import { ClipSigner, NETWORK, NotiVariant } from '../types';
 import { makeMessage, parseMessage } from '../utils/message';
 import {
   createSponsoredTransaction,
@@ -38,7 +37,7 @@ export const connectQRSign = ({
   destId,
   onEvent,
 }: {
-  signer: Signer;
+  signer: ClipSigner;
   network: NETWORK;
   destId: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
@@ -60,7 +59,7 @@ export const connectQRSign = ({
 
   peer.on('open', (id) => {
     try {
-      const address = signer.toSuiAddress();
+      const address = signer.getAddress();
       const connection = peer.connect(destId.replace(/::/g, '-'));
 
       connection.on('open', () => {
@@ -77,7 +76,7 @@ export const connectQRSign = ({
               {
                 const { bytes, digest } = JSON.parse(message.value);
                 const { signature } = await signer.signTransaction(
-                  fromBase64(bytes),
+                  Transaction.from(bytes),
                 );
                 connection.send(
                   makeMessage(

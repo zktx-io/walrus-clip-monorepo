@@ -6,16 +6,15 @@ import React, {
   useState,
 } from 'react';
 
-import { Signer } from '@mysten/sui/cryptography';
 import ReactDOM from 'react-dom/client';
 
 import { QRScan } from '../components/QRScan';
-import { NETWORK, NotiVariant } from '../types';
+import { ClipSigner, NETWORK, NotiVariant } from '../types';
 import { QRSign } from './QRSign';
 import { cleanup } from '../utils/cleanup';
 
 interface IWalrusScanContext {
-  scan: (signer: Signer) => Promise<void>;
+  scan: (signer: ClipSigner) => Promise<void>;
   openSignTxModal: (
     title: string,
     description: string,
@@ -53,7 +52,7 @@ export const WalrusScan = ({
   const [isScannerEnabled, setIsScannerEnabled] = useState<boolean>(false);
 
   const scan = useCallback(
-    (signer: Signer): Promise<void> => {
+    (signer: ClipSigner): Promise<void> => {
       return new Promise((resolve) => {
         if (isScannerEnabled) {
           const container = document.createElement('div');

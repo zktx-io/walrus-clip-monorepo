@@ -143,7 +143,7 @@ export const ActionDrawer = ({
         openScan={() => {
           setOpen(false);
           setOpenSystem(false);
-          isScannerEnabled && wallet?.signer && scan(wallet.signer);
+          isScannerEnabled && wallet?.clipSigner && scan(wallet.clipSigner);
         }}
         onLogout={() => {
           setOpen(false);

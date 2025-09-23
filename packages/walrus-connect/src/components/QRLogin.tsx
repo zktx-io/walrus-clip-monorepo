@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import { Signer } from '@mysten/sui/cryptography';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
 import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
@@ -26,7 +25,7 @@ import {
   DlgTitle,
 } from './modal';
 import { PEER_CONFIG } from '../config';
-import { NETWORK, NotiVariant } from '../types';
+import { ClipSigner, NETWORK, NotiVariant } from '../types';
 import { makeMessage, parseMessage } from '../utils/message';
 
 enum MessageType {
@@ -39,7 +38,7 @@ export const connectQRLogin = ({
   destId,
   onEvent,
 }: {
-  signer: Signer;
+  signer: ClipSigner;
   destId: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
@@ -60,7 +59,7 @@ export const connectQRLogin = ({
 
   peer.on('open', (id) => {
     try {
-      const address = signer.toSuiAddress();
+      const address = signer.getAddress();
       const connection = peer.connect(destId.replace(/::/g, '-'));
       const encoder = new TextEncoder();
 

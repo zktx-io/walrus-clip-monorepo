@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
 import { ScanQrCode, X } from 'lucide-react';

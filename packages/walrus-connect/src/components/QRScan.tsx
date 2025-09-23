@@ -1,6 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 
-import { Signer } from '@mysten/sui/cryptography';
 import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
 import { X } from 'lucide-react';
 
@@ -15,7 +14,7 @@ import {
 } from './modal';
 import { connectQRLogin } from './QRLogin';
 import { connectQRSign } from './QRSign';
-import { NETWORK, NotiVariant, QRScanType } from '../types';
+import { ClipSigner, NETWORK, NotiVariant, QRScanType } from '../types';
 
 export const QRScan = ({
   mode,
@@ -27,7 +26,7 @@ export const QRScan = ({
 }: {
   mode: 'dark' | 'light';
   open: boolean;
-  signer: Signer;
+  signer: ClipSigner;
   network: NETWORK;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onClose: (isBack: boolean) => void;

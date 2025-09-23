@@ -1,5 +1,3 @@
-import React from 'react';
-
 import {
   CoinMetadata,
   CoinStruct,
@@ -26,7 +24,12 @@ import {
   SuiSignTransactionMethod,
   Wallet,
 } from '@mysten/wallet-standard';
-import { NETWORK, NotiVariant, QRLogin } from '@zktx.io/walrus-connect';
+import {
+  ClipSigner,
+  NETWORK,
+  NotiVariant,
+  QRLogin,
+} from '@zktx.io/walrus-connect';
 import mitt, { type Emitter } from 'mitt';
 import ReactDOM from 'react-dom/client';
 
@@ -88,6 +91,7 @@ export class WalletStandard implements Wallet {
 
   #account: IAccount | undefined;
   #signer: ZkLoginSigner | undefined;
+  #clipSigner: ClipSigner | undefined;
 
   #mode: 'dark' | 'light';
 
@@ -115,6 +119,10 @@ export class WalletStandard implements Wallet {
 
   get signer() {
     return this.#signer;
+  }
+
+  get clipSigner() {
+    return this.#clipSigner;
   }
 
   get coinMetadata() {
@@ -305,6 +313,7 @@ export class WalletStandard implements Wallet {
     this.#accounts = [];
     this.#account = undefined;
     this.#signer = undefined;
+    this.#clipSigner = undefined;
     this.#events.emit('change', { accounts: undefined });
     this.#setIsConnected(false);
     return Promise.resolve();

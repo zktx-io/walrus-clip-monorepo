@@ -8,11 +8,13 @@ import React, {
 
 import { useDisconnectWallet } from '@mysten/dapp-kit';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import { Signer } from '@mysten/sui/cryptography';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { genAddressSeed } from '@mysten/sui/zklogin';
 import { registerWallet } from '@mysten/wallet-standard';
 import {
+  ClipSigner,
   createSponsoredTransaction,
   executeSponsoredTransaction,
   NETWORK,
@@ -40,6 +42,7 @@ import './index.css';
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<boolean>;
   walrusWalletStatus: () => 'connected' | 'disconnected';
+  scan: (signer: ClipSigner) => Promise<void>;
   openSignTxModal: (
     title: string,
     description: string,
@@ -103,7 +106,7 @@ const WalrusWalletRoot = ({
     // eslint-disable-next-line no-restricted-syntax
     null,
   );
-  const { openSignTxModal } = useWalrusScan();
+  const { openSignTxModal, scan } = useWalrusScan();
   const { mutate: dappKitDisconnect } = useDisconnectWallet();
   const { wallet, setWallet, setMode } = useWalletState();
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
@@ -294,6 +297,7 @@ const WalrusWalletRoot = ({
       value={{
         updateJwt,
         walrusWalletStatus: () => (isConnected ? 'connected' : 'disconnected'),
+        scan,
         openSignTxModal,
         signAndExecuteSponsoredTransaction:
           sponsoredUrl && wallet
