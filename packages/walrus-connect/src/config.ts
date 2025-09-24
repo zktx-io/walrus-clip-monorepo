@@ -1,3 +1,4 @@
+// src/config.ts
 export const PEER_CONFIG = {
   config: {
     iceServers: [
@@ -10,6 +11,14 @@ export const PEER_CONFIG = {
         username: 'webrtc@live.com',
         credential: 'muazkh',
       },
+      { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
     ],
   },
-};
+} as const;
+
+export const PEER_CONFIG_RELAY = {
+  config: {
+    ...PEER_CONFIG.config,
+    iceTransportPolicy: 'relay',
+  },
+} as const;

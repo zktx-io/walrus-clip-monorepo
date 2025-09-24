@@ -7,12 +7,9 @@ import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
 import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
 import { MultiSigPublicKey } from '@mysten/sui/multisig';
 import { fromBase64 } from '@mysten/sui/utils';
-import {
-  generateRandomness,
-  ZkLoginPublicIdentifier,
-} from '@mysten/sui/zklogin';
+import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import { X } from 'lucide-react';
-import Peer from 'peerjs';
+import Peer, { DataConnection } from 'peerjs';
 import { QRCode } from 'react-qrcode-logo';
 
 import {
@@ -24,8 +21,9 @@ import {
   DlgRoot,
   DlgTitle,
 } from './modal';
-import { PEER_CONFIG } from '../config';
+import { PEER_CONFIG, PEER_CONFIG_RELAY } from '../config';
 import { ClipSigner, NETWORK, NotiVariant } from '../types';
+import { generateRandomId } from '../utils/generateRandomId';
 import { makeMessage, parseMessage } from '../utils/message';
 
 enum MessageType {
@@ -42,78 +40,125 @@ export const connectQRLogin = ({
   destId: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
-  const randomness = generateRandomness();
-  const peer = new Peer(randomness, PEER_CONFIG);
+  const OPEN_TIMEOUT_MS = 8000;
+
+  const attachDebug = (conn: DataConnection) => {
+    const pc = (conn as any)?.peerConnection as RTCPeerConnection | undefined;
+    if (!pc) return;
+    pc.addEventListener('iceconnectionstatechange', () => {
+      onEvent({ variant: 'info', message: `ICE: ${pc.iceConnectionState}` });
+    });
+    pc.addEventListener('connectionstatechange', () => {
+      onEvent({ variant: 'info', message: `PC: ${pc.connectionState}` });
+    });
+  };
+
+  const tryConnect = (peer: Peer, dest: string, useRelayFallback: boolean) => {
+    const conn = peer.connect(dest);
+    attachDebug(conn);
+
+    const timer = setTimeout(async () => {
+      if (!conn.open && !useRelayFallback) {
+        try {
+          conn.close();
+        } catch {}
+        onEvent({
+          variant: 'warning',
+          message: 'Direct P2P failed. Retrying via TURN relay…',
+        });
+        const p2 = new Peer(generateRandomId(), PEER_CONFIG_RELAY as any);
+        p2.on('open', () => tryConnect(p2, dest, true));
+        p2.on('error', (err) =>
+          onEvent({ variant: 'error', message: `Peer error: ${err.message}` }),
+        );
+      }
+    }, OPEN_TIMEOUT_MS);
+
+    conn.on('open', async () => {
+      clearTimeout(timer);
+      try {
+        const encoder = new TextEncoder();
+        const { signature } = await signer.signPersonalMessage(
+          encoder.encode(destId),
+        );
+        const publicKey = signer.getPublicKey().toSuiPublicKey();
+        conn.send(
+          makeMessage(
+            MessageType.STEP_0,
+            JSON.stringify({
+              address: signer.getAddress(),
+              publicKey,
+              signature,
+            }),
+          ),
+        );
+      } catch (error) {
+        onEvent({ variant: 'error', message: `${error}` });
+        try {
+          conn.close();
+        } catch {}
+      }
+    });
+
+    conn.on('data', (data) => {
+      try {
+        const message = parseMessage(data as string);
+        switch (message.type) {
+          case MessageType.STEP_1: {
+            if (message.value === 'OK') {
+              onEvent({ variant: 'success', message: 'Connected' });
+            } else {
+              onEvent({ variant: 'error', message: message.value });
+            }
+            try {
+              conn.close();
+            } catch {}
+            break;
+          }
+          default: {
+            try {
+              conn.close();
+            } catch {}
+            onEvent({
+              variant: 'error',
+              message: `Unknown message type: ${message.type}`,
+            });
+          }
+        }
+      } catch (error) {
+        try {
+          conn.close();
+        } catch {}
+        onEvent({ variant: 'error', message: `${error}` });
+      }
+    });
+
+    conn.on('error', (err) => {
+      try {
+        conn.close();
+      } catch {}
+      onEvent({
+        variant: 'error',
+        message: `Connection error: ${err.message}`,
+      });
+    });
+  };
+
+  const localId = generateRandomId();
+  const peer = new Peer(localId, PEER_CONFIG as any);
+  const dest = destId.replace(/::/g, '-');
 
   onEvent({ variant: 'info', message: 'Connecting...' });
 
   const handleClose = (error?: string) => {
+    if (error) onEvent({ variant: 'error', message: error });
     try {
-      if (error) {
-        onEvent({
-          variant: 'error',
-          message: error,
-        });
-      }
       peer.destroy();
     } catch {}
   };
 
   peer.on('open', () => {
-    try {
-      const address = signer.getAddress();
-      const connection = peer.connect(destId.replace(/::/g, '-'));
-      const encoder = new TextEncoder();
-
-      connection.on('open', async () => {
-        try {
-          const { signature } = await signer.signPersonalMessage(
-            encoder.encode(destId),
-          );
-          const publicKey = signer.getPublicKey().toSuiPublicKey();
-          connection.send(
-            makeMessage(
-              MessageType.STEP_0,
-              JSON.stringify({ address, publicKey, signature }),
-            ),
-          );
-        } catch (error) {
-          onEvent({ variant: 'error', message: `${error}` });
-          handleClose();
-        }
-      });
-
-      connection.on('data', (data) => {
-        try {
-          const message = parseMessage(data as string);
-          switch (message.type) {
-            case MessageType.STEP_1: {
-              if (message.value === 'OK') {
-                onEvent({ variant: 'success', message: 'Connected' });
-              } else {
-                onEvent({ variant: 'error', message: message.value });
-              }
-              handleClose();
-              break;
-            }
-            default: {
-              if (connection.open) connection.close();
-              handleClose(`Unknown message type: ${message.type}`);
-            }
-          }
-        } catch (error) {
-          if (connection.open) connection.close();
-          handleClose(`${error}`);
-        }
-      });
-
-      connection.on('error', (err) => {
-        if (connection.open) connection.close();
-        handleClose(`Connection error: ${err.message}`);
-      });
-    } catch (error) {
-      handleClose(`Failed to establish connection: ${error}`);
-    }
+    tryConnect(peer, dest, false);
   });
 
   peer.on('error', (err) => {
