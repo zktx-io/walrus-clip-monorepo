@@ -48,16 +48,18 @@ export const connectQRLogin = ({
   onEvent({ variant: 'info', message: 'Connecting...' });
 
   const handleClose = (error?: string) => {
-    if (error) {
-      onEvent({
-        variant: 'error',
-        message: error,
-      });
-    }
-    peer.destroy();
+    try {
+      if (error) {
+        onEvent({
+          variant: 'error',
+          message: error,
+        });
+      }
+      peer.destroy();
+    } catch {}
   };
 
-  peer.on('open', (id) => {
+  peer.on('open', () => {
     try {
       const address = signer.getAddress();
       const connection = peer.connect(destId.replace(/::/g, '-'));
@@ -85,7 +87,7 @@ export const connectQRLogin = ({
         try {
           const message = parseMessage(data as string);
           switch (message.type) {
-            case MessageType.STEP_1:
+            case MessageType.STEP_1: {
               if (message.value === 'OK') {
                 onEvent({ variant: 'success', message: 'Connected' });
               } else {
@@ -93,19 +95,20 @@ export const connectQRLogin = ({
               }
               handleClose();
               break;
-
-            default:
-              connection.open && connection.close({ flush: true });
+            }
+            default: {
+              if (connection.open) connection.close();
               handleClose(`Unknown message type: ${message.type}`);
+            }
           }
         } catch (error) {
-          connection.open && connection.close({ flush: true });
+          if (connection.open) connection.close();
           handleClose(`${error}`);
         }
       });
 
       connection.on('error', (err) => {
-        connection.open && connection.close({ flush: true });
+        if (connection.open) connection.close();
         handleClose(`Connection error: ${err.message}`);
       });
     } catch (error) {
@@ -132,134 +135,131 @@ export const QRLogin = ({
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
-  const peerId = `sui::${network}::${parseInt(generateRandomness(), 10).toString(16).replace(/0+$/, '')}::login`;
+  const rand = crypto.getRandomValues(new Uint8Array(16));
+  const peerToken = Array.from(rand)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  const peerId = `sui::${network}::${peerToken}::login`;
 
   const handleClose = (
     error?: string,
     result?: { address: string; network: NETWORK },
   ) => {
-    error &&
-      onEvent({
-        variant: 'error',
-        message: error,
-      });
-    open && setOpen(false);
+    if (error) onEvent({ variant: 'error', message: error });
+    if (open) setOpen(false);
     onClose(result);
   };
 
   useEffect(() => {
-    const peer = new Peer(peerId.replace(/::/g, '-'), PEER_CONFIG);
+    const peer = new Peer(peerId.replace(/::/g, '-'), PEER_CONFIG as any);
     let step = '';
 
     peer.on('connection', (connection) => {
-      onEvent({
-        variant: 'info',
-        message: 'Connecting...',
-      });
+      onEvent({ variant: 'info', message: 'Connecting...' });
       setOpen(false);
+
       connection.on('data', async (data) => {
         try {
           const message = parseMessage(data as string);
           step = message.type;
+
           switch (message.type) {
-            case MessageType.STEP_0:
-              {
-                onEvent({
-                  variant: 'info',
-                  message: 'verifying...',
+            case MessageType.STEP_0: {
+              onEvent({ variant: 'info', message: 'verifying...' });
+              try {
+                const client = new SuiGraphQLClient({
+                  url: `https://sui-${network}.mystenlabs.com/graphql`,
                 });
-                try {
-                  const client = new SuiGraphQLClient({
-                    url: `https://sui-${network}.mystenlabs.com/graphql`,
-                  });
-                  const {
-                    address,
-                    publicKey,
-                    signature,
-                  }: { address: string; publicKey: string; signature: string } =
-                    JSON.parse(message.value);
 
-                  const bytesPublicKey = fromBase64(publicKey);
-                  const bytesMessage = new TextEncoder().encode(peerId);
-                  let verification = false;
+                const {
+                  address,
+                  publicKey,
+                  signature,
+                }: { address: string; publicKey: string; signature: string } =
+                  JSON.parse(message.value);
 
-                  switch (bytesPublicKey[0]) {
-                    case 0x00:
-                      verification = await new Ed25519PublicKey(
-                        bytesPublicKey.slice(1),
-                      ).verifyPersonalMessage(bytesMessage, signature);
-                      break;
-                    case 0x01:
-                      verification = await new Secp256k1PublicKey(
-                        bytesPublicKey.slice(1),
-                      ).verifyPersonalMessage(bytesMessage, signature);
-                      break;
-                    case 0x02:
-                      verification = await new Secp256r1PublicKey(
-                        bytesPublicKey.slice(1),
-                      ).verifyPersonalMessage(bytesMessage, signature);
-                      break;
-                    case 0x03:
-                      verification = await new MultiSigPublicKey(
-                        bytesPublicKey.slice(1),
-                      ).verifyPersonalMessage(bytesMessage, signature);
-                      break;
-                    case 0x05:
-                      verification = await new ZkLoginPublicIdentifier(
-                        bytesPublicKey.slice(1),
-                        {
-                          client,
-                        },
-                      ).verifyPersonalMessage(bytesMessage, signature);
-                      break;
-                    case 0x06:
-                      verification = await new PasskeyPublicKey(
-                        bytesPublicKey.slice(1),
-                      ).verifyPersonalMessage(bytesMessage, signature);
-                      break;
-                    default:
-                      break;
-                  }
-                  if (verification) {
-                    connection.send(makeMessage(MessageType.STEP_1, 'OK'));
-                    onEvent({
-                      variant: 'success',
-                      message: 'verification success',
-                    });
-                    handleClose(undefined, { address, network });
-                  } else {
-                    connection.send(
-                      makeMessage(MessageType.STEP_1, 'verification failed'),
-                    );
-                    handleClose('verification failed');
-                  }
-                } catch (error) {
-                  connection.send(
-                    makeMessage(MessageType.STEP_1, `error: ${error}`),
-                  );
-                  handleClose(`error: ${error}`);
+                const bytesPublicKey = fromBase64(publicKey);
+                const bytesMessage = new TextEncoder().encode(peerId);
+                let verification = false;
+
+                switch (bytesPublicKey[0]) {
+                  case 0x00:
+                    verification = await new Ed25519PublicKey(
+                      bytesPublicKey.slice(1),
+                    ).verifyPersonalMessage(bytesMessage, signature);
+                    break;
+                  case 0x01:
+                    verification = await new Secp256k1PublicKey(
+                      bytesPublicKey.slice(1),
+                    ).verifyPersonalMessage(bytesMessage, signature);
+                    break;
+                  case 0x02:
+                    verification = await new Secp256r1PublicKey(
+                      bytesPublicKey.slice(1),
+                    ).verifyPersonalMessage(bytesMessage, signature);
+                    break;
+                  case 0x03:
+                    verification = await new MultiSigPublicKey(
+                      bytesPublicKey.slice(1),
+                    ).verifyPersonalMessage(bytesMessage, signature);
+                    break;
+                  case 0x05:
+                    verification = await new ZkLoginPublicIdentifier(
+                      bytesPublicKey.slice(1),
+                      { client },
+                    ).verifyPersonalMessage(bytesMessage, signature);
+                    break;
+                  case 0x06:
+                    verification = await new PasskeyPublicKey(
+                      bytesPublicKey.slice(1),
+                    ).verifyPersonalMessage(bytesMessage, signature);
+                    break;
+                  default:
+                    verification = false;
                 }
+
+                if (verification) {
+                  connection.send(makeMessage(MessageType.STEP_1, 'OK'));
+                  onEvent({
+                    variant: 'success',
+                    message: 'verification success',
+                  });
+                  handleClose(undefined, { address, network });
+                } else {
+                  connection.send(
+                    makeMessage(MessageType.STEP_1, 'verification failed'),
+                  );
+                  handleClose('verification failed');
+                }
+              } catch (error) {
+                connection.send(
+                  makeMessage(MessageType.STEP_1, `error: ${error}`),
+                );
+                handleClose(`error: ${error}`);
               }
               break;
+            }
 
-            default:
-              connection.open && connection.close({ flush: true });
+            default: {
+              if (connection.open) connection.close();
               handleClose(`Unknown message type: ${message.type}`);
+            }
           }
         } catch (error) {
-          connection.open && connection.close({ flush: true });
+          if ((connection as any).open) (connection as any).close();
           handleClose(`Unknown error: ${error}`);
         }
       });
 
       connection.on('error', (err) => {
-        connection.open && connection.close({ flush: true });
+        if (connection.open) connection.close();
         handleClose(`Connection error: ${err.message}`);
       });
 
       connection.on('close', () => {
-        step !== MessageType.STEP_0 &&
+        if (step !== MessageType.STEP_0) {
           handleClose('Connection closed by the remote peer.');
+        }
       });
     });
 
@@ -268,7 +268,9 @@ export const QRLogin = ({
     });
 
     return () => {
-      peer.destroy();
+      try {
+        peer.destroy();
+      } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -279,9 +281,7 @@ export const QRLogin = ({
         <DlgOverlay mode={mode} style={{ zIndex: 2147483645 }} />
         <DlgContentQR
           mode={mode}
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-          }}
+          onOpenAutoFocus={(event) => event.preventDefault()}
           style={{ zIndex: 2147483645 }}
         >
           <div
@@ -294,9 +294,7 @@ export const QRLogin = ({
             <DlgTitle mode={mode}>Login</DlgTitle>
             <DlgButtonIcon
               mode={mode}
-              onClick={() => {
-                handleClose('Login canceled');
-              }}
+              onClick={() => handleClose('Login canceled')}
             >
               <X />
             </DlgButtonIcon>

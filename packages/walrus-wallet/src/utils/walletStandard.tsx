@@ -262,20 +262,31 @@ export class WalletStandard implements Wallet {
   #connected = async () => {
     if (this.#account) {
       this.#setIsConnected(true);
-      this.#accounts = [
-        new ReadonlyWalletAccount({
-          address: this.#account.address,
-          publicKey: this.#signer
-            ? this.#signer.getPublicKey().toSuiBytes()
-            : new Uint8Array(),
-          chains: [`sui:${this.#network}`],
-          features: [
-            'sui:signTransaction',
-            'sui:signAndExecuteTransaction',
-            'sui:signPersonalMessage',
-          ],
-        }),
-      ];
+      const account = new ReadonlyWalletAccount({
+        address: this.#account.address,
+        publicKey: this.#signer
+          ? this.#signer.getPublicKey().toSuiBytes()
+          : new Uint8Array(),
+        chains: [`sui:${this.#network}`],
+        features: [
+          'sui:signTransaction',
+          'sui:signAndExecuteTransaction',
+          'sui:signPersonalMessage',
+        ],
+      });
+      this.#accounts = [account];
+      this.#clipSigner = {
+        getAddress: () => account.address,
+        getPublicKey: () => this.#signer!.getPublicKey(),
+        signTransaction: (transaction: Transaction) =>
+          this.#signTransaction({
+            transaction,
+            account,
+            chain: `sui:${this.#network}`,
+          }),
+        signPersonalMessage: (message: Uint8Array) =>
+          this.#signPersonalMessage({ message, account: this.#accounts[0] }),
+      };
     } else {
       this.#setIsConnected(false);
       this.#accounts = [];
