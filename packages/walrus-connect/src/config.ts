@@ -11,7 +11,6 @@ export const PEER_CONFIG = {
         username: 'webrtc@live.com',
         credential: 'muazkh',
       },
-      { urls: 'stun:global.stun.twilio.com:3478?transport=udp' },
     ],
   },
 } as const;
