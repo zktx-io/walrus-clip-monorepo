@@ -43,22 +43,8 @@ export const connectQRSign = ({
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const OPEN_TIMEOUT_MS = 8000;
-
-  const attachDebug = (conn: DataConnection) => {
-    const pc = (conn as any)?.peerConnection as RTCPeerConnection | undefined;
-    if (!pc) return;
-    pc.addEventListener('iceconnectionstatechange', () => {
-      onEvent({ variant: 'info', message: `ICE: ${pc.iceConnectionState}` });
-    });
-    pc.addEventListener('connectionstatechange', () => {
-      onEvent({ variant: 'info', message: `PC: ${pc.connectionState}` });
-    });
-  };
-
   const tryConnect = (peer: Peer, dest: string, useRelayFallback: boolean) => {
     const conn = peer.connect(dest);
-    attachDebug(conn);
-
     const timer = setTimeout(() => {
       if (!conn.open && !useRelayFallback) {
         try {
