@@ -51,15 +51,32 @@ export const QRScan = ({
       const first = result?.[0];
       if (!first) return;
       if (first.format === 'qr_code') {
-        const schema = first.rawValue.split('::');
+        const parts = first.rawValue.split('::');
         if (
-          schema.length === 4 &&
-          schema[0] === 'sui' &&
-          schema[1] === network &&
-          (schema[3] === 'login' || schema[3] === 'sign')
+          (parts.length === 4 || parts.length === 5) &&
+          parts[0] === 'sui' &&
+          parts[1] === network &&
+          (parts[3] === 'login' || parts[3] === 'sign')
         ) {
-          const destId = schema.join('::');
-          const type = schema[3] as QRScanType;
+          const type = parts[3] as QRScanType;
+          const destId = parts.slice(0, 4).join('::');
+
+          // Decode optional iceConfigUrl if present
+          let iceConfigUrlFromQR: string | undefined;
+          if (parts.length === 5) {
+            try {
+              // lazy local decode to avoid importing helper here
+              const b64 = parts[4];
+              const pad =
+                b64.length % 4 === 2 ? '==' : b64.length % 4 === 3 ? '=' : '';
+              iceConfigUrlFromQR = atob(
+                b64.replace(/-/g, '+').replace(/_/g, '/') + pad,
+              );
+            } catch {
+              // ignore decode errors -> fallback to default ICE
+            }
+          }
+
           onClose(false);
           switch (type) {
             case 'login':
@@ -67,6 +84,7 @@ export const QRScan = ({
                 signer,
                 destId,
                 onEvent,
+                iceConfigUrl: iceConfigUrlFromQR,
               });
               break;
             case 'sign':
@@ -75,20 +93,18 @@ export const QRScan = ({
                 network,
                 destId,
                 onEvent,
+                iceConfigUrl: iceConfigUrlFromQR,
               });
-              break;
-            case 'verification':
-              // TODO
               break;
             default:
               break;
           }
         } else {
-          if (schema.length !== 4) {
+          if (parts.length !== 4) {
             setError('Invalid schema');
-          } else if (schema[0] !== 'sui') {
+          } else if (parts[0] !== 'sui') {
             setError('Invalid chain');
-          } else if (schema[1] !== network) {
+          } else if (parts[1] !== network) {
             setError('Invalid network');
           } else {
             setError('invalid type');

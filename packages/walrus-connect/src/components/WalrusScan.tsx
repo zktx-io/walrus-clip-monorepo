@@ -40,12 +40,14 @@ export const WalrusScan = ({
   mode,
   icon,
   network,
+  iceConfigUrl,
   onEvent,
   children,
 }: {
   mode?: 'dark' | 'light';
   icon: string;
   network: NETWORK;
+  iceConfigUrl?: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   children: React.ReactNode;
 }) => {
@@ -114,6 +116,7 @@ export const WalrusScan = ({
             option={{
               title,
               description,
+              iceConfigUrl,
             }}
             onEvent={onEvent}
             onClose={(result) => {

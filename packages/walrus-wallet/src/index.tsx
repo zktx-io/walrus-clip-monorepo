@@ -76,6 +76,7 @@ interface IWalrusWalletProps {
   icon?: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
   network: NETWORK;
   mode?: 'dark' | 'light';
+  iceConfigUrl?: string;
   sponsoredUrl?: string;
   zklogin?: {
     enokey: string;
@@ -330,6 +331,7 @@ export const WalrusWallet = ({
   children,
   icon,
   name,
+  iceConfigUrl,
   ...others
 }: IWalrusWalletProps) => {
   return (
@@ -337,6 +339,7 @@ export const WalrusWallet = ({
       <WalrusScan
         mode={others.mode || 'light'}
         icon={icon || DEFAULT_ICON}
+        iceConfigUrl={iceConfigUrl}
         {...others}
       >
         <WalrusWalletRoot

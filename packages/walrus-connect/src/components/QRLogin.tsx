@@ -9,7 +9,7 @@ import { MultiSigPublicKey } from '@mysten/sui/multisig';
 import { fromBase64 } from '@mysten/sui/utils';
 import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import { X } from 'lucide-react';
-import Peer, { DataConnection } from 'peerjs';
+import Peer from 'peerjs';
 import { QRCode } from 'react-qrcode-logo';
 
 import {
@@ -21,156 +21,155 @@ import {
   DlgRoot,
   DlgTitle,
 } from './modal';
-import { PEER_CONFIG, PEER_CONFIG_RELAY } from '../config';
 import { ClipSigner, NETWORK, NotiVariant } from '../types';
-import { generateRandomId } from '../utils/generateRandomId';
 import { makeMessage, parseMessage } from '../utils/message';
+import {
+  connectWithRelayFallback,
+  DEFAULT_ICE_CONF,
+  loadIceConfig,
+  toPeerOptions,
+} from '../webrtc/connection';
+import { generateRandomId } from '../webrtc/generateRandomId';
+import { buildPeerId } from '../webrtc/qr-id';
 
 enum MessageType {
   STEP_0 = 'LOGIN_STEP_0',
   STEP_1 = 'LOGIN_STEP_1',
 }
 
+/**
+ * Initiator (scanner) connector: connects to the QR host's peerId.
+ * If iceConfigUrl is provided (decoded from QR), it loads ICE from there; else uses default.
+ * Falls back to relay-only if direct P2P opening times out.
+ */
 export const connectQRLogin = ({
   signer,
   destId,
   onEvent,
+  iceConfigUrl,
 }: {
   signer: ClipSigner;
-  destId: string;
+  destId: string; // canonical "sui::<network>::<token>::login[::<b64url(url)>]"
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
+  iceConfigUrl?: string; // optional ICE config base url
 }) => {
   const OPEN_TIMEOUT_MS = 8000;
-  const tryConnect = (peer: Peer, dest: string, useRelayFallback: boolean) => {
-    const conn = peer.connect(dest);
-    const timer = setTimeout(async () => {
-      if (!conn.open && !useRelayFallback) {
+  const destHyphen = destId.replace(/::/g, '-');
+
+  onEvent({ variant: 'info', message: 'Connecting...' });
+
+  // Use shared connector with relay fallback behavior
+  connectWithRelayFallback({
+    destIdHyphen: destHyphen,
+    iceConfigUrl,
+    openTimeoutMs: OPEN_TIMEOUT_MS,
+    onEvent,
+    onOpen: (conn) => {
+      // When connection opens, prove liveness/ownership by signing the destId string.
+      (async () => {
+        try {
+          const encoder = new TextEncoder();
+          const { signature } = await signer.signPersonalMessage(
+            encoder.encode(destId),
+          );
+          const publicKey = signer.getPublicKey().toSuiPublicKey();
+
+          conn.send(
+            makeMessage(
+              MessageType.STEP_0,
+              JSON.stringify({
+                address: signer.getAddress(),
+                publicKey,
+                signature,
+              }),
+            ),
+          );
+        } catch (error) {
+          onEvent({ variant: 'error', message: String(error) });
+          try {
+            conn.close();
+          } catch {}
+        }
+      })();
+
+      conn.on('data', (data) => {
+        try {
+          const message = parseMessage(data as string);
+          switch (message.type) {
+            case MessageType.STEP_1: {
+              if (message.value === 'OK') {
+                onEvent({ variant: 'success', message: 'Connected' });
+              } else {
+                onEvent({ variant: 'error', message: message.value });
+              }
+              try {
+                conn.close();
+              } catch {}
+              break;
+            }
+            default: {
+              try {
+                conn.close();
+              } catch {}
+              onEvent({
+                variant: 'error',
+                message: `Unknown message type: ${message.type}`,
+              });
+            }
+          }
+        } catch (error) {
+          try {
+            conn.close();
+          } catch {}
+          onEvent({ variant: 'error', message: String(error) });
+        }
+      });
+
+      conn.on('error', (err) => {
         try {
           conn.close();
         } catch {}
         onEvent({
-          variant: 'warning',
-          message: 'Direct P2P failed. Retrying via TURN relay…',
+          variant: 'error',
+          message: `Connection error: ${err.message}`,
         });
-        const p2 = new Peer(generateRandomId(), PEER_CONFIG_RELAY as any);
-        p2.on('open', () => tryConnect(p2, dest, true));
-        p2.on('error', (err) =>
-          onEvent({ variant: 'error', message: `Peer error: ${err.message}` }),
-        );
-      }
-    }, OPEN_TIMEOUT_MS);
-
-    conn.on('open', async () => {
-      clearTimeout(timer);
-      try {
-        const encoder = new TextEncoder();
-        const { signature } = await signer.signPersonalMessage(
-          encoder.encode(destId),
-        );
-        const publicKey = signer.getPublicKey().toSuiPublicKey();
-        conn.send(
-          makeMessage(
-            MessageType.STEP_0,
-            JSON.stringify({
-              address: signer.getAddress(),
-              publicKey,
-              signature,
-            }),
-          ),
-        );
-      } catch (error) {
-        onEvent({ variant: 'error', message: `${error}` });
-        try {
-          conn.close();
-        } catch {}
-      }
-    });
-
-    conn.on('data', (data) => {
-      try {
-        const message = parseMessage(data as string);
-        switch (message.type) {
-          case MessageType.STEP_1: {
-            if (message.value === 'OK') {
-              onEvent({ variant: 'success', message: 'Connected' });
-            } else {
-              onEvent({ variant: 'error', message: message.value });
-            }
-            try {
-              conn.close();
-            } catch {}
-            break;
-          }
-          default: {
-            try {
-              conn.close();
-            } catch {}
-            onEvent({
-              variant: 'error',
-              message: `Unknown message type: ${message.type}`,
-            });
-          }
-        }
-      } catch (error) {
-        try {
-          conn.close();
-        } catch {}
-        onEvent({ variant: 'error', message: `${error}` });
-      }
-    });
-
-    conn.on('error', (err) => {
-      try {
-        conn.close();
-      } catch {}
-      onEvent({
-        variant: 'error',
-        message: `Connection error: ${err.message}`,
       });
-    });
-  };
-
-  const localId = generateRandomId();
-  const peer = new Peer(localId, PEER_CONFIG as any);
-  const dest = destId.replace(/::/g, '-');
-
-  onEvent({ variant: 'info', message: 'Connecting...' });
-
-  const handleClose = (error?: string) => {
-    if (error) onEvent({ variant: 'error', message: error });
-    try {
-      peer.destroy();
-    } catch {}
-  };
-
-  peer.on('open', () => {
-    tryConnect(peer, dest, false);
-  });
-
-  peer.on('error', (err) => {
-    handleClose(`Peer error: ${err.message}`);
+    },
   });
 };
 
+/**
+ * QR host component: shows QR and waits for the initiator to connect.
+ * - If iceConfigUrl is provided, it is embedded into the QR via base64url, and also used locally to load ICE.
+ * - If not provided, the default ICE config is used.
+ */
 export const QRLogin = ({
   mode,
   network,
   icon,
   onClose,
   onEvent,
+  iceConfigUrl,
 }: {
   mode: 'dark' | 'light';
   network: NETWORK;
   icon: string;
   onClose: (result?: { address: string; network: NETWORK }) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
+  /** Optional: when provided, embed this URL into the QR and load ICE from `{url}/ice-conf.json` */
+  iceConfigUrl?: string;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
-  const rand = crypto.getRandomValues(new Uint8Array(16));
-  const peerToken = Array.from(rand)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-  const peerId = `sui::${network}::${peerToken}::login`;
+
+  // Compose peerId with optional iceConfigUrl suffix so the scanner can use the same ICE config
+  const token = generateRandomId();
+  const peerId = buildPeerId({
+    network,
+    token,
+    type: 'login',
+    iceConfigUrl,
+  });
+  const peerIdHyphen = peerId.replace(/::/g, '-');
 
   const handleClose = (
     error?: string,
@@ -182,125 +181,136 @@ export const QRLogin = ({
   };
 
   useEffect(() => {
-    const peer = new Peer(peerId.replace(/::/g, '-'), PEER_CONFIG as any);
+    let peer: Peer | undefined;
     let step = '';
 
-    peer.on('connection', (connection) => {
-      onEvent({ variant: 'info', message: 'Connecting...' });
-      setOpen(false);
+    (async () => {
+      // Load ICE config for the local listener
+      const conf = iceConfigUrl
+        ? ((await loadIceConfig(iceConfigUrl)) ?? DEFAULT_ICE_CONF)
+        : DEFAULT_ICE_CONF;
 
-      connection.on('data', async (data) => {
-        try {
-          const message = parseMessage(data as string);
-          step = message.type;
+      peer = new Peer(peerIdHyphen, toPeerOptions(conf) as any);
 
-          switch (message.type) {
-            case MessageType.STEP_0: {
-              onEvent({ variant: 'info', message: 'verifying...' });
-              try {
-                const client = new SuiGraphQLClient({
-                  url: `https://sui-${network}.mystenlabs.com/graphql`,
-                });
+      peer.on('connection', (connection) => {
+        onEvent({ variant: 'info', message: 'Connecting...' });
+        setOpen(false);
 
-                const {
-                  address,
-                  publicKey,
-                  signature,
-                }: { address: string; publicKey: string; signature: string } =
-                  JSON.parse(message.value);
+        connection.on('data', async (data) => {
+          try {
+            const message = parseMessage(data as string);
+            step = message.type;
 
-                const bytesPublicKey = fromBase64(publicKey);
-                const bytesMessage = new TextEncoder().encode(peerId);
-                let verification = false;
-
-                switch (bytesPublicKey[0]) {
-                  case 0x00:
-                    verification = await new Ed25519PublicKey(
-                      bytesPublicKey.slice(1),
-                    ).verifyPersonalMessage(bytesMessage, signature);
-                    break;
-                  case 0x01:
-                    verification = await new Secp256k1PublicKey(
-                      bytesPublicKey.slice(1),
-                    ).verifyPersonalMessage(bytesMessage, signature);
-                    break;
-                  case 0x02:
-                    verification = await new Secp256r1PublicKey(
-                      bytesPublicKey.slice(1),
-                    ).verifyPersonalMessage(bytesMessage, signature);
-                    break;
-                  case 0x03:
-                    verification = await new MultiSigPublicKey(
-                      bytesPublicKey.slice(1),
-                    ).verifyPersonalMessage(bytesMessage, signature);
-                    break;
-                  case 0x05:
-                    verification = await new ZkLoginPublicIdentifier(
-                      bytesPublicKey.slice(1),
-                      { client },
-                    ).verifyPersonalMessage(bytesMessage, signature);
-                    break;
-                  case 0x06:
-                    verification = await new PasskeyPublicKey(
-                      bytesPublicKey.slice(1),
-                    ).verifyPersonalMessage(bytesMessage, signature);
-                    break;
-                  default:
-                    verification = false;
-                }
-
-                if (verification) {
-                  connection.send(makeMessage(MessageType.STEP_1, 'OK'));
-                  onEvent({
-                    variant: 'success',
-                    message: 'verification success',
+            switch (message.type) {
+              case MessageType.STEP_0: {
+                onEvent({ variant: 'info', message: 'Verifying...' });
+                try {
+                  // zkLogin verification needs GQL client
+                  const client = new SuiGraphQLClient({
+                    url: `https://sui-${network}.mystenlabs.com/graphql`,
                   });
-                  handleClose(undefined, { address, network });
-                } else {
+
+                  const {
+                    address,
+                    publicKey,
+                    signature,
+                  }: { address: string; publicKey: string; signature: string } =
+                    JSON.parse(message.value);
+
+                  const bytesPublicKey = fromBase64(publicKey);
+                  const bytesMessage = new TextEncoder().encode(peerId);
+                  let verification = false;
+
+                  // First byte determines the key scheme
+                  switch (bytesPublicKey[0]) {
+                    case 0x00:
+                      verification = await new Ed25519PublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x01:
+                      verification = await new Secp256k1PublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x02:
+                      verification = await new Secp256r1PublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x03:
+                      verification = await new MultiSigPublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x05:
+                      verification = await new ZkLoginPublicIdentifier(
+                        bytesPublicKey.slice(1),
+                        { client },
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    case 0x06:
+                      verification = await new PasskeyPublicKey(
+                        bytesPublicKey.slice(1),
+                      ).verifyPersonalMessage(bytesMessage, signature);
+                      break;
+                    default:
+                      verification = false;
+                  }
+
+                  if (verification) {
+                    connection.send(makeMessage(MessageType.STEP_1, 'OK'));
+                    onEvent({
+                      variant: 'success',
+                      message: 'Verification success',
+                    });
+                    handleClose(undefined, { address, network });
+                  } else {
+                    connection.send(
+                      makeMessage(MessageType.STEP_1, 'verification failed'),
+                    );
+                    handleClose('verification failed');
+                  }
+                } catch (error) {
                   connection.send(
-                    makeMessage(MessageType.STEP_1, 'verification failed'),
+                    makeMessage(MessageType.STEP_1, `error: ${error}`),
                   );
-                  handleClose('verification failed');
+                  handleClose(`error: ${error}`);
                 }
-              } catch (error) {
-                connection.send(
-                  makeMessage(MessageType.STEP_1, `error: ${error}`),
-                );
-                handleClose(`error: ${error}`);
+                break;
               }
-              break;
-            }
 
-            default: {
-              if (connection.open) connection.close();
-              handleClose(`Unknown message type: ${message.type}`);
+              default: {
+                if (connection.open) connection.close();
+                handleClose(`Unknown message type: ${message.type}`);
+              }
             }
+          } catch (error) {
+            if ((connection as any).open) (connection as any).close();
+            handleClose(`Unknown error: ${error}`);
           }
-        } catch (error) {
-          if ((connection as any).open) (connection as any).close();
-          handleClose(`Unknown error: ${error}`);
-        }
+        });
+
+        connection.on('error', (err) => {
+          if (connection.open) connection.close();
+          handleClose(`Connection error: ${err.message}`);
+        });
+
+        connection.on('close', () => {
+          if (step !== MessageType.STEP_0) {
+            handleClose('Connection closed by the remote peer.');
+          }
+        });
       });
 
-      connection.on('error', (err) => {
-        if (connection.open) connection.close();
-        handleClose(`Connection error: ${err.message}`);
+      peer.on('error', (err) => {
+        handleClose(`Peer error: ${err.message}`);
       });
-
-      connection.on('close', () => {
-        if (step !== MessageType.STEP_0) {
-          handleClose('Connection closed by the remote peer.');
-        }
-      });
-    });
-
-    peer.on('error', (err) => {
-      handleClose(`Peer error: ${err.message}`);
-    });
+    })();
 
     return () => {
       try {
-        peer.destroy();
+        peer?.destroy();
       } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
