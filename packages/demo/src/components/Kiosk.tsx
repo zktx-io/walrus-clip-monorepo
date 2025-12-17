@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+
 import { Transaction } from '@mysten/sui/transactions';
 import { useWalrusScan } from '@zktx.io/walrus-connect';
+import { AnimatePresence, motion } from 'framer-motion';
 
 interface Item {
   id: number;

@@ -1,5 +1,5 @@
-import { enqueueSnackbar } from 'notistack';
 import { WalrusScan } from '@zktx.io/walrus-connect';
+import { enqueueSnackbar } from 'notistack';
 
 import { ICON, NETWORK } from './utils/config';
 import './App.css';

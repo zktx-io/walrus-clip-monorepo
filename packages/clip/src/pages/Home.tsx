@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 import {
   ConnectButton,
   useCurrentAccount,
@@ -14,7 +16,6 @@ import { MultiSigPublicKey } from '@mysten/sui/multisig';
 import { Transaction } from '@mysten/sui/transactions';
 import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import { useWalrusWallet, WALLET_NAME } from '@zktx.io/walrus-wallet';
-import { useEffect, useState } from 'react';
 
 export const Home = () => {
   const { connectionStatus, currentWallet } = useCurrentWallet();
@@ -91,7 +92,7 @@ export const Home = () => {
 
   useEffect(() => {
     setIsClip(!!currentWallet && currentWallet.name === WALLET_NAME);
-  }, [isClip, currentWallet]);
+  }, [currentWallet]);
 
   return (
     <div className="flex flex-col items-center p-4">
