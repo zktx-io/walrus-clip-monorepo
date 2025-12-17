@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
@@ -55,7 +55,7 @@ export const connectQRSign = ({
 
   onEvent({ variant: 'info', message: 'Connecting...' });
 
-  connectWithRelayFallback({
+  void connectWithRelayFallback({
     destIdHyphen: destHyphen,
     iceConfigUrl,
     openTimeoutMs: OPEN_TIMEOUT_MS,
@@ -83,6 +83,9 @@ export const connectQRSign = ({
                   JSON.stringify({ txBytes: bytes, signature, digest }),
                 ),
               );
+
+              // Wait for message to be sent before closing
+              await new Promise((resolve) => setTimeout(resolve, 200));
 
               if (conn.open) conn.close();
 
@@ -135,6 +138,11 @@ export const connectQRSign = ({
         });
       });
     },
+  }).catch((err) => {
+    onEvent({
+      variant: 'error',
+      message: `Connect init error: ${String(err)}`,
+    });
   });
 };
 
@@ -168,193 +176,220 @@ export const QRSign = ({
   }) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
+  const [token] = useState<string>(() => generateRandomId());
 
   // Compose peerId with optional iceConfigUrl suffix so the scanner can use the same ICE config
-  const token = generateRandomId();
-  const peerId = buildPeerId({
-    network,
-    token,
-    type: 'sign',
-    iceConfigUrl: option?.iceConfigUrl,
-  });
-  const peerIdHyphen = peerId.replace(/::/g, '-');
+  const peerId = useMemo(
+    () =>
+      buildPeerId({
+        network,
+        token,
+        type: 'sign',
+        iceConfigUrl: option?.iceConfigUrl,
+      }),
+    [network, option?.iceConfigUrl, token],
+  );
+  const peerIdHyphen = useMemo(() => peerId.replace(/::/g, '-'), [peerId]);
 
-  const handleClose = (
-    error?: string,
-    result?: {
-      bytes: string;
-      signature: string;
-      digest: string;
-      effects: string;
+  const handleClose = useCallback(
+    (
+      error?: string,
+      result?: {
+        bytes: string;
+        signature: string;
+        digest: string;
+        effects: string;
+      },
+    ) => {
+      if (error) onEvent({ variant: 'error', message: error });
+      setOpen(false);
+      onClose(result);
     },
-  ) => {
-    if (error) onEvent({ variant: 'error', message: error });
-    if (open) setOpen(false);
-    onClose(result);
-  };
+    [onClose, onEvent],
+  );
 
   useEffect(() => {
     let peer: Peer | undefined;
     let step: string = '';
+    let cancelled = false;
 
     (async () => {
-      // Load ICE config if URL is present; otherwise fallback to default
-      const conf = option?.iceConfigUrl
-        ? ((await loadIceConfig(option.iceConfigUrl)) ?? DEFAULT_ICE_CONF)
-        : DEFAULT_ICE_CONF;
+      try {
+        // Load ICE config if URL is present; otherwise fallback to default
+        const conf = option?.iceConfigUrl
+          ? ((await loadIceConfig(option.iceConfigUrl)) ?? DEFAULT_ICE_CONF)
+          : DEFAULT_ICE_CONF;
+        if (cancelled) return;
 
-      peer = new Peer(peerIdHyphen, toPeerOptions(conf) as any);
-
-      peer.on('connection', (connection) => {
-        onEvent({ variant: 'info', message: 'Connecting...' });
-        setOpen(false);
-
-        connection.on('data', async (data) => {
+        peer = new Peer(peerIdHyphen, toPeerOptions(conf) as any);
+        if (cancelled) {
           try {
-            const message = parseMessage(data as string);
-            step = message.type;
+            peer.destroy();
+          } catch {}
+          return;
+        }
 
-            const client = new SuiClient({ url: getFullnodeUrl(network) });
+        peer.on('connection', (connection) => {
+          onEvent({ variant: 'info', message: 'Connecting...' });
+          setOpen(false);
 
-            switch (message.type) {
-              case MessageType.STEP_0: {
-                onEvent({
-                  variant: 'info',
-                  message:
-                    sponsoredUrl !== undefined
-                      ? 'Creating sponsored transaction...'
-                      : 'Creating transaction...',
-                });
+          connection.on('data', async (data) => {
+            try {
+              const message = parseMessage(data as string);
+              step = message.type;
 
-                const txb = Transaction.from(await transaction.toJSON());
-                txb.setSenderIfNotSet(message.value);
+              const client = new SuiClient({ url: getFullnodeUrl(network) });
 
-                if (sponsoredUrl !== undefined) {
-                  const txBytes = await txb.build({
-                    client,
-                    onlyTransactionKind: true,
+              switch (message.type) {
+                case MessageType.STEP_0: {
+                  onEvent({
+                    variant: 'info',
+                    message:
+                      sponsoredUrl !== undefined
+                        ? 'Creating sponsored transaction...'
+                        : 'Creating transaction...',
                   });
-                  const { bytes: sponsoredTxBytes, digest } =
-                    await createSponsoredTransaction(
-                      sponsoredUrl,
-                      network,
+
+                  const txb = Transaction.from(await transaction.toJSON());
+                  txb.setSenderIfNotSet(message.value);
+
+                  if (sponsoredUrl !== undefined) {
+                    const txBytes = await txb.build({
+                      client,
+                      onlyTransactionKind: true,
+                    });
+                    const { bytes: sponsoredTxBytes, digest } =
+                      await createSponsoredTransaction(
+                        sponsoredUrl,
+                        network,
+                        message.value,
+                        txBytes,
+                      );
+
+                    connection.send(
+                      makeMessage(
+                        MessageType.STEP_1,
+                        JSON.stringify({ bytes: sponsoredTxBytes, digest }),
+                      ),
+                    );
+                  } else {
+                    const txBytes = await txb.build({ client });
+                    connection.send(
+                      makeMessage(
+                        MessageType.STEP_1,
+                        JSON.stringify({ bytes: toBase64(txBytes) }),
+                      ),
+                    );
+                  }
+                  break;
+                }
+
+                case MessageType.STEP_2: {
+                  if (connection.open) connection.close();
+
+                  onEvent({
+                    variant: 'info',
+                    message:
+                      sponsoredUrl !== undefined
+                        ? 'Executing sponsored transaction...'
+                        : 'Executing transaction...',
+                  });
+
+                  if (sponsoredUrl !== undefined) {
+                    const { digest, signature, txBytes } = JSON.parse(
                       message.value,
-                      txBytes,
                     );
 
-                  connection.send(
-                    makeMessage(
-                      MessageType.STEP_1,
-                      JSON.stringify({ bytes: sponsoredTxBytes, digest }),
-                    ),
-                  );
-                } else {
-                  const txBytes = await txb.build({ client });
-                  connection.send(
-                    makeMessage(
-                      MessageType.STEP_1,
-                      JSON.stringify({ bytes: toBase64(txBytes) }),
-                    ),
-                  );
+                    await executeSponsoredTransaction(
+                      sponsoredUrl,
+                      digest!,
+                      signature,
+                    );
+
+                    const { rawEffects } = await client.waitForTransaction({
+                      digest,
+                      options: { showRawEffects: true },
+                    });
+
+                    handleClose(undefined, {
+                      bytes: txBytes,
+                      signature,
+                      digest,
+                      effects: rawEffects
+                        ? toBase64(new Uint8Array(rawEffects))
+                        : '',
+                    });
+                  } else {
+                    const { signature, txBytes } = JSON.parse(message.value);
+
+                    const { digest } = await client.executeTransactionBlock({
+                      transactionBlock: txBytes,
+                      signature,
+                    });
+
+                    const { rawEffects } = await client.waitForTransaction({
+                      digest,
+                      options: { showRawEffects: true },
+                    });
+
+                    handleClose(undefined, {
+                      bytes: txBytes,
+                      signature,
+                      digest,
+                      effects: rawEffects
+                        ? toBase64(new Uint8Array(rawEffects))
+                        : '',
+                    });
+                  }
+                  break;
                 }
-                break;
-              }
 
-              case MessageType.STEP_2: {
-                if (connection.open) connection.close();
-
-                onEvent({
-                  variant: 'info',
-                  message:
-                    sponsoredUrl !== undefined
-                      ? 'Executing sponsored transaction...'
-                      : 'Executing transaction...',
-                });
-
-                if (sponsoredUrl !== undefined) {
-                  const { digest, signature, txBytes } = JSON.parse(
-                    message.value,
-                  );
-
-                  await executeSponsoredTransaction(
-                    sponsoredUrl,
-                    digest!,
-                    signature,
-                  );
-
-                  const { rawEffects } = await client.waitForTransaction({
-                    digest,
-                    options: { showRawEffects: true },
-                  });
-
-                  handleClose(undefined, {
-                    bytes: txBytes,
-                    signature,
-                    digest,
-                    effects: rawEffects
-                      ? toBase64(new Uint8Array(rawEffects))
-                      : '',
-                  });
-                } else {
-                  const { signature, txBytes } = JSON.parse(message.value);
-
-                  const { digest } = await client.executeTransactionBlock({
-                    transactionBlock: txBytes,
-                    signature,
-                  });
-
-                  const { rawEffects } = await client.waitForTransaction({
-                    digest,
-                    options: { showRawEffects: true },
-                  });
-
-                  handleClose(undefined, {
-                    bytes: txBytes,
-                    signature,
-                    digest,
-                    effects: rawEffects
-                      ? toBase64(new Uint8Array(rawEffects))
-                      : '',
-                  });
+                default: {
+                  if (connection.open) connection.close();
+                  handleClose(`Unknown message type: ${message.type}`);
                 }
-                break;
               }
-
-              default: {
-                if (connection.open) connection.close();
-                handleClose(`Unknown message type: ${message.type}`);
-              }
+            } catch (error) {
+              if ((connection as any).open) (connection as any).close();
+              handleClose(`Unknown error: ${error}`);
             }
-          } catch (error) {
-            if ((connection as any).open) (connection as any).close();
-            handleClose(`Unknown error: ${error}`);
-          }
+          });
+
+          connection.on('error', (err) => {
+            if (connection.open) connection.close();
+            handleClose(`Connection error: ${err.message}`);
+          });
+
+          connection.on('close', () => {
+            if (step !== MessageType.STEP_2) {
+              handleClose('Connection closed by the remote peer.');
+            }
+          });
         });
 
-        connection.on('error', (err) => {
-          if (connection.open) connection.close();
-          handleClose(`Connection error: ${err.message}`);
+        peer.on('error', (err) => {
+          handleClose(`Peer error: ${err.message}`);
         });
-
-        connection.on('close', () => {
-          if (step !== MessageType.STEP_2) {
-            handleClose('Connection closed by the remote peer.');
-          }
-        });
-      });
-
-      peer.on('error', (err) => {
-        handleClose(`Peer error: ${err.message}`);
-      });
+      } catch (err) {
+        if (!cancelled) handleClose(`Peer init error: ${String(err)}`);
+      }
     })();
 
     return () => {
+      cancelled = true;
       try {
         peer?.destroy();
       } catch {}
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    handleClose,
+    network,
+    onEvent,
+    option?.iceConfigUrl,
+    peerIdHyphen,
+    sponsoredUrl,
+    transaction,
+  ]);
 
   return (
     <DlgRoot open={open}>

@@ -98,57 +98,144 @@ export async function connectWithRelayFallback(opts: {
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onOpen: (conn: DataConnection) => void;
 }) {
-  const { destIdHyphen, iceConfigUrl, openTimeoutMs, onEvent, onOpen } = opts;
+  let p1: Peer | undefined;
+  let p2: Peer | undefined;
+  let c1: DataConnection | undefined;
+  let c2: DataConnection | undefined;
+  let clear1: (() => void) | undefined;
+  let clear2: (() => void) | undefined;
+  let isConnected = false;
+  let relayAttempted = false;
+  let cleanedUp = false;
 
-  // 1st attempt: direct P2P
-  const p1 = await createPeerWithIce({ id: generateRandomId(), iceConfigUrl });
-  const c1 = p1.connect(destIdHyphen);
-  const clear1 = withOpenTimeout(c1, openTimeoutMs, async () => {
-    if (!c1.open) {
-      try {
-        c1.close();
-      } catch {}
-      onEvent({
-        variant: 'warning',
-        message: 'Direct P2P failed. Retrying via TURN relay…',
-      });
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    if (clear1) clear1();
+    if (clear2) clear2();
+    try {
+      if (c1) c1.close();
+    } catch {}
+    try {
+      if (c2) c2.close();
+    } catch {}
+    try {
+      if (p1) p1.destroy();
+    } catch {}
+    try {
+      if (p2) p2.destroy();
+    } catch {}
+  };
 
-      // 2nd attempt: relay-only
-      const p2 = await createPeerWithIce({
+  const attachAutoCleanup = (conn: DataConnection) => {
+    conn.on('close', cleanup);
+    conn.on('error', cleanup);
+  };
+
+  const startRelayAttempt = async (reason: 'timeout' | 'error') => {
+    if (relayAttempted || isConnected) return;
+    relayAttempted = true;
+
+    try {
+      if (c1) c1.close();
+    } catch {}
+    try {
+      p1?.destroy();
+    } catch {}
+
+    opts.onEvent({
+      variant: 'warning',
+      message:
+        reason === 'timeout'
+          ? 'Direct P2P failed. Retrying via TURN relay…'
+          : 'Direct P2P error. Retrying via TURN relay…',
+    });
+
+    try {
+      p2 = await createPeerWithIce({
         id: generateRandomId(),
-        iceConfigUrl,
+        iceConfigUrl: opts.iceConfigUrl,
         relayOnly: true,
       });
-      const c2 = p2.connect(destIdHyphen);
-      const clear2 = withOpenTimeout(c2, openTimeoutMs, () => {
-        try {
-          c2.close();
-        } catch {}
-        onEvent({ variant: 'error', message: 'Relay connection timed out.' });
+      c2 = p2.connect(opts.destIdHyphen);
+
+      clear2 = withOpenTimeout(c2, opts.openTimeoutMs, () => {
+        if (isConnected) return;
+        opts.onEvent({
+          variant: 'error',
+          message: 'Relay connection timed out.',
+        });
+        cleanup();
       });
 
       c2.on('open', () => {
-        clear2();
-        onOpen(c2);
+        if (isConnected || !c2) return;
+        isConnected = true;
+        if (clear2) clear2();
+        attachAutoCleanup(c2);
+        opts.onOpen(c2);
       });
-      p2.on('error', (err) =>
-        onEvent({ variant: 'error', message: `Peer error: ${err.message}` }),
-      );
+
+      c2.on('error', (err) => {
+        opts.onEvent({
+          variant: 'error',
+          message: `Connection error: ${err.message}`,
+        });
+        cleanup();
+      });
+
+      p2.on('error', (err) => {
+        opts.onEvent({
+          variant: 'error',
+          message: `Peer error: ${err.message}`,
+        });
+        cleanup();
+      });
+    } catch (error) {
+      opts.onEvent({
+        variant: 'error',
+        message: `Relay init error: ${String(error)}`,
+      });
+      cleanup();
     }
-  });
-
-  c1.on('open', () => {
-    clear1();
-    onOpen(c1);
-  });
-
-  p1.on('error', (err) =>
-    onEvent({ variant: 'error', message: `Peer error: ${err.message}` }),
-  );
-
-  return () => {
-    try {
-      p1.destroy();
-    } catch {}
   };
+
+  try {
+    // 1st attempt: direct P2P
+    p1 = await createPeerWithIce({
+      id: generateRandomId(),
+      iceConfigUrl: opts.iceConfigUrl,
+    });
+    c1 = p1.connect(opts.destIdHyphen);
+
+    clear1 = withOpenTimeout(c1, opts.openTimeoutMs, () =>
+      startRelayAttempt('timeout'),
+    );
+
+    c1.on('open', () => {
+      if (isConnected || !c1) return;
+      if (relayAttempted) {
+        try {
+          c1.close();
+        } catch {}
+        return;
+      }
+      isConnected = true;
+      if (clear1) clear1();
+      attachAutoCleanup(c1);
+      opts.onOpen(c1);
+    });
+
+    c1.on('error', () => startRelayAttempt('error'));
+
+    p1.on('error', (err) => {
+      opts.onEvent({ variant: 'error', message: `Peer error: ${err.message}` });
+      startRelayAttempt('error');
+    });
+
+    return cleanup;
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
 }

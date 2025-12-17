@@ -129,7 +129,7 @@ export const WalrusScan = ({
         );
       });
     },
-    [icon, mode, network, onEvent],
+    [icon, iceConfigUrl, mode, network, onEvent],
   );
 
   useEffect(() => {

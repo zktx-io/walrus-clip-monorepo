@@ -59,7 +59,7 @@ export const QRScan = ({
           (parts[3] === 'login' || parts[3] === 'sign')
         ) {
           const type = parts[3] as QRScanType;
-          const destId = parts.slice(0, 4).join('::');
+          const destId = parts.join('::');
 
           // Decode optional iceConfigUrl if present
           let iceConfigUrlFromQR: string | undefined;
@@ -100,7 +100,7 @@ export const QRScan = ({
               break;
           }
         } else {
-          if (parts.length !== 4) {
+          if (parts.length !== 4 && parts.length !== 5) {
             setError('Invalid schema');
           } else if (parts[0] !== 'sui') {
             setError('Invalid chain');

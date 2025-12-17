@@ -14,7 +14,55 @@ const __dirname = path.dirname(__filename);
 export default [
   { ignores: ['**/dist', '**/node_modules', '**/lib'] },
   {
-    files: ['**/*.{js,jsx,ts,tsx}'],
+    files: ['**/*.{js,jsx}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: 'module',
+      globals: { JSX: 'readonly' },
+    },
+    plugins: {
+      react: eslintPluginReact,
+      prettier: eslintPluginPrettier,
+      import: eslintPluginImport,
+      'react-hooks': eslintPluginReactHooks,
+    },
+    rules: {
+      'prettier/prettier': 'error',
+      'no-console': 'warn',
+      'comma-dangle': ['error', 'always-multiline'],
+      'react/prop-types': 'off',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=null]',
+          message: 'Do not use null. Use undefined instead.',
+        },
+      ],
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      'import/order': [
+        'error',
+        {
+          groups: [
+            ['builtin', 'external'],
+            ['internal'],
+            ['parent', 'sibling', 'index'],
+          ],
+          pathGroups: [{ pattern: 'react', group: 'external', position: 'before' }],
+          pathGroupsExcludedImportTypes: ['react'],
+          'newlines-between': 'always',
+          alphabetize: { order: 'asc', caseInsensitive: true },
+        },
+      ],
+      'sort-imports': [
+        'error',
+        { ignoreCase: true, ignoreDeclarationSort: true, ignoreMemberSort: false },
+      ],
+    },
+    settings: { react: { version: 'detect' } },
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',

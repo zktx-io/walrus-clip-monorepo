@@ -16,16 +16,33 @@ export function usePeerHost(params: {
 
   useEffect(() => {
     let peer: Peer | undefined;
+    let cancelled = false;
     (async () => {
-      const p = await createPeerWithIce({ id: peerIdHyphen, iceConfigUrl });
-      peer = p;
-      p.on('connection', onConnection);
-      p.on('error', (err) =>
-        onEvent({ variant: 'error', message: `Peer error: ${err.message}` }),
-      );
+      try {
+        const p = await createPeerWithIce({ id: peerIdHyphen, iceConfigUrl });
+        if (cancelled) {
+          try {
+            p.destroy();
+          } catch {}
+          return;
+        }
+        peer = p;
+        p.on('connection', onConnection);
+        p.on('error', (err) =>
+          onEvent({ variant: 'error', message: `Peer error: ${err.message}` }),
+        );
+      } catch (err) {
+        if (!cancelled) {
+          onEvent({
+            variant: 'error',
+            message: `Peer init error: ${String(err)}`,
+          });
+        }
+      }
     })();
 
     return () => {
+      cancelled = true;
       try {
         peer?.destroy();
       } catch {}
