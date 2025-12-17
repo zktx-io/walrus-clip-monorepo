@@ -96,13 +96,16 @@ const WalrusWalletRoot = ({
   icon,
   network,
   mode,
+  iceConfigUrl,
   sponsoredUrl,
   zklogin,
   onEvent,
   children,
 }: IWalrusWalletProps) => {
   const initialized = useRef<boolean>(false);
-  const inflightMapRef = useRef<Map<string, Promise<boolean>>>(new Map());
+  const inflightMapRef = useRef<
+    Map<string, { promise: Promise<boolean>; timestamp: number }>
+  >(new Map());
   const lastSuccessRef = useRef<{ jwt?: string; address?: string } | null>(
     // eslint-disable-next-line no-restricted-syntax
     null,
@@ -141,8 +144,16 @@ const WalrusWalletRoot = ({
         return true;
       }
 
+      // Clean up stale inflight requests (older than 30 seconds)
+      const now = Date.now();
+      for (const [key, entry] of inflightMapRef.current.entries()) {
+        if (now - entry.timestamp > 30000) {
+          inflightMapRef.current.delete(key);
+        }
+      }
+
       const inflight = inflightMapRef.current.get(jwt);
-      if (inflight) return inflight;
+      if (inflight) return inflight.promise;
 
       const p = (async () => {
         const { address, proof, salt } = await createProof(
@@ -162,7 +173,7 @@ const WalrusWalletRoot = ({
         setAccountData({
           zkLogin: {
             ...data.zkLogin,
-            proofInfo: { addressSeed, proof, jwt, iss: dec.iss! },
+            proofInfo: { addressSeed, proof, jwt: '', iss: dec.iss! },
           },
           network: data.network,
           address,
@@ -173,7 +184,7 @@ const WalrusWalletRoot = ({
         return true;
       })();
 
-      inflightMapRef.current.set(jwt, p);
+      inflightMapRef.current.set(jwt, { promise: p, timestamp: now });
       try {
         return await p;
       } finally {
@@ -222,18 +233,28 @@ const WalrusWalletRoot = ({
           );
           await executeSponsoredTransaction(url, digest, signature);
 
-          const { rawEffects } = await client.waitForTransaction({
-            digest,
-            options: {
-              showRawEffects: true,
-            },
-          });
-          return {
-            digest,
-            bytes: toBase64(txBytes),
-            signature,
-            effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
-          };
+          try {
+            const { rawEffects } = await client.waitForTransaction({
+              digest,
+              options: {
+                showRawEffects: true,
+              },
+              timeout: 30000,
+            });
+            return {
+              digest,
+              bytes: toBase64(txBytes),
+              signature,
+              effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
+            };
+          } catch (error) {
+            if (error instanceof Error) {
+              throw new Error(
+                `Transaction submitted but failed to confirm: ${error.message}. Digest: ${digest}`,
+              );
+            }
+            throw error;
+          }
         }
       } else {
         const { digest, bytes, signature, effects } = await openSignTxModal(
@@ -265,6 +286,7 @@ const WalrusWalletRoot = ({
         network,
         sponsoredUrl || '',
         mode || 'light',
+        iceConfigUrl,
         onEvent,
         setIsConnected,
         openSignTxModal,
@@ -285,6 +307,7 @@ const WalrusWalletRoot = ({
     icon,
     network,
     mode,
+    iceConfigUrl,
     sponsoredUrl,
     zklogin,
     onEvent,
@@ -345,6 +368,7 @@ export const WalrusWallet = ({
         <WalrusWalletRoot
           name={name || DEFAULT_NAME}
           icon={icon || DEFAULT_ICON}
+          iceConfigUrl={iceConfigUrl}
           {...others}
         >
           {children}

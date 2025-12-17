@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import {
   PublicKey,
   SignatureScheme,
@@ -19,13 +20,18 @@ import { IZkLogin } from './types';
 import { decryptText } from './utils';
 import { PwConfirm } from '../components/PwConfirm';
 
-const TIME_OUT = 300;
-
 export const cleanup = (container: HTMLDivElement, root: ReactDOM.Root) => {
-  setTimeout(() => {
-    root.unmount();
-    document.body.removeChild(container);
-  }, TIME_OUT);
+  // Use requestAnimationFrame to ensure React finishes its work before cleanup
+  requestAnimationFrame(() => {
+    try {
+      root.unmount();
+    } catch {}
+    try {
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
+    } catch {}
+  });
 };
 
 export class ZkLoginSigner extends Signer {
@@ -91,6 +97,12 @@ export class ZkLoginSigner extends Signer {
     bytes: Uint8Array,
     type: 'sign' | 'signTransaction' | 'signPersonalMessage',
   ): Promise<SignatureWithBytes> {
+    const client = new SuiClient({ url: getFullnodeUrl(this.#network) });
+    const { epoch } = await client.getLatestSuiSystemState();
+    if (Number(epoch) > this.#zkLogin.expiration) {
+      throw new Error('zkLogin session expired. Please reconnect.');
+    }
+
     const privateKey = await this.#openPasswordModal();
     const keypair = Ed25519Keypair.fromSecretKey(fromBase64(privateKey));
 

@@ -170,30 +170,39 @@ export const DlgTransferCoin = ({
   };
 
   useEffect(() => {
+    let cancelled = false;
     const update = async () => {
-      if (open && wallet) {
-        setLoading(true);
-        setRecipient('');
-        setAmount('');
-        setErrorMsg('');
+      if (!open || !wallet) return;
+      setLoading(true);
+      const initialRecipient = open.address ?? '';
+      setRecipient(initialRecipient);
+      setAmount('');
+      setErrorMsg('');
+
+      try {
         const allBalances = await wallet.getAllBalances();
+        if (cancelled) return;
+
         if (allBalances !== undefined) {
           setCoins(allBalances);
           if (open?.coin) {
             setSelectCoin(open.coin);
           } else {
-            allBalances.length && setSelectCoin(allBalances[0]);
+            setSelectCoin(allBalances[0]);
           }
+        } else {
+          setCoins([]);
+          setSelectCoin(undefined);
         }
-        setLoading(false);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
-    if (open?.address) {
-      setRecipient(open.address);
-      setTimeout(() => recomputeError(open.address!, amount, selectCoin), 0);
-    }
-    update();
-  }, [open, wallet]); // eslint-disable-line
+    void update();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, wallet]);
 
   const isSendDisabled = !!errorMsg || !amount || !recipient || loading;
 

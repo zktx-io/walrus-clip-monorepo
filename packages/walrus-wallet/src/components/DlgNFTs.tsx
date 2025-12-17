@@ -28,15 +28,23 @@ export const DlgNFTs = ({
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    let cancelled = false;
     const update = async () => {
       if (open && wallet) {
         setLoading(true);
-        const allAssets = await wallet.getOwnedObjects();
-        setAssets(allAssets || []);
-        setLoading(false);
+        try {
+          const allAssets = await wallet.getOwnedObjects();
+          if (cancelled) return;
+          setAssets(allAssets || []);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
       }
     };
-    update();
+    void update();
+    return () => {
+      cancelled = true;
+    };
   }, [open, wallet]);
 
   return (

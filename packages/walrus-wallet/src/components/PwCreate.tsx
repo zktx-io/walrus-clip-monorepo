@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   DlgButton,
@@ -23,12 +23,21 @@ export const PwCreate = ({
 }: {
   mode: 'dark' | 'light';
   onClose: () => void;
-  onConfirm: (password: string) => void;
+  onConfirm: (password: string) => Promise<void>;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }) => {
   const [open, setOpen] = useState(true);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setPassword('');
+      setConfirmPassword('');
+      setLoading(false);
+    }
+  }, [open]);
 
   return (
     <DlgRoot open={open}>
@@ -37,6 +46,7 @@ export const PwCreate = ({
           mode={mode}
           className="dlg-topmost"
           onClick={() => {
+            if (loading) return;
             onEvent({
               variant: 'error',
               message: 'Password confirmation cancelled',
@@ -90,10 +100,24 @@ export const PwCreate = ({
           <div className="dlg-actions-right">
             <DlgButton
               mode={mode}
-              disabled={password !== confirmPassword || password.length < 1}
-              onClick={() => {
-                setOpen(false);
-                onConfirm(password);
+              disabled={
+                password !== confirmPassword || password.length < 1 || loading
+              }
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  await onConfirm(password);
+                  setOpen(false);
+                } catch (err) {
+                  onEvent({
+                    variant: 'error',
+                    message: String(err),
+                  });
+                  setPassword('');
+                  setConfirmPassword('');
+                } finally {
+                  setLoading(false);
+                }
               }}
             >
               Confirm

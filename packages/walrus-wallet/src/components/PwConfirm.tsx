@@ -68,6 +68,7 @@ export const PwConfirm = ({
                   mode={mode}
                   placeholder="password"
                   type="password"
+                  value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </FormControl>
@@ -91,6 +92,7 @@ export const PwConfirm = ({
                   setOpen(false);
                 } catch {
                   setError(true);
+                  setPassword('');
                 } finally {
                   setLoading(false);
                 }

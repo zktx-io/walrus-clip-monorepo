@@ -40,17 +40,25 @@ export const DlgBalances = ({
   };
 
   useEffect(() => {
+    let cancelled = false;
     const update = async () => {
       if (open && wallet) {
         setLoading(true);
         // eslint-disable-next-line no-restricted-syntax
         setExpandedIndex(null);
-        const allBalances = await wallet.getAllBalances();
-        if (allBalances !== undefined) setCoins(allBalances);
-        setLoading(false);
+        try {
+          const allBalances = await wallet.getAllBalances();
+          if (cancelled) return;
+          if (allBalances !== undefined) setCoins(allBalances);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
       }
     };
-    update();
+    void update();
+    return () => {
+      cancelled = true;
+    };
   }, [open, wallet]);
 
   return (

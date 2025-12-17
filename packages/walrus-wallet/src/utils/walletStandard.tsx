@@ -73,6 +73,7 @@ export class WalletStandard implements Wallet {
   #icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
 
   #network: NETWORK;
+  #iceConfigUrl?: string;
   #zkLoginNonceCallback?: (nonce: string) => void;
   #epochOffset?: number;
   #onEvent: (data: { variant: NotiVariant; message: string }) => void;
@@ -139,6 +140,7 @@ export class WalletStandard implements Wallet {
     network: NETWORK,
     sponsoredUrl: string,
     mode: 'dark' | 'light',
+    iceConfigUrl: string | undefined,
     onEvent: (data: { variant: NotiVariant; message: string }) => void,
     setIsConnected: (isConnected: boolean) => void,
     openSignTxModal: (
@@ -162,6 +164,7 @@ export class WalletStandard implements Wallet {
     this.#network = network;
     this.#sponsoredUrl = sponsoredUrl === '' ? undefined : sponsoredUrl;
     this.#mode = mode;
+    this.#iceConfigUrl = iceConfigUrl;
     this.#onEvent = onEvent;
     this.#setIsConnected = setIsConnected;
     this.#epochOffset = zklogin?.epochOffset;
@@ -214,13 +217,13 @@ export class WalletStandard implements Wallet {
             reject(new Error('rejected'));
           }}
           onConfirm={async (password: string) => {
-            cleanup(container, root);
             const { nonce, data } = await createNonce(
               password,
               this.#network,
               this.#epochOffset,
             );
             setZkLoginData({ network: this.#network, zkLogin: data });
+            cleanup(container, root);
             resolve(nonce);
           }}
           onEvent={this.#onEvent}
@@ -239,6 +242,7 @@ export class WalletStandard implements Wallet {
           mode={this.#mode}
           icon={this.#icon}
           network={this.#network}
+          iceConfigUrl={this.#iceConfigUrl}
           onEvent={this.#onEvent}
           onClose={(result) => {
             cleanup(container, root);
@@ -275,30 +279,35 @@ export class WalletStandard implements Wallet {
         ],
       });
       this.#accounts = [account];
-      this.#clipSigner = {
-        getAddress: () => account.address,
-        getPublicKey: () => this.#signer!.getPublicKey(),
-        signTransaction: (transaction: Transaction) =>
-          this.#signTransaction({
-            transaction,
-            account,
-            chain: `sui:${this.#network}`,
-          }),
-        signPersonalMessage: (message: Uint8Array) =>
-          this.#signPersonalMessage({ message, account: this.#accounts[0] }),
-      };
+      this.#clipSigner = this.#signer
+        ? {
+            getAddress: () => account.address,
+            getPublicKey: () => this.#signer!.getPublicKey(),
+            signTransaction: (transaction: Transaction) =>
+              this.#signTransaction({
+                transaction,
+                account,
+                chain: `sui:${this.#network}`,
+              }),
+            signPersonalMessage: (message: Uint8Array) =>
+              this.#signPersonalMessage({
+                message,
+                account: this.#accounts[0],
+              }),
+          }
+        : undefined;
     } else {
       this.#setIsConnected(false);
       this.#accounts = [];
+      this.#clipSigner = undefined;
     }
-    if (this.#accounts.length) {
-      this.#events.emit('change', { accounts: this.accounts });
-    }
+    this.#events.emit('change', { accounts: this.accounts });
     await new Promise((resolve) => setTimeout(resolve, 5));
   };
 
   #connect: StandardConnectMethod = async (input) => {
     this.#account = getAccountData();
+    this.#signer = undefined;
     if (!this.#account) {
       if (this.#zkLoginNonceCallback) {
         const nonce = await this.#openZkLoginModal();
@@ -315,6 +324,14 @@ export class WalletStandard implements Wallet {
         this.#mode,
       );
     }
+    if (this.#account && this.#account.network !== this.#network) {
+      this.#onEvent({
+        variant: 'error',
+        message: `Network mismatch: stored=${this.#account.network}, wallet=${this.#network}`,
+      });
+      this.#disconnect();
+      return { accounts: this.accounts };
+    }
     await this.#connected();
     return { accounts: this.accounts };
   };
@@ -325,7 +342,7 @@ export class WalletStandard implements Wallet {
     this.#account = undefined;
     this.#signer = undefined;
     this.#clipSigner = undefined;
-    this.#events.emit('change', { accounts: undefined });
+    this.#events.emit('change', { accounts: [] });
     this.#setIsConnected(false);
     return Promise.resolve();
   };
@@ -401,25 +418,46 @@ export class WalletStandard implements Wallet {
         });
         const { bytes, signature } =
           await this.#signer.signTransaction(txBytes);
-        const { digest, errors } = await client.executeTransactionBlock({
-          transactionBlock: bytes,
-          signature: signature,
-        });
-        if (errors) {
-          throw new Error(errors.join(', '));
+
+        let digest: string;
+        try {
+          const result = await client.executeTransactionBlock({
+            transactionBlock: bytes,
+            signature: signature,
+          });
+          if (result.errors && result.errors.length > 0) {
+            throw new Error(result.errors.join(', '));
+          }
+          digest = result.digest;
+        } catch (error) {
+          if (error instanceof Error) {
+            throw new Error(`Failed to execute transaction: ${error.message}`);
+          }
+          throw error;
         }
-        const { rawEffects } = await client.waitForTransaction({
-          digest,
-          options: {
-            showRawEffects: true,
-          },
-        });
-        return {
-          digest,
-          bytes,
-          signature,
-          effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
-        };
+
+        try {
+          const { rawEffects } = await client.waitForTransaction({
+            digest,
+            options: {
+              showRawEffects: true,
+            },
+            timeout: 30000,
+          });
+          return {
+            digest,
+            bytes,
+            signature,
+            effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
+          };
+        } catch (error) {
+          if (error instanceof Error) {
+            throw new Error(
+              `Transaction submitted but failed to confirm: ${error.message}. Digest: ${digest}`,
+            );
+          }
+          throw error;
+        }
       } else {
         const tx = await transaction.toJSON();
         const txResult = await this.#openSignTxModal(
@@ -449,7 +487,9 @@ export class WalletStandard implements Wallet {
         signature,
       };
     }
-    throw new Error('signer error');
+    throw new Error(
+      'signPersonalMessage is unavailable in QR-only mode (no local signer).',
+    );
   };
 
   public getAllBalances = async (): Promise<FloatCoinBalance[] | undefined> => {
