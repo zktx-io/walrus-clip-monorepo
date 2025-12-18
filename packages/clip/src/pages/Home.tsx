@@ -13,7 +13,6 @@ import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
 import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
 import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
 import { MultiSigPublicKey } from '@mysten/sui/multisig';
-import { Transaction } from '@mysten/sui/transactions';
 import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import { useWalrusWallet, WALLET_NAME } from '@zktx.io/walrus-wallet';
 
@@ -69,21 +68,31 @@ export const Home = () => {
           });
         },
 
-        signTransaction: async (transaction: Transaction) => {
+        signTransaction: async (transaction: unknown) => {
           return new Promise((resolve, reject) => {
-            signTransaction(
-              {
-                transaction,
-              },
-              {
-                onSuccess: (result) => {
-                  resolve(result);
-                },
-                onError: (error) => {
-                  reject(error);
-                },
-              },
-            );
+            (async () => {
+              try {
+                const tx =
+                  typeof transaction === 'string'
+                    ? transaction
+                    : await (transaction as { toJSON: () => Promise<string> }).toJSON();
+                signTransaction(
+                  {
+                    transaction: tx,
+                  },
+                  {
+                    onSuccess: (result) => {
+                      resolve(result);
+                    },
+                    onError: (error) => {
+                      reject(error);
+                    },
+                  },
+                );
+              } catch (error) {
+                reject(error);
+              }
+            })();
           });
         },
       });
