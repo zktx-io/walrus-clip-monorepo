@@ -33,7 +33,7 @@
     "build": "npm run clean && rollup -c",
     "lint": "npm run lint --prefix ../..",
     "format": "npm run format --prefix ../..",
-    "test": "jest"
+    "test": "node --test test/*.test.ts"
   },
   "repository": {
     "type": "git",
@@ -59,6 +59,7 @@
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
+    "jiti": "^2.6.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2",
     "typescript": "^5.8.2"

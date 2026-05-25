@@ -26,9 +26,16 @@ import {
 } from '@mysten/wallet-standard';
 import {
   ClipSigner,
+  LoginHostOutcome,
+  LoginHostOutcomeError,
   NETWORK,
   NotiVariant,
   QRLogin,
+  QRSignOutcome,
+  QRSignOutcomeError,
+  formatSignTransactionReview,
+  loginHostOutcomeToResult,
+  signHostOutcomeToResult,
 } from '@zktx.io/walrus-connect';
 import mitt, { type Emitter } from 'mitt';
 import ReactDOM from 'react-dom/client';
@@ -88,7 +95,7 @@ export class WalletStandard implements Wallet {
       };
       sponsoredUrl?: string;
     },
-  ) => Promise<SuiSignAndExecuteTransactionOutput>;
+  ) => Promise<QRSignOutcome>;
 
   #account: IAccount | undefined;
   #signer: ZkLoginSigner | undefined;
@@ -152,7 +159,7 @@ export class WalletStandard implements Wallet {
         };
         sponsoredUrl?: string;
       },
-    ) => Promise<SuiSignAndExecuteTransactionOutput>,
+    ) => Promise<QRSignOutcome>,
     zklogin?: {
       callbackNonce?: (nonce: string) => void;
       epochOffset?: number;
@@ -244,13 +251,14 @@ export class WalletStandard implements Wallet {
           network={this.#network}
           iceConfigUrl={this.#iceConfigUrl}
           onEvent={this.#onEvent}
-          onClose={(result) => {
+          onClose={(outcome: LoginHostOutcome) => {
             cleanup(container, root);
-            if (!!result) {
+            const result = loginHostOutcomeToResult(outcome);
+            if (result) {
               setAccountData(result);
               resolve();
             } else {
-              reject(new Error('rejected'));
+              reject(new LoginHostOutcomeError(outcome));
             }
           }}
         />,
@@ -283,6 +291,8 @@ export class WalletStandard implements Wallet {
         ? {
             getAddress: () => account.address,
             getPublicKey: () => this.#signer!.getPublicKey(),
+            reviewTransaction: (review) =>
+              window.confirm(formatSignTransactionReview(review)),
             signTransaction: (transaction: Transaction) =>
               this.#signTransaction({
                 transaction,
@@ -361,6 +371,12 @@ export class WalletStandard implements Wallet {
     });
   };
 
+  #requireFinalizedQRSignOutcome = (outcome: QRSignOutcome) => {
+    const result = signHostOutcomeToResult(outcome);
+    if (result) return result;
+    throw new QRSignOutcomeError(outcome);
+  };
+
   #signTransaction: SuiSignTransactionMethod = async ({
     transaction,
     chain,
@@ -384,7 +400,7 @@ export class WalletStandard implements Wallet {
         };
       } else {
         const tx = await transaction.toJSON();
-        const txResult = await this.#openSignTxModal(
+        const txOutcome = await this.#openSignTxModal(
           'Sign Transaction',
           'Please scan the QR code to sign.',
           {
@@ -392,6 +408,7 @@ export class WalletStandard implements Wallet {
             sponsoredUrl: this.#sponsoredUrl,
           },
         );
+        const txResult = this.#requireFinalizedQRSignOutcome(txOutcome);
         return {
           bytes: txResult.bytes,
           signature: txResult.signature,
@@ -460,7 +477,7 @@ export class WalletStandard implements Wallet {
         }
       } else {
         const tx = await transaction.toJSON();
-        const txResult = await this.#openSignTxModal(
+        const txOutcome = await this.#openSignTxModal(
           'Sign and Execute',
           'Please scan the QR code to sign.',
           {
@@ -468,12 +485,7 @@ export class WalletStandard implements Wallet {
             sponsoredUrl: this.#sponsoredUrl,
           },
         );
-        return {
-          digest: txResult.digest,
-          bytes: txResult.bytes,
-          signature: txResult.signature,
-          effects: txResult.effects,
-        };
+        return this.#requireFinalizedQRSignOutcome(txOutcome);
       }
     }
     throw new Error('chain error');

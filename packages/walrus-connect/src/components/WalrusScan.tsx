@@ -10,6 +10,7 @@ import ReactDOM from 'react-dom/client';
 
 import { QRScan } from '../components/QRScan';
 import { ClipSigner, NETWORK, NotiVariant } from '../types';
+import type { QRSignOutcome } from '../protocol/signHostRunner';
 import { QRSign } from './QRSign';
 import { cleanup } from '../utils/cleanup';
 
@@ -24,12 +25,7 @@ interface IWalrusScanContext {
       };
       sponsoredUrl?: string;
     },
-  ) => Promise<{
-    bytes: string;
-    signature: string;
-    digest: string;
-    effects: string;
-  }>;
+  ) => Promise<QRSignOutcome>;
 }
 
 const WalrusScanContext = createContext<IWalrusScanContext | undefined>(
@@ -94,12 +90,7 @@ export const WalrusScan = ({
         };
         sponsoredUrl?: string;
       },
-    ): Promise<{
-      bytes: string;
-      signature: string;
-      digest: string;
-      effects: string;
-    }> => {
+    ): Promise<QRSignOutcome> => {
       return new Promise((resolve) => {
         const container = document.createElement('div');
         document.body.appendChild(container);
@@ -119,11 +110,9 @@ export const WalrusScan = ({
               iceConfigUrl,
             }}
             onEvent={onEvent}
-            onClose={(result) => {
+            onClose={(outcome) => {
               cleanup(container, root);
-              if (!!result) {
-                resolve(result);
-              }
+              resolve(outcome);
             }}
           />,
         );

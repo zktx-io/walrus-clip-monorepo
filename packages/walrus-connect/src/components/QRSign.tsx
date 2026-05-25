@@ -1,8 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
-import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { X } from 'lucide-react';
 import Peer from 'peerjs';
 import { QRCode } from 'react-qrcode-logo';
@@ -16,135 +13,22 @@ import {
   DlgRoot,
   DlgTitle,
 } from './modal';
-import { ClipSigner, NETWORK, NotiVariant } from '../types';
-import { makeMessage, parseMessage } from '../utils/message';
+import { NETWORK, NotiVariant } from '../types';
+import { createPeerDataConnectionTransport } from '../protocol/peerTransport';
+import { routeQRSignHostBoundaryFailure } from '../protocol/qrSignHostBoundary';
 import {
-  createSponsoredTransaction,
-  executeSponsoredTransaction,
-} from '../utils/sponsoredTransaction';
+  formatSignHostOutcome,
+  startSignHostRunner,
+  type QRSignOutcome,
+} from '../protocol/signHostRunner';
+import { DEFAULT_PROTOCOL_MESSAGE_TTL_MS } from '../utils/message';
 import {
-  connectWithRelayFallback,
   DEFAULT_ICE_CONF,
   loadIceConfig,
   toPeerOptions,
 } from '../webrtc/connection';
 import { generateRandomId } from '../webrtc/generateRandomId';
 import { buildPeerId } from '../webrtc/qr-id';
-
-enum MessageType {
-  STEP_0 = 'SIGN_STEP_0',
-  STEP_1 = 'SIGN_STEP_1',
-  STEP_2 = 'SIGN_STEP_2',
-}
-
-export const connectQRSign = ({
-  signer,
-  network,
-  destId,
-  onEvent,
-  iceConfigUrl,
-}: {
-  signer: ClipSigner;
-  network: NETWORK;
-  destId: string;
-  onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  iceConfigUrl?: string;
-}) => {
-  const OPEN_TIMEOUT_MS = 8000;
-  const destHyphen = destId.replace(/::/g, '-');
-
-  onEvent({ variant: 'info', message: 'Connecting...' });
-
-  void connectWithRelayFallback({
-    destIdHyphen: destHyphen,
-    iceConfigUrl,
-    openTimeoutMs: OPEN_TIMEOUT_MS,
-    onEvent,
-    onOpen: (conn) => {
-      // STEP_0: send address (host will set sender and return bytes)
-      conn.send(makeMessage(MessageType.STEP_0, signer.getAddress()));
-
-      conn.on('data', async (data) => {
-        try {
-          const message = parseMessage(data as string);
-          const client = new SuiClient({ url: getFullnodeUrl(network) });
-
-          switch (message.type) {
-            case MessageType.STEP_1: {
-              // Receive tx bytes (and optional digest if sponsored)
-              const { bytes, digest } = JSON.parse(message.value);
-              const tx = Transaction.from(fromBase64(bytes));
-              const { signature } = await signer.signTransaction(tx);
-
-              // Send back signature (and original bytes)
-              conn.send(
-                makeMessage(
-                  MessageType.STEP_2,
-                  JSON.stringify({ txBytes: bytes, signature, digest }),
-                ),
-              );
-
-              // Wait for message to be sent before closing
-              await new Promise((resolve) => setTimeout(resolve, 200));
-
-              if (conn.open) conn.close();
-
-              // Wait for inclusion based on digest
-              if (digest) {
-                await client.waitForTransaction({
-                  digest,
-                  options: { showRawEffects: true },
-                });
-                onEvent({
-                  variant: 'success',
-                  message: 'Transaction executed',
-                });
-              } else {
-                const computedDigest = await tx.getDigest({ client });
-                await client.waitForTransaction({
-                  digest: computedDigest,
-                  options: { showRawEffects: true },
-                });
-                onEvent({
-                  variant: 'success',
-                  message: 'Transaction executed',
-                });
-              }
-              break;
-            }
-            default: {
-              if (conn.open) conn.close();
-              onEvent({
-                variant: 'error',
-                message: `Unknown message type: ${message.type}`,
-              });
-            }
-          }
-        } catch (error) {
-          try {
-            if ((conn as any).open) (conn as any).close();
-          } catch {}
-          onEvent({ variant: 'error', message: String(error) });
-        }
-      });
-
-      conn.on('error', (err) => {
-        try {
-          if (conn.open) conn.close();
-        } catch {}
-        onEvent({
-          variant: 'error',
-          message: `Connection error: ${err.message}`,
-        });
-      });
-    },
-  }).catch((err) => {
-    onEvent({
-      variant: 'error',
-      message: `Connect init error: ${String(err)}`,
-    });
-  });
-};
 
 /**
  * QR host component: shows QR and waits for the initiator to connect.
@@ -168,50 +52,122 @@ export const QRSign = ({
   icon: string;
   option: { title?: string; description?: string; iceConfigUrl?: string };
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  onClose: (result?: {
-    bytes: string;
-    signature: string;
-    digest: string;
-    effects: string;
-  }) => void;
+  onClose: (outcome: QRSignOutcome) => void;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
-  const [token] = useState<string>(() => generateRandomId());
+  const [sessionId] = useState<string>(() => generateRandomId());
+  const [peerReady, setPeerReady] = useState<boolean>(false);
+  const cleanupSessionRef = useRef<(() => void) | undefined>(undefined);
+  const cancelSessionRef = useRef<((reason?: string) => void) | undefined>(
+    undefined,
+  );
+  const closedRef = useRef(false);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Compose peerId with optional iceConfigUrl suffix so the scanner can use the same ICE config
   const peerId = useMemo(
     () =>
       buildPeerId({
         network,
-        token,
+        sessionId,
         type: 'sign',
         iceConfigUrl: option?.iceConfigUrl,
       }),
-    [network, option?.iceConfigUrl, token],
+    [network, option?.iceConfigUrl, sessionId],
   );
   const peerIdHyphen = useMemo(() => peerId.replace(/::/g, '-'), [peerId]);
 
   const handleClose = useCallback(
-    (
-      error?: string,
-      result?: {
-        bytes: string;
-        signature: string;
-        digest: string;
-        effects: string;
-      },
-    ) => {
-      if (error) onEvent({ variant: 'error', message: error });
-      setOpen(false);
-      onClose(result);
+    (outcome: QRSignOutcome) => {
+      if (closedRef.current) return;
+      closedRef.current = true;
+      const cleanup = cleanupSessionRef.current;
+      cleanupSessionRef.current = undefined;
+      cleanup?.();
+      if (mountedRef.current) setOpen(false);
+      onClose(outcome);
     },
-    [onClose, onEvent],
+    [onClose],
+  );
+
+  const handleFailure = useCallback(
+    (reason: string) => {
+      if (closedRef.current) return;
+      onEvent({ variant: 'error', message: reason });
+      handleClose({ type: 'failed_before_submit', reason });
+    },
+    [handleClose, onEvent],
   );
 
   useEffect(() => {
     let peer: Peer | undefined;
-    let step: string = '';
     let cancelled = false;
+    let cleanedUp = false;
+    let finished = false;
+    let acceptedConnection = false;
+    let sessionTimeout: ReturnType<typeof setTimeout> | undefined;
+    let activeConnection:
+      | {
+          open: boolean;
+          close: () => void;
+        }
+      | undefined;
+    let activeRunnerDispose: (() => void) | undefined;
+
+    setPeerReady(false);
+
+    const clearSessionTimeout = () => {
+      if (sessionTimeout) clearTimeout(sessionTimeout);
+      sessionTimeout = undefined;
+    };
+
+    const finish = (outcome: QRSignOutcome) => {
+      if (finished) return;
+      finished = true;
+      clearSessionTimeout();
+      handleClose(outcome);
+    };
+
+    const cleanupSession = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      cancelled = true;
+      clearSessionTimeout();
+      const disposeRunner = activeRunnerDispose;
+      cancelSessionRef.current = undefined;
+      activeRunnerDispose = undefined;
+      disposeRunner?.();
+      try {
+        activeConnection?.close();
+      } catch {}
+      activeConnection = undefined;
+      try {
+        peer?.destroy();
+      } catch {}
+      if (!disposeRunner && !finished && !closedRef.current) {
+        finish({
+          type: 'failed_before_submit',
+          reason: 'QR sign session disposed.',
+        });
+      }
+    };
+
+    cleanupSessionRef.current = cleanupSession;
+
+    sessionTimeout = setTimeout(() => {
+      routeQRSignHostBoundaryFailure({
+        runnerCancel: cancelSessionRef.current,
+        failBeforeRunner: handleFailure,
+        reason: 'QR sign session timed out.',
+      });
+    }, DEFAULT_PROTOCOL_MESSAGE_TTL_MS);
 
     (async () => {
       try {
@@ -229,164 +185,71 @@ export const QRSign = ({
           return;
         }
 
+        peer.on('open', () => {
+          if (!cancelled && !finished) setPeerReady(true);
+        });
+
         peer.on('connection', (connection) => {
+          if (finished || acceptedConnection) {
+            try {
+              connection.close();
+            } catch {}
+            return;
+          }
+          acceptedConnection = true;
+          activeConnection = connection;
+
           onEvent({ variant: 'info', message: 'Connecting...' });
           setOpen(false);
 
-          connection.on('data', async (data) => {
-            try {
-              const message = parseMessage(data as string);
-              step = message.type;
-
-              const client = new SuiClient({ url: getFullnodeUrl(network) });
-
-              switch (message.type) {
-                case MessageType.STEP_0: {
-                  onEvent({
-                    variant: 'info',
-                    message:
-                      sponsoredUrl !== undefined
-                        ? 'Creating sponsored transaction...'
-                        : 'Creating transaction...',
-                  });
-
-                  const txb = Transaction.from(await transaction.toJSON());
-                  txb.setSenderIfNotSet(message.value);
-
-                  if (sponsoredUrl !== undefined) {
-                    const txBytes = await txb.build({
-                      client,
-                      onlyTransactionKind: true,
-                    });
-                    const { bytes: sponsoredTxBytes, digest } =
-                      await createSponsoredTransaction(
-                        sponsoredUrl,
-                        network,
-                        message.value,
-                        txBytes,
-                      );
-
-                    connection.send(
-                      makeMessage(
-                        MessageType.STEP_1,
-                        JSON.stringify({ bytes: sponsoredTxBytes, digest }),
-                      ),
-                    );
-                  } else {
-                    const txBytes = await txb.build({ client });
-                    connection.send(
-                      makeMessage(
-                        MessageType.STEP_1,
-                        JSON.stringify({ bytes: toBase64(txBytes) }),
-                      ),
-                    );
-                  }
-                  break;
-                }
-
-                case MessageType.STEP_2: {
-                  if (connection.open) connection.close();
-
-                  onEvent({
-                    variant: 'info',
-                    message:
-                      sponsoredUrl !== undefined
-                        ? 'Executing sponsored transaction...'
-                        : 'Executing transaction...',
-                  });
-
-                  if (sponsoredUrl !== undefined) {
-                    const { digest, signature, txBytes } = JSON.parse(
-                      message.value,
-                    );
-
-                    await executeSponsoredTransaction(
-                      sponsoredUrl,
-                      digest!,
-                      signature,
-                    );
-
-                    const { rawEffects } = await client.waitForTransaction({
-                      digest,
-                      options: { showRawEffects: true },
-                    });
-
-                    handleClose(undefined, {
-                      bytes: txBytes,
-                      signature,
-                      digest,
-                      effects: rawEffects
-                        ? toBase64(new Uint8Array(rawEffects))
-                        : '',
-                    });
-                  } else {
-                    const { signature, txBytes } = JSON.parse(message.value);
-
-                    const { digest } = await client.executeTransactionBlock({
-                      transactionBlock: txBytes,
-                      signature,
-                    });
-
-                    const { rawEffects } = await client.waitForTransaction({
-                      digest,
-                      options: { showRawEffects: true },
-                    });
-
-                    handleClose(undefined, {
-                      bytes: txBytes,
-                      signature,
-                      digest,
-                      effects: rawEffects
-                        ? toBase64(new Uint8Array(rawEffects))
-                        : '',
-                    });
-                  }
-                  break;
-                }
-
-                default: {
-                  if (connection.open) connection.close();
-                  handleClose(`Unknown message type: ${message.type}`);
-                }
-              }
-            } catch (error) {
-              if ((connection as any).open) (connection as any).close();
-              handleClose(`Unknown error: ${error}`);
-            }
+          const runner = startSignHostRunner({
+            sessionId,
+            network,
+            transport: createPeerDataConnectionTransport(connection),
+            transaction,
+            sponsoredUrl,
+            onEvent,
+            onFinish: (outcome) => {
+              onEvent({
+                variant:
+                  outcome.type === 'signed_and_finalized'
+                    ? 'success'
+                    : outcome.type === 'failed_before_submit'
+                      ? 'error'
+                      : 'warning',
+                message: formatSignHostOutcome(outcome),
+              });
+              finish(outcome);
+            },
           });
-
-          connection.on('error', (err) => {
-            if (connection.open) connection.close();
-            handleClose(`Connection error: ${err.message}`);
-          });
-
-          connection.on('close', () => {
-            if (step !== MessageType.STEP_2) {
-              handleClose('Connection closed by the remote peer.');
-            }
-          });
+          cancelSessionRef.current = runner.cancel;
+          activeRunnerDispose = runner.dispose;
         });
 
         peer.on('error', (err) => {
-          handleClose(`Peer error: ${err.message}`);
+          routeQRSignHostBoundaryFailure({
+            runnerCancel: cancelSessionRef.current,
+            failBeforeRunner: handleFailure,
+            reason: `Peer error: ${err.message}`,
+          });
         });
       } catch (err) {
-        if (!cancelled) handleClose(`Peer init error: ${String(err)}`);
+        if (!cancelled) handleFailure(`Peer init error: ${String(err)}`);
       }
     })();
 
     return () => {
-      cancelled = true;
-      try {
-        peer?.destroy();
-      } catch {}
+      cleanupSessionRef.current = undefined;
+      cleanupSession();
     };
   }, [
     handleClose,
+    handleFailure,
     network,
     onEvent,
     option?.iceConfigUrl,
     peerIdHyphen,
+    sessionId,
     sponsoredUrl,
     transaction,
   ]);
@@ -406,20 +269,42 @@ export const QRSign = ({
             <DlgTitle mode={mode}>{option.title}</DlgTitle>
             <DlgButtonIcon
               mode={mode}
-              onClick={() => handleClose('User closed')}
+              onClick={() => {
+                routeQRSignHostBoundaryFailure({
+                  runnerCancel: cancelSessionRef.current,
+                  failBeforeRunner: handleFailure,
+                  reason: 'User closed',
+                });
+              }}
             >
               <X />
             </DlgButtonIcon>
           </div>
-          <QRCode
-            value={peerId}
-            logoImage={icon}
-            logoPadding={5}
-            size={256}
-            qrStyle="dots"
-            style={{ width: '256px', height: '256px' }}
-          />
-          <DlgDescription2 mode={mode}>{option.description}</DlgDescription2>
+          {peerReady ? (
+            <QRCode
+              value={peerId}
+              logoImage={icon}
+              logoPadding={5}
+              size={256}
+              qrStyle="dots"
+              style={{ width: '256px', height: '256px' }}
+            />
+          ) : (
+            <div
+              style={{
+                alignItems: 'center',
+                display: 'flex',
+                height: '256px',
+                justifyContent: 'center',
+                width: '256px',
+              }}
+            >
+              Preparing...
+            </div>
+          )}
+          <DlgDescription2 mode={mode}>
+            {peerReady ? option.description : 'Preparing secure connection...'}
+          </DlgDescription2>
         </DlgContentQR>
       </DlgPortal>
     </DlgRoot>

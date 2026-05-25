@@ -19,8 +19,11 @@ import {
   executeSponsoredTransaction,
   NETWORK,
   NotiVariant,
+  QRSignOutcome,
+  QRSignOutcomeError,
   useWalrusScan,
   WalrusScan,
+  signHostOutcomeToResult,
 } from '@zktx.io/walrus-connect';
 import { decodeJwt } from 'jose';
 import { RecoilRoot } from 'recoil';
@@ -52,12 +55,7 @@ interface IWalrusWalletContext {
       };
       sponsoredUrl?: string;
     },
-  ) => Promise<{
-    bytes: string;
-    signature: string;
-    digest: string;
-    effects: string;
-  }>;
+  ) => Promise<QRSignOutcome>;
   signAndExecuteSponsoredTransaction: (input: {
     transaction: {
       toJSON: () => Promise<string>;
@@ -90,6 +88,12 @@ interface IWalrusWalletProps {
 const WalrusWalletContext = createContext<IWalrusWalletContext | undefined>(
   undefined,
 );
+
+const requireFinalizedQRSignOutcome = (outcome: QRSignOutcome) => {
+  const result = signHostOutcomeToResult(outcome);
+  if (result) return result;
+  throw new QRSignOutcomeError(outcome);
+};
 
 const WalrusWalletRoot = ({
   name,
@@ -257,7 +261,7 @@ const WalrusWalletRoot = ({
           }
         }
       } else {
-        const { digest, bytes, signature, effects } = await openSignTxModal(
+        const outcome = await openSignTxModal(
           'Sign Transaction',
           'Please scan the QR code to sign.',
           {
@@ -265,12 +269,7 @@ const WalrusWalletRoot = ({
             sponsoredUrl,
           },
         );
-        return {
-          digest,
-          bytes,
-          signature,
-          effects,
-        };
+        return requireFinalizedQRSignOutcome(outcome);
       }
       throw new Error('Chain error');
     }
@@ -379,6 +378,9 @@ export const WalrusWallet = ({
 };
 
 export const WALLET_NAME = DEFAULT_NAME;
+
+export { formatSignTransactionReview } from '@zktx.io/walrus-connect';
+export type { SignTransactionReview } from '@zktx.io/walrus-connect';
 
 export const useWalrusWallet = () => {
   const context = useContext(WalrusWalletContext);

@@ -1,13 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
-import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
-import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
-import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
-import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
-import { MultiSigPublicKey } from '@mysten/sui/multisig';
-import { fromBase64 } from '@mysten/sui/utils';
-import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import { X } from 'lucide-react';
 import Peer from 'peerjs';
 import { QRCode } from 'react-qrcode-logo';
@@ -21,10 +13,14 @@ import {
   DlgRoot,
   DlgTitle,
 } from './modal';
-import { ClipSigner, NETWORK, NotiVariant } from '../types';
-import { makeMessage, parseMessage } from '../utils/message';
 import {
-  connectWithRelayFallback,
+  formatLoginHostOutcome,
+  startLoginHostSessionForConnection,
+  type LoginHostOutcome,
+} from '../protocol/loginHostSession';
+import type { NETWORK, NotiVariant } from '../types';
+import { DEFAULT_PROTOCOL_MESSAGE_TTL_MS } from '../utils/message';
+import {
   DEFAULT_ICE_CONF,
   loadIceConfig,
   toPeerOptions,
@@ -32,116 +28,7 @@ import {
 import { generateRandomId } from '../webrtc/generateRandomId';
 import { buildPeerId } from '../webrtc/qr-id';
 
-enum MessageType {
-  STEP_0 = 'LOGIN_STEP_0',
-  STEP_1 = 'LOGIN_STEP_1',
-}
-
-/**
- * Initiator (scanner) connector: connects to the QR host's peerId.
- * If iceConfigUrl is provided (decoded from QR), it loads ICE from there; else uses default.
- * Falls back to relay-only if direct P2P opening times out.
- */
-export const connectQRLogin = ({
-  signer,
-  destId,
-  onEvent,
-  iceConfigUrl,
-}: {
-  signer: ClipSigner;
-  destId: string; // canonical "sui::<network>::<token>::login[::<b64url(url)>]"
-  onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  iceConfigUrl?: string; // optional ICE config base url
-}) => {
-  const OPEN_TIMEOUT_MS = 8000;
-  const destHyphen = destId.replace(/::/g, '-');
-
-  onEvent({ variant: 'info', message: 'Connecting...' });
-
-  // Use shared connector with relay fallback behavior
-  void connectWithRelayFallback({
-    destIdHyphen: destHyphen,
-    iceConfigUrl,
-    openTimeoutMs: OPEN_TIMEOUT_MS,
-    onEvent,
-    onOpen: (conn) => {
-      // When connection opens, prove liveness/ownership by signing the destId string.
-      (async () => {
-        try {
-          const encoder = new TextEncoder();
-          const { signature } = await signer.signPersonalMessage(
-            encoder.encode(destId),
-          );
-          const publicKey = signer.getPublicKey().toSuiPublicKey();
-
-          conn.send(
-            makeMessage(
-              MessageType.STEP_0,
-              JSON.stringify({
-                address: signer.getAddress(),
-                publicKey,
-                signature,
-              }),
-            ),
-          );
-        } catch (error) {
-          onEvent({ variant: 'error', message: String(error) });
-          try {
-            conn.close();
-          } catch {}
-        }
-      })();
-
-      conn.on('data', (data) => {
-        try {
-          const message = parseMessage(data as string);
-          switch (message.type) {
-            case MessageType.STEP_1: {
-              if (message.value === 'OK') {
-                onEvent({ variant: 'success', message: 'Connected' });
-              } else {
-                onEvent({ variant: 'error', message: message.value });
-              }
-              try {
-                conn.close();
-              } catch {}
-              break;
-            }
-            default: {
-              try {
-                conn.close();
-              } catch {}
-              onEvent({
-                variant: 'error',
-                message: `Unknown message type: ${message.type}`,
-              });
-            }
-          }
-        } catch (error) {
-          try {
-            conn.close();
-          } catch {}
-          onEvent({ variant: 'error', message: String(error) });
-        }
-      });
-
-      conn.on('error', (err) => {
-        try {
-          conn.close();
-        } catch {}
-        onEvent({
-          variant: 'error',
-          message: `Connection error: ${err.message}`,
-        });
-      });
-    },
-  }).catch((err) => {
-    onEvent({
-      variant: 'error',
-      message: `Connect init error: ${String(err)}`,
-    });
-  });
-};
+export { connectQRLogin } from '../protocol/loginScannerSession';
 
 /**
  * QR host component: shows QR and waits for the initiator to connect.
@@ -159,40 +46,118 @@ export const QRLogin = ({
   mode: 'dark' | 'light';
   network: NETWORK;
   icon: string;
-  onClose: (result?: { address: string; network: NETWORK }) => void;
+  onClose: (outcome: LoginHostOutcome) => void;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   /** Optional: when provided, embed this URL into the QR and load ICE from `{url}/ice-conf.json` */
   iceConfigUrl?: string;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
-  const [token] = useState<string>(() => generateRandomId());
+  const [sessionId] = useState<string>(() => generateRandomId());
+  const [peerReady, setPeerReady] = useState<boolean>(false);
+  const cleanupSessionRef = useRef<(() => void) | undefined>(undefined);
+  const cancelSessionRef = useRef<((reason?: string) => void) | undefined>(
+    undefined,
+  );
+  const closedRef = useRef(false);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Compose peerId with optional iceConfigUrl suffix so the scanner can use the same ICE config
   const peerId = useMemo(
     () =>
       buildPeerId({
         network,
-        token,
+        sessionId,
         type: 'login',
         iceConfigUrl,
       }),
-    [iceConfigUrl, network, token],
+    [iceConfigUrl, network, sessionId],
   );
   const peerIdHyphen = useMemo(() => peerId.replace(/::/g, '-'), [peerId]);
 
   const handleClose = useCallback(
-    (error?: string, result?: { address: string; network: NETWORK }) => {
-      if (error) onEvent({ variant: 'error', message: error });
-      setOpen(false);
-      onClose(result);
+    (outcome: LoginHostOutcome) => {
+      if (closedRef.current) return;
+      closedRef.current = true;
+      const cleanup = cleanupSessionRef.current;
+      cleanupSessionRef.current = undefined;
+      cleanup?.();
+      if (mountedRef.current) setOpen(false);
+      onClose(outcome);
     },
-    [onClose, onEvent],
+    [onClose],
   );
 
   useEffect(() => {
     let peer: Peer | undefined;
-    let step = '';
+    let finished = false;
+    let cleanedUp = false;
     let cancelled = false;
+    let acceptedConnection = false;
+    let sessionTimeout: ReturnType<typeof setTimeout> | undefined;
+    let activeConnection:
+      | {
+          open: boolean;
+          close: () => void;
+        }
+      | undefined;
+    let activeRunnerDispose: (() => void) | undefined;
+
+    setPeerReady(false);
+
+    const clearSessionTimeout = () => {
+      if (sessionTimeout) clearTimeout(sessionTimeout);
+      sessionTimeout = undefined;
+    };
+
+    const finish = (outcome: LoginHostOutcome) => {
+      if (finished) return;
+      finished = true;
+      clearSessionTimeout();
+      handleClose(outcome);
+    };
+
+    const failBeforeRunner = (reason: string) => {
+      onEvent({ variant: 'error', message: reason });
+      finish({ type: 'failed', reason });
+    };
+
+    const cleanupSession = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      cancelled = true;
+      clearSessionTimeout();
+      const disposeRunner = activeRunnerDispose;
+      cancelSessionRef.current = undefined;
+      activeRunnerDispose = undefined;
+      disposeRunner?.();
+      try {
+        activeConnection?.close();
+      } catch {}
+      activeConnection = undefined;
+      try {
+        peer?.destroy();
+      } catch {}
+      if (!disposeRunner && !finished && !closedRef.current) {
+        failBeforeRunner('QR login session disposed.');
+      }
+    };
+
+    cleanupSessionRef.current = cleanupSession;
+
+    sessionTimeout = setTimeout(() => {
+      if (cancelSessionRef.current) {
+        cancelSessionRef.current('QR login session timed out.');
+        return;
+      }
+      failBeforeRunner('QR login session timed out.');
+    }, DEFAULT_PROTOCOL_MESSAGE_TTL_MS);
 
     (async () => {
       try {
@@ -210,135 +175,68 @@ export const QRLogin = ({
           return;
         }
 
+        peer.on('open', () => {
+          if (!cancelled && !finished) setPeerReady(true);
+        });
+
         peer.on('connection', (connection) => {
+          if (finished || acceptedConnection) {
+            try {
+              connection.close();
+            } catch {}
+            return;
+          }
+          acceptedConnection = true;
+          activeConnection = connection;
+
           onEvent({ variant: 'info', message: 'Connecting...' });
           setOpen(false);
 
-          connection.on('data', async (data) => {
-            try {
-              const message = parseMessage(data as string);
-              step = message.type;
-
-              switch (message.type) {
-                case MessageType.STEP_0: {
-                  onEvent({ variant: 'info', message: 'Verifying...' });
-                  try {
-                    // zkLogin verification needs GQL client
-                    const client = new SuiGraphQLClient({
-                      url: `https://sui-${network}.mystenlabs.com/graphql`,
-                    });
-
-                    const {
-                      address,
-                      publicKey,
-                      signature,
-                    }: {
-                      address: string;
-                      publicKey: string;
-                      signature: string;
-                    } = JSON.parse(message.value);
-
-                    const bytesPublicKey = fromBase64(publicKey);
-                    const bytesMessage = new TextEncoder().encode(peerId);
-                    let verification = false;
-
-                    // First byte determines the key scheme
-                    switch (bytesPublicKey[0]) {
-                      case 0x00:
-                        verification = await new Ed25519PublicKey(
-                          bytesPublicKey.slice(1),
-                        ).verifyPersonalMessage(bytesMessage, signature);
-                        break;
-                      case 0x01:
-                        verification = await new Secp256k1PublicKey(
-                          bytesPublicKey.slice(1),
-                        ).verifyPersonalMessage(bytesMessage, signature);
-                        break;
-                      case 0x02:
-                        verification = await new Secp256r1PublicKey(
-                          bytesPublicKey.slice(1),
-                        ).verifyPersonalMessage(bytesMessage, signature);
-                        break;
-                      case 0x03:
-                        verification = await new MultiSigPublicKey(
-                          bytesPublicKey.slice(1),
-                        ).verifyPersonalMessage(bytesMessage, signature);
-                        break;
-                      case 0x05:
-                        verification = await new ZkLoginPublicIdentifier(
-                          bytesPublicKey.slice(1),
-                          { client },
-                        ).verifyPersonalMessage(bytesMessage, signature);
-                        break;
-                      case 0x06:
-                        verification = await new PasskeyPublicKey(
-                          bytesPublicKey.slice(1),
-                        ).verifyPersonalMessage(bytesMessage, signature);
-                        break;
-                      default:
-                        verification = false;
-                    }
-
-                    if (verification) {
-                      connection.send(makeMessage(MessageType.STEP_1, 'OK'));
-                      onEvent({
-                        variant: 'success',
-                        message: 'Verification success',
-                      });
-                      handleClose(undefined, { address, network });
-                    } else {
-                      connection.send(
-                        makeMessage(MessageType.STEP_1, 'verification failed'),
-                      );
-                      handleClose('verification failed');
-                    }
-                  } catch (error) {
-                    connection.send(
-                      makeMessage(MessageType.STEP_1, `error: ${error}`),
-                    );
-                    handleClose(`error: ${error}`);
-                  }
-                  break;
-                }
-
-                default: {
-                  if (connection.open) connection.close();
-                  handleClose(`Unknown message type: ${message.type}`);
-                }
+          const runner = startLoginHostSessionForConnection({
+            sessionId,
+            network,
+            challenge: peerId,
+            connection,
+            onEvent,
+            onFinish: (outcome) => {
+              if (outcome.type !== 'connected') {
+                onEvent({
+                  variant: 'error',
+                  message: formatLoginHostOutcome(outcome),
+                });
               }
-            } catch (error) {
-              if ((connection as any).open) (connection as any).close();
-              handleClose(`Unknown error: ${error}`);
-            }
+              finish(outcome);
+            },
           });
-
-          connection.on('error', (err) => {
-            if (connection.open) connection.close();
-            handleClose(`Connection error: ${err.message}`);
-          });
-
-          connection.on('close', () => {
-            if (step !== MessageType.STEP_0) {
-              handleClose('Connection closed by the remote peer.');
-            }
-          });
+          cancelSessionRef.current = runner.cancel;
+          activeRunnerDispose = runner.dispose;
         });
 
         peer.on('error', (err) => {
-          handleClose(`Peer error: ${err.message}`);
+          if (cancelSessionRef.current) {
+            cancelSessionRef.current(`Peer error: ${err.message}`);
+            return;
+          }
+          failBeforeRunner(`Peer error: ${err.message}`);
         });
       } catch (err) {
-        if (!cancelled) handleClose(`Peer init error: ${String(err)}`);
+        if (!cancelled) failBeforeRunner(`Peer init error: ${String(err)}`);
       }
     })();
 
     return () => {
-      cancelled = true;
-      try {
-        peer?.destroy();
-      } catch {}
+      cleanupSessionRef.current = undefined;
+      cleanupSession();
     };
-  }, [handleClose, iceConfigUrl, network, onEvent, peerId, peerIdHyphen]);
+  }, [
+    handleClose,
+    iceConfigUrl,
+    network,
+    onEvent,
+    peerId,
+    peerIdHyphen,
+    sessionId,
+  ]);
 
   return (
     <DlgRoot open={open}>
@@ -359,21 +257,44 @@ export const QRLogin = ({
             <DlgTitle mode={mode}>Login</DlgTitle>
             <DlgButtonIcon
               mode={mode}
-              onClick={() => handleClose('Login canceled')}
+              onClick={() => {
+                if (cancelSessionRef.current) {
+                  cancelSessionRef.current('Login canceled');
+                  return;
+                }
+                onEvent({ variant: 'error', message: 'Login canceled' });
+                handleClose({ type: 'failed', reason: 'Login canceled' });
+              }}
             >
               <X />
             </DlgButtonIcon>
           </div>
-          <QRCode
-            value={peerId}
-            logoImage={icon}
-            logoPadding={5}
-            size={256}
-            qrStyle="dots"
-            style={{ width: '256px', height: '256px' }}
-          />
+          {peerReady ? (
+            <QRCode
+              value={peerId}
+              logoImage={icon}
+              logoPadding={5}
+              size={256}
+              qrStyle="dots"
+              style={{ width: '256px', height: '256px' }}
+            />
+          ) : (
+            <div
+              style={{
+                alignItems: 'center',
+                display: 'flex',
+                height: '256px',
+                justifyContent: 'center',
+                width: '256px',
+              }}
+            >
+              Preparing...
+            </div>
+          )}
           <DlgDescription2 mode={mode}>
-            Please scan the QR code to log in.
+            {peerReady
+              ? 'Please scan the QR code to log in.'
+              : 'Preparing secure connection...'}
           </DlgDescription2>
         </DlgContentQR>
       </DlgPortal>

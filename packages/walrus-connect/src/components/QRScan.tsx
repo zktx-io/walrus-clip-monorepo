@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { IDetectedBarcode, Scanner } from '@yudiel/react-qr-scanner';
 import { X } from 'lucide-react';
@@ -12,9 +12,10 @@ import {
   DlgRoot,
   DlgTitle,
 } from './modal';
-import { connectQRLogin } from './QRLogin';
-import { connectQRSign } from './QRSign';
-import { ClipSigner, NETWORK, NotiVariant, QRScanType } from '../types';
+import { connectQRLogin } from '../protocol/loginScannerSession';
+import { connectQRSign } from '../protocol/signScannerConnector';
+import { ClipSigner, NETWORK, NotiVariant } from '../types';
+import { parsePeerId } from '../webrtc/qr-id';
 
 export const QRScan = ({
   mode,
@@ -32,9 +33,33 @@ export const QRScan = ({
   onClose: (isBack: boolean) => void;
 }) => {
   const [error, setError] = useState<string | undefined>(undefined);
+  const scanHandledRef = useRef(false);
+  const connectionCleanupRef = useRef<(() => void) | undefined>(undefined);
+
+  useEffect(() => {
+    if (!open) {
+      connectionCleanupRef.current?.();
+      connectionCleanupRef.current = undefined;
+      return;
+    }
+    scanHandledRef.current = false;
+    setError(undefined);
+    connectionCleanupRef.current?.();
+    connectionCleanupRef.current = undefined;
+  }, [open]);
+
+  useEffect(
+    () => () => {
+      connectionCleanupRef.current?.();
+      connectionCleanupRef.current = undefined;
+    },
+    [],
+  );
 
   const handleClose = useCallback(
     (error?: string) => {
+      connectionCleanupRef.current?.();
+      connectionCleanupRef.current = undefined;
       if (error) {
         onEvent({
           variant: 'error',
@@ -48,66 +73,60 @@ export const QRScan = ({
 
   const handleScan = useCallback(
     (result: IDetectedBarcode[]) => {
+      if (scanHandledRef.current) return;
+
       const first = result?.[0];
       if (!first) return;
       if (first.format === 'qr_code') {
-        const parts = first.rawValue.split('::');
-        if (
-          (parts.length === 4 || parts.length === 5) &&
-          parts[0] === 'sui' &&
-          parts[1] === network &&
-          (parts[3] === 'login' || parts[3] === 'sign')
-        ) {
-          const type = parts[3] as QRScanType;
-          const destId = parts.join('::');
+        const parsedPeerId = parsePeerId(first.rawValue);
+        if (!parsedPeerId) {
+          setError('Invalid QR peer id');
+          return;
+        }
 
-          // Decode optional iceConfigUrl if present
-          let iceConfigUrlFromQR: string | undefined;
-          if (parts.length === 5) {
-            try {
-              // lazy local decode to avoid importing helper here
-              const b64 = parts[4];
-              const pad =
-                b64.length % 4 === 2 ? '==' : b64.length % 4 === 3 ? '=' : '';
-              iceConfigUrlFromQR = atob(
-                b64.replace(/-/g, '+').replace(/_/g, '/') + pad,
-              );
-            } catch {
-              // ignore decode errors -> fallback to default ICE
-            }
-          }
+        if (parsedPeerId.network !== network) {
+          setError('Invalid network');
+          return;
+        }
 
+        scanHandledRef.current = true;
+        setError('Connecting...');
+
+        const onConnected = () => {
+          connectionCleanupRef.current = undefined;
           onClose(false);
-          switch (type) {
-            case 'login':
-              connectQRLogin({
-                signer,
-                destId,
-                onEvent,
-                iceConfigUrl: iceConfigUrlFromQR,
-              });
-              break;
-            case 'sign':
-              connectQRSign({
-                signer,
-                network,
-                destId,
-                onEvent,
-                iceConfigUrl: iceConfigUrlFromQR,
-              });
-              break;
-            default:
-              break;
+        };
+        const onConnectionFailure = (message: string) => {
+          connectionCleanupRef.current = undefined;
+          scanHandledRef.current = false;
+          setError(message);
+        };
+
+        switch (parsedPeerId.type) {
+          case 'login': {
+            const handle = connectQRLogin({
+              signer,
+              destId: first.rawValue,
+              onEvent,
+              iceConfigUrl: parsedPeerId.iceConfigUrl,
+              onConnected,
+              onConnectionFailure,
+            });
+            connectionCleanupRef.current = handle?.cleanup;
+            break;
           }
-        } else {
-          if (parts.length !== 4 && parts.length !== 5) {
-            setError('Invalid schema');
-          } else if (parts[0] !== 'sui') {
-            setError('Invalid chain');
-          } else if (parts[1] !== network) {
-            setError('Invalid network');
-          } else {
-            setError('invalid type');
+          case 'sign': {
+            const handle = connectQRSign({
+              signer,
+              network,
+              destId: first.rawValue,
+              onEvent,
+              iceConfigUrl: parsedPeerId.iceConfigUrl,
+              onConnected,
+              onConnectionFailure,
+            });
+            connectionCleanupRef.current = handle?.cleanup;
+            break;
           }
         }
       }

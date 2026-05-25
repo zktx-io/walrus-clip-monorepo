@@ -55,7 +55,7 @@ export const Kiosk = () => {
         ],
       });
 
-      const { digest } = await openSignTxModal(
+      const outcome = await openSignTxModal(
         'Pay',
         'Please scan the QR code to pay.',
         {
@@ -63,8 +63,11 @@ export const Kiosk = () => {
           sponsoredUrl: SPONSORED_URL,
         },
       );
+      if (outcome.type !== 'signed_and_finalized') {
+        throw new Error(`Payment was not finalized: ${outcome.type}`);
+      }
 
-      setTxDigest(digest);
+      setTxDigest(outcome.digest);
       setOrderedItems(cart);
       setIsModalOpen(true);
       setCart([]);

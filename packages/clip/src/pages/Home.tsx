@@ -14,7 +14,11 @@ import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
 import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
 import { MultiSigPublicKey } from '@mysten/sui/multisig';
 import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
-import { useWalrusWallet, WALLET_NAME } from '@zktx.io/walrus-wallet';
+import {
+  formatSignTransactionReview,
+  useWalrusWallet,
+  WALLET_NAME,
+} from '@zktx.io/walrus-wallet';
 
 export const Home = () => {
   const { connectionStatus, currentWallet } = useCurrentWallet();
@@ -49,6 +53,9 @@ export const Home = () => {
           }
           throw new Error('Not implemented (getPublicKey)');
         },
+
+        reviewTransaction: async (review) =>
+          window.confirm(formatSignTransactionReview(review)),
 
         signPersonalMessage: async (bytes: Uint8Array) => {
           return new Promise((resolve, reject) => {
