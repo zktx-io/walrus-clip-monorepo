@@ -42,6 +42,9 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Local reference repositories and research notes
+.WORK/
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
