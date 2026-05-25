@@ -74,6 +74,66 @@ For non-trivial work:
 
 Do not interpret a user request as the lowest-effort literal edit in isolation. Interpret it by the product outcome, affected boundary, and adjacent invariants.
 
+## Completion Process For Non-Trivial Work
+
+For non-trivial work, do not treat implementation as complete because code was
+moved, split, renamed, made more abstract, or made to compile. Completion means
+the affected invariant is enforced at the correct owner and verified at the
+boundary where it matters.
+
+An invariant is a condition that must stay true for the product to remain
+correct, such as authorization before signing, one owner for a lifecycle state,
+no lost submitted transaction digest, or no leaked secret. A public outcome is
+any result, error, event, status, or return value that a caller, user interface,
+wallet, dApp, or package consumer can observe and act on.
+
+Before implementation:
+
+- State the invariant that must remain true after the change.
+- Identify the single owner for each affected state, side effect, public
+  outcome, and cleanup responsibility.
+- List the meaningful states, phases, or lifecycle steps affected by the task.
+- For each state, phase, or lifecycle step, define the allowed inputs, allowed
+  outputs, allowed side effects, failure behavior, timeout behavior, cancel
+  behavior, cleanup behavior, and caller-visible outcome.
+- Classify side effects by authority and reversibility:
+  - read-only;
+  - local-only;
+  - cancellable async;
+  - irreversible external effect;
+  - post-effect observation;
+  - cleanup;
+  - terminal or acknowledgement exception.
+- Decide which owner, shared helper, type, or adapter is allowed to run each
+  side effect.
+- Define verification that would fail if the invariant is broken.
+
+During implementation:
+
+- Do not rely on scattered local checks when a shared owner, type, helper, or
+  adapter should enforce the rule.
+- Do not make state ownership implicit through booleans spread across
+  components, callbacks, stores, or helpers.
+- Do not collapse caller-visible outcomes into generic errors or strings when
+  callers need distinct recovery behavior.
+- If an external effect cannot be safely canceled after it starts, preserve its
+  result or uncertainty explicitly.
+- If terminal or cleanup behavior has an allowed exception, such as an
+  acknowledgement that must still be sent, model that exception explicitly
+  instead of bypassing the guard with a catch block.
+
+Before completion:
+
+- Re-check the implementation against the invariant stated before coding.
+- Verify each affected state, phase, or lifecycle step has an implemented path
+  for success, failure, timeout, cancel, cleanup, and partial completion when
+  applicable.
+- Confirm public boundaries still expose the information callers need to make
+  correct decisions.
+- Confirm the final code structure makes the owner of each state, side effect,
+  public outcome, and cleanup responsibility obvious to a new reader.
+- Run relevant tests/builds, or state why they could not be run.
+
 ## Architecture Boundaries
 
 ### `packages/walrus-connect`
