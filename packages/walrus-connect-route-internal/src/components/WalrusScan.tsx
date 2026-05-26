@@ -13,6 +13,7 @@ import { ClipSigner, NETWORK, NotiVariant } from '../types';
 import type { QRSignOutcome } from '../protocol/signHostRunner';
 import { QRSign } from './QRSign';
 import { cleanup } from '../utils/cleanup';
+import { settleNoCameraScan } from '../utils/scan';
 
 interface IWalrusScanContext {
   scan: (signer: ClipSigner) => Promise<void>;
@@ -70,10 +71,7 @@ export const WalrusScan = ({
             />,
           );
         } else {
-          onEvent({
-            variant: 'warning',
-            message: 'No camera found on this device.',
-          });
+          settleNoCameraScan({ onEvent, resolve });
         }
       });
     },
@@ -160,4 +158,9 @@ export const useWalrusScan = () => {
     );
   }
   return context;
+};
+
+export const useWalrusSignerScan = () => {
+  const { scan } = useWalrusScan();
+  return { scan };
 };

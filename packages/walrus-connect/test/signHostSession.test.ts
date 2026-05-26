@@ -8,19 +8,19 @@ import {
   parseProtocolMessage,
   type ProtocolEnvelope,
   type ProtocolMessageType,
-} from '../src/utils/message.ts';
-import type { SignHostRunnerDeps } from '../src/protocol/signHostRunner.ts';
-import type { QRSignOutcome } from '../src/protocol/signLifecycle.ts';
-import type { ProtocolTransport } from '../src/protocol/session.ts';
+} from '../../walrus-connect-route-internal/src/utils/message.ts';
+import type { SignHostRunnerDeps } from '../../walrus-connect-route-internal/src/protocol/signHostRunner.ts';
+import type { QRSignOutcome } from '../../walrus-connect-route-internal/src/protocol/signLifecycle.ts';
+import type { ProtocolTransport } from '../../walrus-connect-route-internal/src/protocol/session.ts';
 
 const jiti = createJiti(import.meta.url);
 const { startSignHostRunner, QRSignOutcomeError } = await jiti.import<{
-  startSignHostRunner: typeof import('../src/protocol/signHostRunner.ts').startSignHostRunner;
-  QRSignOutcomeError: typeof import('../src/protocol/signLifecycle.ts').QRSignOutcomeError;
-}>('../src/protocol/signHostRunner.ts');
+  startSignHostRunner: typeof import('../../walrus-connect-route-internal/src/protocol/signHostRunner.ts').startSignHostRunner;
+  QRSignOutcomeError: typeof import('../../walrus-connect-route-internal/src/protocol/signLifecycle.ts').QRSignOutcomeError;
+}>('../../walrus-connect-route-internal/src/protocol/signHostRunner.ts');
 const { createSignHostFailureOutcome } = await jiti.import<{
-  createSignHostFailureOutcome: typeof import('../src/protocol/signLifecycle.ts').createSignHostFailureOutcome;
-}>('../src/protocol/signLifecycle.ts');
+  createSignHostFailureOutcome: typeof import('../../walrus-connect-route-internal/src/protocol/signLifecycle.ts').createSignHostFailureOutcome;
+}>('../../walrus-connect-route-internal/src/protocol/signLifecycle.ts');
 
 class FakeTransport implements ProtocolTransport {
   sent: string[] = [];

@@ -21,13 +21,14 @@ import type {
   SignTransactionReviewFact,
   SignTransactionReviewInput,
 } from '../types';
-import type { ProtocolErrorCode } from './message';
+
+type SignTransactionProtocolErrorCode =
+  | 'invalid_payload'
+  | 'transaction_rejected'
+  | 'transaction_validation_failed';
 
 export type SignTransactionValidationError = {
-  code: Extract<
-    ProtocolErrorCode,
-    'invalid_payload' | 'transaction_rejected' | 'transaction_validation_failed'
-  >;
+  code: SignTransactionProtocolErrorCode;
   message: string;
 };
 

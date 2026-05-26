@@ -12,8 +12,8 @@ import {
   FormField,
   FormInput,
   FormRoot,
-  NotiVariant,
-} from '@zktx.io/walrus-connect';
+} from '../internal/walrusConnectRoute';
+import type { NotiVariant } from '../utils/walletTypes';
 
 export const PwCreate = ({
   mode = 'light',

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createPeerDataConnectionTransport } from '../src/protocol/peerTransport.ts';
+import { createPeerDataConnectionTransport } from '../../walrus-connect-route-internal/src/protocol/peerTransport.ts';
 
 class FakePeerConnection {
   open = true;

@@ -33,7 +33,11 @@ export default {
   plugins: [
     peerDepsExternal(),
 
-    resolve({ browser: true, preferBuiltins: false }),
+    resolve({
+      browser: true,
+      preferBuiltins: false,
+      extensions: ['.mjs', '.js', '.json', '.node', '.ts', '.tsx'],
+    }),
 
     commonjs({ include: /node_modules/ }),
 

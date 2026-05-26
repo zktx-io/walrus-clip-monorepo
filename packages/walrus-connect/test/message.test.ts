@@ -5,7 +5,7 @@ import {
   createProtocolMessage,
   parseProtocolMessage,
   ProtocolMessageError,
-} from '../src/utils/message.ts';
+} from '../../walrus-connect-route-internal/src/utils/message.ts';
 
 const assertProtocolError = (
   fn: () => unknown,

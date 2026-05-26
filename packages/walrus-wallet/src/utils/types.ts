@@ -1,4 +1,4 @@
-import { NETWORK } from '@zktx.io/walrus-connect';
+import type { NETWORK } from './walletTypes';
 
 export const ENOKI_URL = 'https://api.enoki.mystenlabs.com/v1';
 

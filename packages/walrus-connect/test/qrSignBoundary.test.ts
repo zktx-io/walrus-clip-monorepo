@@ -5,8 +5,8 @@ import { createJiti } from 'jiti';
 
 const jiti = createJiti(import.meta.url);
 const { routeQRSignHostBoundaryFailure } = await jiti.import<{
-  routeQRSignHostBoundaryFailure: typeof import('../src/protocol/qrSignHostBoundary.ts').routeQRSignHostBoundaryFailure;
-}>('../src/protocol/qrSignHostBoundary.ts');
+  routeQRSignHostBoundaryFailure: typeof import('../../walrus-connect-route-internal/src/protocol/qrSignHostBoundary.ts').routeQRSignHostBoundaryFailure;
+}>('../../walrus-connect-route-internal/src/protocol/qrSignHostBoundary.ts');
 
 test('QR sign host boundary routes failures to runner after runner starts', () => {
   const calls: string[] = [];

@@ -4,13 +4,13 @@ import test from 'node:test';
 import {
   createProtocolMessage,
   parseProtocolMessage,
-} from '../src/utils/message.ts';
+} from '../../walrus-connect-route-internal/src/utils/message.ts';
 import {
   ProtocolSequenceError,
   ProtocolSession,
   ProtocolSessionClosedError,
   type ProtocolTransport,
-} from '../src/protocol/session.ts';
+} from '../../walrus-connect-route-internal/src/protocol/session.ts';
 
 const codec = {
   createMessage: createProtocolMessage,

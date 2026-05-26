@@ -5,8 +5,8 @@ import { createJiti } from 'jiti';
 
 const jiti = createJiti(import.meta.url);
 const { connectWithRelayFallback } = await jiti.import<{
-  connectWithRelayFallback: typeof import('../src/webrtc/connection.ts').connectWithRelayFallback;
-}>('../src/webrtc/connection.ts');
+  connectWithRelayFallback: typeof import('../../walrus-connect-route-internal/src/webrtc/connection.ts').connectWithRelayFallback;
+}>('../../walrus-connect-route-internal/src/webrtc/connection.ts');
 
 class FakeConnection {
   open = false;

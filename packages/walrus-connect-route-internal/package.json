@@ -1,0 +1,35 @@
+{
+  "name": "@zktx.io/walrus-connect-route-internal",
+  "private": true,
+  "version": "0.3.11",
+  "type": "module",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/types/index.d.ts",
+  "scripts": {
+    "clean": "rm -rf dist .rollup",
+    "build": "npm run clean && tsc -p tsconfig.rollup.json && tsc -p tsconfig.json --emitDeclarationOnly && rollup -c && rm -rf .rollup"
+  },
+  "peerDependencies": {
+    "@mysten/sui": "1.38.0",
+    "@mysten/wallet-standard": "0.17.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-form": "^0.1.8",
+    "@yudiel/react-qr-scanner": "^2.3.1",
+    "lucide-react": "^0.544.0",
+    "peerjs": "^1.5.5",
+    "react-qrcode-logo": "^4.0.0"
+  }
+}

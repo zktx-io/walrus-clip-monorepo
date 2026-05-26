@@ -30,9 +30,10 @@
   "license": "ISC",
   "scripts": {
     "clean": "rm -rf dist",
-    "build": "npm run clean && rollup -c",
+    "build": "npm run clean && rollup -c && node ../../scripts/prune-boundary-declarations.mjs walrus-wallet",
     "lint": "npm run lint --prefix ../..",
-    "format": "npm run format --prefix ../.."
+    "format": "npm run format --prefix ../..",
+    "test": "node --test test/*.test.ts"
   },
   "repository": {
     "type": "git",
@@ -43,15 +44,22 @@
   },
   "homepage": "https://github.com/zktx-io/walrus-clip-monorepo#readme",
   "files": [
-    "dist/"
+    "dist/index.cjs.js",
+    "dist/index.esm.js",
+    "dist/index.css",
+    "dist/types/index.d.ts",
+    "dist/types/runtime/walletErrors.d.ts",
+    "dist/types/utils/coinHelpers.d.ts",
+    "dist/types/utils/dappKitNetworks.d.ts",
+    "dist/types/utils/walletTypes.d.ts"
   ],
   "peerDependencies": {
-    "@mysten/dapp-kit": "^0.18.0",
-    "@mysten/sui": "^1.38.0",
-    "@mysten/wallet-standard": "^0.17.0",
-    "jose": "^6.1.0",
-    "react": ">=18.0.0 <20.0.0",
-    "react-dom": ">=18.0.0 <20.0.0"
+    "@mysten/dapp-kit": "0.18.0",
+    "@mysten/sui": "1.38.0",
+    "@mysten/wallet-standard": "0.17.0",
+    "jose": "6.1.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.2",
@@ -60,6 +68,8 @@
     "@rollup/plugin-typescript": "^12.1.2",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
+    "@zktx.io/walrus-connect-route-internal": "file:../walrus-connect-route-internal",
+    "jiti": "^2.6.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "rollup-plugin-postcss": "^4.0.2",
     "typescript": "^5.7.3"
@@ -71,7 +81,7 @@
     "@radix-ui/react-use-size": "^1.1.1",
     "@radix-ui/react-visually-hidden": "^1.2.3",
     "@yudiel/react-qr-scanner": "^2.3.1",
-    "@zktx.io/walrus-connect": "^0.3.11",
+    "@zktx.io/walrus-connect": "0.3.11",
     "framer-motion": "^12.23.14",
     "lucide-react": "^0.544.0",
     "mitt": "^3.0.1",

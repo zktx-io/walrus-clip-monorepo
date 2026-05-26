@@ -1,6 +1,5 @@
 import React from 'react';
 
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import {
   PublicKey,
   SignatureScheme,
@@ -13,10 +12,11 @@ import {
   getZkLoginSignature,
   toZkLoginPublicIdentifier,
 } from '@mysten/sui/zklogin';
-import { NETWORK } from '@zktx.io/walrus-connect';
+import type { NETWORK } from './walletTypes';
 import ReactDOM from 'react-dom/client';
 
 import { IZkLogin } from './types';
+import { createWalrusWalletSuiClient } from './suiClient';
 import { decryptText } from './utils';
 import { PwConfirm } from '../components/PwConfirm';
 
@@ -97,7 +97,7 @@ export class ZkLoginSigner extends Signer {
     bytes: Uint8Array,
     type: 'sign' | 'signTransaction' | 'signPersonalMessage',
   ): Promise<SignatureWithBytes> {
-    const client = new SuiClient({ url: getFullnodeUrl(this.#network) });
+    const client = createWalrusWalletSuiClient(this.#network);
     const { epoch } = await client.getLatestSuiSystemState();
     if (Number(epoch) > this.#zkLogin.expiration) {
       throw new Error('zkLogin session expired. Please reconnect.');

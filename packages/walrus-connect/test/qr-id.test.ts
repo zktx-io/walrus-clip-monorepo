@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildPeerId, parsePeerId } from '../src/webrtc/qr-id.ts';
+import { buildPeerId, parsePeerId } from '../../walrus-connect-route-internal/src/webrtc/qr-id.ts';
 
 test('builds and parses peer ids with session, network, and type', () => {
   const raw = buildPeerId({

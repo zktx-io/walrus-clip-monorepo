@@ -8,9 +8,9 @@ import {
   parseProtocolMessage,
   type ProtocolEnvelope,
   type ProtocolMessageType,
-} from '../src/utils/message.ts';
-import type { LoginHostSessionDeps } from '../src/protocol/loginHostSession.ts';
-import type { ProtocolTransport } from '../src/protocol/session.ts';
+} from '../../walrus-connect-route-internal/src/utils/message.ts';
+import type { LoginHostSessionDeps } from '../../walrus-connect-route-internal/src/protocol/loginHostSession.ts';
+import type { ProtocolTransport } from '../../walrus-connect-route-internal/src/protocol/session.ts';
 
 const jiti = createJiti(import.meta.url);
 const {
@@ -18,13 +18,13 @@ const {
   loginHostOutcomeToResult,
   startLoginHostSession,
 } = await jiti.import<{
-  LoginHostOutcomeError: typeof import('../src/protocol/loginHostSession.ts').LoginHostOutcomeError;
-  loginHostOutcomeToResult: typeof import('../src/protocol/loginHostSession.ts').loginHostOutcomeToResult;
-  startLoginHostSession: typeof import('../src/protocol/loginHostSession.ts').startLoginHostSession;
-}>('../src/protocol/loginHostSession.ts');
+  LoginHostOutcomeError: typeof import('../../walrus-connect-route-internal/src/protocol/loginHostSession.ts').LoginHostOutcomeError;
+  loginHostOutcomeToResult: typeof import('../../walrus-connect-route-internal/src/protocol/loginHostSession.ts').loginHostOutcomeToResult;
+  startLoginHostSession: typeof import('../../walrus-connect-route-internal/src/protocol/loginHostSession.ts').startLoginHostSession;
+}>('../../walrus-connect-route-internal/src/protocol/loginHostSession.ts');
 const { startLoginScannerSession } = await jiti.import<{
-  startLoginScannerSession: typeof import('../src/protocol/loginScannerSession.ts').startLoginScannerSession;
-}>('../src/protocol/loginScannerSession.ts');
+  startLoginScannerSession: typeof import('../../walrus-connect-route-internal/src/protocol/loginScannerSession.ts').startLoginScannerSession;
+}>('../../walrus-connect-route-internal/src/protocol/loginScannerSession.ts');
 
 class FakeTransport implements ProtocolTransport {
   sent: string[] = [];

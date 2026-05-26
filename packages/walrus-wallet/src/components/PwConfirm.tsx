@@ -13,7 +13,7 @@ import {
   FormInput,
   FormMessage,
   FormRoot,
-} from '@zktx.io/walrus-connect';
+} from '../internal/walrusConnectRoute';
 
 export const PwConfirm = ({
   mode = 'light',

@@ -8,14 +8,14 @@ import {
   parseProtocolMessage,
   type ProtocolEnvelope,
   type ProtocolMessageType,
-} from '../src/utils/message.ts';
-import type { ProtocolTransport } from '../src/protocol/session.ts';
-import type { SignScannerRunnerDeps } from '../src/protocol/signScannerRunner.ts';
+} from '../../walrus-connect-route-internal/src/utils/message.ts';
+import type { ProtocolTransport } from '../../walrus-connect-route-internal/src/protocol/session.ts';
+import type { SignScannerRunnerDeps } from '../../walrus-connect-route-internal/src/protocol/signScannerRunner.ts';
 
 const jiti = createJiti(import.meta.url);
 const { startSignScannerRunner } = await jiti.import<{
-  startSignScannerRunner: typeof import('../src/protocol/signScannerRunner.ts').startSignScannerRunner;
-}>('../src/protocol/signScannerRunner.ts');
+  startSignScannerRunner: typeof import('../../walrus-connect-route-internal/src/protocol/signScannerRunner.ts').startSignScannerRunner;
+}>('../../walrus-connect-route-internal/src/protocol/signScannerRunner.ts');
 
 class FakeTransport implements ProtocolTransport {
   sent: string[] = [];

@@ -19,7 +19,19 @@
       "import": "./dist/index.esm.js",
       "require": "./dist/index.cjs.js"
     },
+    "./signer-app": {
+      "types": "./dist/types/signer-app.d.ts",
+      "import": "./dist/signer-app.esm.js",
+      "require": "./dist/signer-app.cjs.js"
+    },
     "./index.css": "./dist/index.css"
+  },
+  "typesVersions": {
+    "*": {
+      "signer-app": [
+        "dist/types/signer-app.d.ts"
+      ]
+    }
   },
   "style": "dist/index.css",
   "sideEffects": [
@@ -29,8 +41,8 @@
   "author": "daoauth",
   "license": "ISC",
   "scripts": {
-    "clean": "rm -rf dist",
-    "build": "npm run clean && rollup -c",
+    "clean": "rm -rf dist .rollup",
+    "build": "npm run clean && tsc -p tsconfig.rollup.json && tsc -p tsconfig.json --emitDeclarationOnly && cp -R dist/types/walrus-connect/src/* dist/types/ && cp src/index.css .rollup/walrus-connect/src/index.css && rollup -c && node ../../scripts/prune-boundary-declarations.mjs walrus-connect && rm -rf .rollup",
     "lint": "npm run lint --prefix ../..",
     "format": "npm run format --prefix ../..",
     "test": "node --test test/*.test.ts"
@@ -44,13 +56,24 @@
   },
   "homepage": "https://github.com/zktx-io/walrus-clip-monorepo#readme",
   "files": [
-    "dist/"
+    "dist/index.cjs.js",
+    "dist/index.esm.js",
+    "dist/signer-app.cjs.js",
+    "dist/signer-app.esm.js",
+    "dist/index.css",
+    "dist/types/index.d.ts",
+    "dist/types/signer-app.d.ts",
+    "dist/types/types.d.ts",
+    "dist/types/components/QRAddress.d.ts",
+    "dist/types/components/QRAddressScan.d.ts",
+    "dist/types/components/WalrusSignerScan.d.ts",
+    "dist/types/utils/signTransactionReview.d.ts"
   ],
   "peerDependencies": {
-    "@mysten/sui": "^1.38.0",
-    "@mysten/wallet-standard": "^0.17.0",
-    "react": ">=18.0.0 <20.0.0",
-    "react-dom": ">=18.0.0 <20.0.0"
+    "@mysten/sui": "1.38.0",
+    "@mysten/wallet-standard": "0.17.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.3",

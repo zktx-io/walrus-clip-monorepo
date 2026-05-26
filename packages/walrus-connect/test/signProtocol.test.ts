@@ -4,13 +4,13 @@ import test from 'node:test';
 import type { SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 
-import { createProtocolMessage, parseProtocolMessage } from '../src/utils/message.ts';
+import { createProtocolMessage, parseProtocolMessage } from '../../walrus-connect-route-internal/src/utils/message.ts';
 import {
   requirePendingSignTransaction,
   validateFinalizedDigest,
   validateProtocolMessageFresh,
   validateSubmittedDigest,
-} from '../src/utils/signProtocol.ts';
+} from '../../walrus-connect-route-internal/src/utils/signProtocol.ts';
 
 test('rejects sign response without a pending transaction', () => {
   assert.deepEqual(requirePendingSignTransaction(undefined), {

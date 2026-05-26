@@ -1,8 +1,11 @@
 import { useState } from 'react';
 
 import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
-import { getFullnodeUrl } from '@mysten/sui/client';
-import { WalrusWallet } from '@zktx.io/walrus-wallet';
+import {
+  createWalrusWalletDappKitNetworks,
+  WalrusWallet,
+} from '@zktx.io/walrus-wallet';
+import { WalrusSignerScan } from '@zktx.io/walrus-connect/signer-app';
 import { enqueueSnackbar } from 'notistack';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
@@ -29,11 +32,25 @@ const router = createBrowserRouter([
 const ENOKI_KEY = import.meta.env.VITE_APP_ENOKI_KEY;
 const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
 const CLIENT_ID = import.meta.env.VITE_APP_CLIENT_ID;
+const SUI_NETWORKS = createWalrusWalletDappKitNetworks();
 
 function App() {
   const [activeNetwork, setActiveNetwork] = useState<
     'testnet' | 'mainnet' | 'devnet'
   >(NETWORK);
+  const onWalletEvent = (notification: {
+    variant: 'success' | 'warning' | 'info' | 'error';
+    message: string;
+  }) => {
+    enqueueSnackbar(notification.message, {
+      variant: notification.variant,
+      style: {
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      },
+    });
+  };
 
   const callbackNonce = (nonce: string) => {
     if (nonce && CLIENT_ID) {
@@ -43,11 +60,7 @@ function App() {
 
   return (
     <SuiClientProvider
-      networks={{
-        mainnet: { url: getFullnodeUrl('mainnet') },
-        testnet: { url: getFullnodeUrl('testnet') },
-        devnet: { url: getFullnodeUrl('devnet') },
-      }}
+      networks={SUI_NETWORKS}
       defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
       onNetworkChange={(network) => {
         setActiveNetwork(network);
@@ -61,18 +74,16 @@ function App() {
             enokey: ENOKI_KEY!,
             callbackNonce: callbackNonce,
           }}
-          onEvent={(notification) => {
-            enqueueSnackbar(notification.message, {
-              variant: notification.variant,
-              style: {
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              },
-            });
-          }}
+          onEvent={onWalletEvent}
         >
-          <RouterProvider router={router} />
+          <WalrusSignerScan
+            mode="light"
+            icon="/logo-walrus.png"
+            network={activeNetwork}
+            onEvent={onWalletEvent}
+          >
+            <RouterProvider router={router} />
+          </WalrusSignerScan>
         </WalrusWallet>
       </WalletProvider>
     </SuiClientProvider>

@@ -16,9 +16,9 @@ import { MultiSigPublicKey } from '@mysten/sui/multisig';
 import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import {
   formatSignTransactionReview,
-  useWalrusWallet,
-  WALLET_NAME,
-} from '@zktx.io/walrus-wallet';
+  useWalrusSignerScan,
+} from '@zktx.io/walrus-connect/signer-app';
+import { WALLET_NAME } from '@zktx.io/walrus-wallet';
 
 export const Home = () => {
   const { connectionStatus, currentWallet } = useCurrentWallet();
@@ -26,7 +26,7 @@ export const Home = () => {
   const { mutate: disconnect } = useDisconnectWallet();
   const { mutate: signPersonalMessage } = useSignPersonalMessage();
   const { mutate: signTransaction } = useSignTransaction();
-  const { scan } = useWalrusWallet();
+  const { scan } = useWalrusSignerScan();
   const [isClip, setIsClip] = useState(false);
 
   const onScan = async () => {

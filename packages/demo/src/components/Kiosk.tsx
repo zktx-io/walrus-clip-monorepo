@@ -1,7 +1,11 @@
 import { useState } from 'react';
 
+import {
+  ConnectButton,
+  useCurrentAccount,
+  useCurrentWallet,
+} from '@mysten/dapp-kit';
 import { Transaction } from '@mysten/sui/transactions';
-import { useWalrusScan } from '@zktx.io/walrus-connect';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface Item {
@@ -18,10 +22,11 @@ const menuItems: Item[] = [
   { id: 4, name: 'Coke (Medium)', price: 2000, image: '/items/mac-4.jpeg' },
 ];
 
-const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
+type Network = 'mainnet' | 'testnet' | 'devnet';
 
-export const Kiosk = () => {
-  const { openSignTxModal } = useWalrusScan();
+export const Kiosk = ({ network }: { network: Network }) => {
+  const account = useCurrentAccount();
+  const { currentWallet } = useCurrentWallet();
 
   const [cart, setCart] = useState<Item[]>([]);
   const [orderedItems, setOrderedItems] = useState<Item[]>([]);
@@ -44,6 +49,18 @@ export const Kiosk = () => {
     setOrderedItems([]);
     setTxDigest(null);
     try {
+      if (!account || !currentWallet) {
+        throw new Error('Connect a Wallet Standard wallet before checkout.');
+      }
+
+      const signAndExecuteFeature =
+        currentWallet.features['sui:signAndExecuteTransaction'];
+      if (!signAndExecuteFeature) {
+        throw new Error(
+          "The connected wallet doesn't support signAndExecuteTransaction.",
+        );
+      }
+
       const transaction = new Transaction();
       transaction.moveCall({
         target:
@@ -55,19 +72,13 @@ export const Kiosk = () => {
         ],
       });
 
-      const outcome = await openSignTxModal(
-        'Pay',
-        'Please scan the QR code to pay.',
-        {
-          transaction,
-          sponsoredUrl: SPONSORED_URL,
-        },
-      );
-      if (outcome.type !== 'signed_and_finalized') {
-        throw new Error(`Payment was not finalized: ${outcome.type}`);
-      }
+      const result = await signAndExecuteFeature.signAndExecuteTransaction({
+        transaction,
+        account,
+        chain: `sui:${network}`,
+      });
 
-      setTxDigest(outcome.digest);
+      setTxDigest(result.digest);
       setOrderedItems(cart);
       setIsModalOpen(true);
       setCart([]);
@@ -79,6 +90,11 @@ export const Kiosk = () => {
   return (
     <div className="flex flex-col items-center p-4">
       <h1 className="text-2xl font-bold mb-4">McDonald's Kiosk</h1>
+      {!account && (
+        <div className="mb-4">
+          <ConnectButton />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
         <div className="grid grid-cols-1 gap-6">
@@ -141,7 +157,7 @@ export const Kiosk = () => {
             </span>
           </p>
           <button
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || !account}
             className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-white hover:text-black transition-all duration-300 disabled:bg-gray-300 cursor-pointer"
             onClick={onShowPay}
           >

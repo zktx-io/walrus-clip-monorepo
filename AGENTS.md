@@ -4,7 +4,9 @@ This file is the root operating contract for coding agents working in this repos
 
 ## Purpose
 
-Walrus Clip is a TypeScript/React monorepo for a Sui wallet and QR signing experience. It provides zkLogin-based embedded wallet flows, Wallet Standard integration, QR/WebRTC cross-device login and signing, and sponsored transaction UX for Sui dApps.
+Walrus Clip is a TypeScript/React kit that registers a Sui Wallet Standard wallet named Walrus Clip for dApps. Its purpose is to let dApps use normal Wallet Standard connect/sign APIs while Walrus Clip routes the request to either a local signer or QR/WebRTC air-gapped signing.
+
+dApp developers should integrate Walrus Clip through the supported Wallet Standard registration surface. Users should see and select Walrus Clip as a wallet. QR/WebRTC is an internal signing route, not a dApp-facing protocol.
 
 ## Current Direction
 
@@ -16,7 +18,8 @@ Targets:
 - Replace legacy `@mysten/dapp-kit` with the modern dApp Kit packages.
 - Move toward React 19.
 - Remove Recoil if wallet state can be handled with a smaller local state layer.
-- Replace ad hoc QR/WebRTC messages with a versioned protocol.
+- Preserve the current versioned QR/WebRTC protocol baseline unless evidence shows a defect.
+- Keep dApp-facing integration centered on Wallet Standard registration and results.
 
 Use `.WORK/ts-sdks` as a read-only reference copy of MystenLabs TypeScript SDKs. Do not edit, format, commit, or depend on files inside `.WORK`.
 
@@ -31,6 +34,8 @@ These boundaries are product constraints, not implementation details:
 - Do not present testnet, faucet, demo-only, or fake-liquidity flows as production product functionality.
 - Do not treat sponsored transaction creation as proof that a transaction is safe, affordable, final, or ready for user authorization.
 - Do not pass transaction bytes received from another app, MCP client, AI client, or QR/WebRTC peer directly to signing without rebuilding or validating the intended action locally.
+- Do not make dApps depend on QR/WebRTC internals. dApps should interact with Walrus Clip through Wallet Standard APIs.
+- Do not move dApp-specific product flows, checkout flows, NFT dashboards, kiosk flows, or advanced asset UX into the kit core.
 
 ## Working Rules
 
@@ -45,6 +50,80 @@ These boundaries are product constraints, not implementation details:
 - If architecture, security, public API, or data model choices are unclear, stop and ask.
 - Keep commits focused. Prefer multiple small commits over one mixed modernization commit.
 - Check `git status --short` before the final response and classify unexpected files.
+
+## Status And Completion Honesty
+
+Do not overstate progress. Report status from evidence, not intent, confidence,
+or the fact that code was edited.
+
+Use these status labels for non-trivial work:
+
+- `planned`: the approach is defined but implementation has not started.
+- `partially implemented`: some required code, docs, tests, files, or cleanup are
+  still missing.
+- `implemented but unverified`: code or docs changed, but one or more required
+  checks, boundary reviews, or manual smoke results are missing.
+- `verified`: implementation is complete for the agreed scope and the relevant
+  automated checks, boundary review, and required manual results are present.
+- `blocked`: work cannot continue without a named missing input, decision,
+  dependency, permission, or environment.
+
+Do not say `done`, `complete`, `fixed`, or `finished` unless the work is
+`verified` and the completion criteria below are met. Passing builds, type
+checks, or tests are verification evidence only. They do not prove that behavior,
+state ownership, public outcomes, required manual UI/smoke paths, or final
+repository status are complete.
+
+If required manual smoke, boundary review, final `git status --short`, generated
+or untracked files, or required follow-up edits are missing, report the exact
+missing gate and use `partially implemented` or `implemented but unverified`
+instead of completion language.
+
+## Defect Classification Language
+
+Use precise defect terms. Do not use security or severity words unless the
+evidence supports them. Status labels describe completion state; defect
+classifications describe the kind of problem. Always keep them separate.
+
+Allowed defect classifications:
+
+- `security vulnerability`: use only with evidence of unauthorized access,
+  secret exposure, signature bypass, transaction authorization bypass,
+  injection, privilege escalation, or another exploitable security failure.
+- `functional defect`: implemented behavior fails the intended user flow or
+  public API contract.
+- `compatibility defect`: behavior fails with a supported dependency, wallet
+  provider, SDK, browser, or integration path.
+- `correctness risk`: behavior can return misleading, lossy, rounded,
+  collapsed, ambiguous, or incorrectly formatted data.
+- `structural risk`: ownership, module boundaries, state, exports, or
+  responsibilities are unclear, but a concrete failing behavior has not yet
+  been proven.
+- `incomplete implementation`: the accepted plan requires work that is not
+  implemented.
+- `unverified`: code exists, but required checks, smoke, boundary review, or
+  evidence are missing.
+
+Do not call something a `vulnerability`, `security issue`, `unsafe`, or
+`critical` unless the report identifies the exploit path, affected actor,
+violated boundary, and evidence. If the evidence only shows missing gates,
+unclear ownership, broad exports, absent tests, or unfinished refactor work,
+classify it as `incomplete implementation`, `structural risk`, or `unverified`,
+not as a vulnerability.
+
+Priority is not defect type. A P1 can be an incomplete implementation,
+structural risk, compatibility defect, correctness risk, or security
+vulnerability. Name both the priority and the classification.
+
+For non-trivial findings, include:
+
+- Status label: `planned`, `partially implemented`, `implemented but
+  unverified`, `verified`, or `blocked`.
+- Classification: one of the defect classifications above.
+- Evidence: file, line, command output, source document, or observed behavior.
+- Impact: what user, dApp, wallet, package consumer, or maintainer can observe.
+- Why this classification: why the evidence supports this term and not a
+  stronger or weaker term.
 
 ## Evidence And Decision Standard
 
@@ -124,6 +203,8 @@ During implementation:
 
 Before completion:
 
+- Classify the result using the status labels in `Status And Completion
+  Honesty`.
 - Re-check the implementation against the invariant stated before coding.
 - Verify each affected state, phase, or lifecycle step has an implemented path
   for success, failure, timeout, cancel, cleanup, and partial completion when
@@ -138,7 +219,7 @@ Before completion:
 
 ### `packages/walrus-connect`
 
-Owns QR/WebRTC UX and transport:
+Owns the internal QR/WebRTC air-gapped signing route:
 
 - QR display and scanning components.
 - PeerJS/WebRTC session lifecycle.
@@ -146,36 +227,37 @@ Owns QR/WebRTC UX and transport:
 - Login/sign session validation.
 - Transport errors, timeouts, cleanup, and relay fallback.
 
-Avoid adding wallet account storage, zkLogin proof generation, or app-level routing here.
+Avoid adding Wallet Standard registration, wallet account storage, zkLogin proof generation, dApp transaction creation, dApp product UX, or app-level routing here.
 
 ### `packages/walrus-wallet`
 
-Owns embedded wallet behavior:
+Owns Wallet Standard registration and wallet runtime behavior:
 
+- Wallet Standard wallet registration for Walrus Clip.
+- Routing Wallet Standard requests to local signing or QR/WebRTC air-gapped signing.
 - zkLogin account creation, proof handling, and signer logic.
-- Wallet Standard registration and signing adapter.
 - Sui client integration through a centralized client boundary.
-- Balances, owned objects, transfers, and sponsored execution.
+- Minimal account, connection, signing, and basic `Coin<T>` helper surfaces.
 
-Do not create new direct `SuiClient` call sites. Add or update a client adapter instead.
+Do not create new direct `SuiClient` call sites. Add or update a client adapter instead. Do not add dApp-specific checkout, NFT dashboard, kiosk, or advanced asset UX here.
 
 ### `packages/clip`
 
-Owns the wallet/demo app:
+Owns the reference Walrus Clip app shell:
 
 - OAuth callback handling.
-- dApp Kit integration.
+- dApp Kit / Wallet Standard provider wiring for the reference app.
 - Wallet provider wiring.
-- User-facing wallet flows.
+- Minimal user-facing connect, login, scan, and sign flows.
 
-Do not move SDK/library responsibilities into this app.
+Do not move SDK/library responsibilities, QR protocol logic, or wallet core logic into this app.
 
 ### `packages/demo`
 
 Owns consumer examples:
 
-- Kiosk/payment demo.
 - QR signing integration examples.
+- Optional dApp-specific product examples such as kiosk/payment flows.
 
 Keep demo logic thin. Shared behavior belongs in `walrus-connect` or `walrus-wallet`.
 
@@ -224,6 +306,8 @@ Keep demo logic thin. Shared behavior belongs in `walrus-connect` or `walrus-wal
 When the user asks for review, prioritize defects over summaries:
 
 - Lead with findings ordered by severity.
+- For each non-trivial finding, state both a status label and a defect
+  classification before the evidence.
 - Cite file and line evidence.
 - Mark speculation as speculation.
 - Check input, state, error, protocol, wallet, and boundary paths. Passing builds are not proof of correctness.
@@ -241,7 +325,9 @@ Run the narrowest relevant checks before finishing:
 
 If a check cannot be run, report why. If a check fails, report the failing command and the likely cause.
 
-For QR/WebRTC or wallet protocol changes, also provide a manual smoke checklist covering:
+For QR/WebRTC or wallet protocol changes, also provide a manual smoke result
+record. If a smoke path was not run, mark it `not run` with the reason. The
+record must cover:
 
 - QR login.
 - QR sign.
@@ -257,4 +343,14 @@ End substantial work with:
 - What was verified.
 - Any remaining risk or skipped check.
 
-Work is complete only when the requested behavior is implemented, affected boundaries have been reviewed after the change, relevant checks have been run or explicitly skipped with a reason, introduced errors have been fixed, and final repository status has been checked.
+Do not use completion language when required behavior, affected boundary review,
+manual smoke, relevant checks, introduced-error fixes, required files, or final
+repository status are missing. Say the precise status instead, for example
+`implemented but unverified: QR smoke not run` or `partially implemented:
+boundary matrix still incomplete`.
+
+Work is complete only when the requested behavior is implemented, affected
+boundaries have been reviewed after the change, relevant checks have been run or
+explicitly skipped with a reason, introduced errors have been fixed, required
+files are tracked or intentionally ignored, manual smoke results are recorded
+when required, and final repository status has been checked.
