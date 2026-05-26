@@ -11,14 +11,12 @@
   ],
   "version": "0.3.11",
   "type": "module",
-  "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
   "types": "dist/types/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/index.esm.js",
-      "require": "./dist/index.cjs.js"
+      "import": "./dist/index.esm.js"
     },
     "./index.css": "./dist/index.css"
   },
@@ -44,7 +42,6 @@
   },
   "homepage": "https://github.com/zktx-io/walrus-clip-monorepo#readme",
   "files": [
-    "dist/index.cjs.js",
     "dist/index.esm.js",
     "dist/index.css",
     "dist/types/index.d.ts",

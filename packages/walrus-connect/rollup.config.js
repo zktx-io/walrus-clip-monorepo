@@ -12,12 +12,6 @@ export default {
   output: [
     {
       dir: 'dist',
-      format: 'cjs',
-      entryFileNames: '[name].cjs.js',
-      exports: 'named',
-    },
-    {
-      dir: 'dist',
       format: 'esm',
       entryFileNames: '[name].esm.js',
     },

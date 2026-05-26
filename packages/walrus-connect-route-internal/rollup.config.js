@@ -23,10 +23,7 @@ const closeLeakedTypeScriptWatchers = () => ({
 
 export default {
   input: '.rollup/index.js',
-  output: [
-    { file: 'dist/index.cjs.js', format: 'cjs', exports: 'named' },
-    { file: 'dist/index.esm.js', format: 'esm' },
-  ],
+  output: [{ file: 'dist/index.esm.js', format: 'esm' }],
   plugins: [
     peerDepsExternal(),
 
