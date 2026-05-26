@@ -4,18 +4,25 @@
 // Sui client owner boundary (scripts/ is excluded from verify-boundary.mjs
 // scans) so it can probe SuiGrpcClient without violating the
 // F-SUI-CLIENT-CREATION-SPREAD boundary rule. The goal is to record
-// evidence for whether transport migration from SuiJsonRpcClient to
-// SuiGrpcClient is viable; it is not the migration itself.
+// evidence that the current owner-boundary SuiGrpcClient transport still
+// constructs, identifies chains, and returns effects.bcs across supported
+// networks. It is a regression harness, not product runtime.
 //
 // Outputs:
 //   stderr: human-readable per-network status
 //   stdout: a single JSON document describing the probe result
+// Options:
+//   --output=<path> writes the same JSON document to disk
+//   --digest=<digest> --digest-network=<network> probes one known digest
+//   --base-url-<network>=<url> overrides one endpoint for local failure tests
 // Exit codes:
 //   0  every probed check passed
 //   1  one or more probed checks failed
 //   2  every network failed identically (likely environment/network blocked)
 
 import { SuiGrpcClient } from '@mysten/sui/grpc';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 
 const NETWORKS = ['mainnet', 'testnet', 'devnet'];
 
@@ -26,14 +33,47 @@ const DEFAULT_BASE_URLS = {
   devnet: 'https://fullnode.devnet.sui.io:443',
 };
 
+const ErrorCategory = Object.freeze({
+  ApiShapeMismatch: 'api-shape-mismatch',
+  EndpointUnreachable: 'endpoint-unreachable',
+  Skipped: 'skipped',
+  Timeout: 'timeout',
+  TransportError: 'transport-error',
+  Unknown: 'unknown',
+});
+
+const ERROR_CLASSIFIER_TOKEN_TABLE = Object.freeze({
+  [ErrorCategory.Timeout]: ['AbortError', 'ETIMEDOUT', 'timeout'],
+  [ErrorCategory.EndpointUnreachable]: [
+    'ENOTFOUND',
+    'ECONNREFUSED',
+    'ECONNRESET',
+    'EAI_AGAIN',
+    'EHOSTUNREACH',
+    'UND_ERR',
+    'fetch failed',
+    'network error',
+    'getaddrinfo',
+  ],
+  [ErrorCategory.TransportError]: ['http'],
+});
+
 const parseArgs = (argv) => {
-  const result = { digest: null, digestNetwork: null };
+  const result = {
+    baseUrls: {},
+    digest: null,
+    digestNetwork: null,
+    output: null,
+  };
   for (const arg of argv) {
     const match = arg.match(/^--([^=]+)=(.*)$/);
     if (!match) continue;
     const [, key, value] = match;
     if (key === 'digest') result.digest = value;
     if (key === 'digest-network') result.digestNetwork = value;
+    if (key === 'output') result.output = value;
+    const baseUrlMatch = key.match(/^base-url-(mainnet|testnet|devnet)$/);
+    if (baseUrlMatch) result.baseUrls[baseUrlMatch[1]] = value;
   }
   if (!result.digest && process.env.SUI_GRPC_PROBE_DIGEST) {
     result.digest = process.env.SUI_GRPC_PROBE_DIGEST;
@@ -41,70 +81,130 @@ const parseArgs = (argv) => {
   if (!result.digestNetwork && process.env.SUI_GRPC_PROBE_DIGEST_NETWORK) {
     result.digestNetwork = process.env.SUI_GRPC_PROBE_DIGEST_NETWORK;
   }
+  for (const network of NETWORKS) {
+    const envKey = `SUI_GRPC_PROBE_${network.toUpperCase()}_BASE_URL`;
+    if (!result.baseUrls[network] && process.env[envKey]) {
+      result.baseUrls[network] = process.env[envKey];
+    }
+  }
   return result;
 };
 
+const elapsedMs = (startedAt) => Math.max(0, Date.now() - startedAt);
+
+const matchesClassifierTokens = (category, ...candidates) => {
+  const tokens = ERROR_CLASSIFIER_TOKEN_TABLE[category] ?? [];
+  return candidates.some((value) => {
+    if (!value) return false;
+    const candidate = String(value).toLowerCase();
+    return tokens.some((token) =>
+      candidate.includes(String(token).toLowerCase()),
+    );
+  });
+};
+
 const classifyError = (err) => {
-  if (!err) return { category: 'unknown', message: 'no error object' };
+  if (!err) return { category: ErrorCategory.Unknown, message: 'no error object' };
   const message = err && err.message ? String(err.message) : String(err);
   const code = err && err.code ? String(err.code) : null;
   const cause = err && err.cause ? err.cause : null;
   const causeCode = cause && cause.code ? String(cause.code) : null;
   const causeMessage = cause && cause.message ? String(cause.message) : null;
 
-  const networkTokens = [
-    'ENOTFOUND',
-    'ECONNREFUSED',
-    'ECONNRESET',
-    'EAI_AGAIN',
-    'EHOSTUNREACH',
-    'ETIMEDOUT',
-    'UND_ERR',
-    'fetch failed',
-    'network error',
-    'getaddrinfo',
-  ];
-
-  const matchesNetwork = (...candidates) =>
-    candidates.some((value) =>
-      value
-        ? networkTokens.some((token) => value.includes(token))
-        : false,
-    );
+  if (
+    err.name === 'AbortError' ||
+    matchesClassifierTokens(
+      ErrorCategory.Timeout,
+      err.name,
+      message,
+      code,
+      causeMessage,
+      causeCode,
+    )
+  ) {
+    return { category: ErrorCategory.Timeout, message, code, causeCode };
+  }
 
   if (
-    matchesNetwork(message, code, causeMessage, causeCode) ||
-    err.name === 'AbortError'
+    matchesClassifierTokens(
+      ErrorCategory.EndpointUnreachable,
+      message,
+      code,
+      causeMessage,
+      causeCode,
+    )
   ) {
-    if (err.name === 'AbortError' || (message && message.includes('timeout'))) {
-      return { category: 'timeout', message, code, causeCode };
-    }
-    return { category: 'endpoint-unreachable', message, code, causeCode };
+    return {
+      category: ErrorCategory.EndpointUnreachable,
+      message,
+      code,
+      causeCode,
+    };
   }
 
-  if (message.toLowerCase().includes('http')) {
-    return { category: 'transport-error', message, code };
+  if (matchesClassifierTokens(ErrorCategory.TransportError, message)) {
+    return { category: ErrorCategory.TransportError, message, code };
   }
 
-  return { category: 'unknown', message, code };
+  return { category: ErrorCategory.Unknown, message, code };
 };
 
-const probeConstruct = (network) => {
-  const baseUrl = DEFAULT_BASE_URLS[network];
+const assertClassifierSelfCheck = () => {
+  const cases = [
+    {
+      label: 'abort',
+      error: { name: 'AbortError', message: 'operation aborted' },
+      category: ErrorCategory.Timeout,
+    },
+    {
+      label: 'fetch failed',
+      error: { message: 'fetch failed', code: 'INTERNAL' },
+      category: ErrorCategory.EndpointUnreachable,
+    },
+    {
+      label: 'http status',
+      error: { message: 'HTTP status 503' },
+      category: ErrorCategory.TransportError,
+    },
+    {
+      label: 'unknown',
+      error: { message: 'shape changed' },
+      category: ErrorCategory.Unknown,
+    },
+  ];
+  const misses = cases.filter(
+    ({ error, category }) => classifyError(error).category !== category,
+  );
+  if (misses.length > 0) {
+    throw new Error(
+      `error classifier self-check failed: ${misses
+        .map(({ label }) => label)
+        .join(', ')}`,
+    );
+  }
+};
+
+const baseUrlFor = (network, baseUrls) =>
+  baseUrls[network] ?? DEFAULT_BASE_URLS[network];
+
+const probeConstruct = (network, baseUrl) => {
+  const startedAt = Date.now();
   try {
     const client = new SuiGrpcClient({ network, baseUrl });
-    return { ok: true, baseUrl, client };
+    return { ok: true, baseUrl, client, durationMs: elapsedMs(startedAt) };
   } catch (err) {
     return {
       ok: false,
       baseUrl,
       client: null,
       error: classifyError(err),
+      durationMs: elapsedMs(startedAt),
     };
   }
 };
 
 const probeChainIdentifier = async (client) => {
+  const startedAt = Date.now();
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
@@ -116,18 +216,27 @@ const probeChainIdentifier = async (client) => {
         return {
           ok: false,
           error: {
-            category: 'api-shape-mismatch',
+            category: ErrorCategory.ApiShapeMismatch,
             message:
               'getChainIdentifier response missing chainIdentifier string',
           },
+          durationMs: elapsedMs(startedAt),
         };
       }
-      return { ok: true, chainIdentifier: result.chainIdentifier };
+      return {
+        ok: true,
+        chainIdentifier: result.chainIdentifier,
+        durationMs: elapsedMs(startedAt),
+      };
     } finally {
       clearTimeout(timeout);
     }
   } catch (err) {
-    return { ok: false, error: classifyError(err) };
+    return {
+      ok: false,
+      error: classifyError(err),
+      durationMs: elapsedMs(startedAt),
+    };
   }
 };
 
@@ -185,6 +294,7 @@ const findRecentDigest = async (client) => {
 };
 
 const probeEffectsBcs = async (client, digest) => {
+  const startedAt = Date.now();
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
@@ -206,10 +316,11 @@ const probeEffectsBcs = async (client, digest) => {
           kind: result.$kind,
           digest,
           error: {
-            category: 'api-shape-mismatch',
+            category: ErrorCategory.ApiShapeMismatch,
             message:
               'waitForTransaction returned no effects.bcs even though include.effects was requested',
           },
+          durationMs: elapsedMs(startedAt),
         };
       }
       return {
@@ -217,17 +328,35 @@ const probeEffectsBcs = async (client, digest) => {
         kind: result.$kind,
         digest,
         effectsBcsByteLength: bcs.byteLength,
+        durationMs: elapsedMs(startedAt),
       };
     } finally {
       clearTimeout(timeout);
     }
   } catch (err) {
-    return { ok: false, digest, error: classifyError(err) };
+    return {
+      ok: false,
+      digest,
+      error: classifyError(err),
+      durationMs: elapsedMs(startedAt),
+    };
   }
 };
 
+const writeJsonOutput = (outputPath, json) => {
+  if (!outputPath) return;
+  const resolved = path.resolve(outputPath);
+  mkdirSync(path.dirname(resolved), { recursive: true });
+  writeFileSync(resolved, `${json}\n`);
+};
+
 const main = async () => {
-  const { digest, digestNetwork } = parseArgs(process.argv.slice(2));
+  assertClassifierSelfCheck();
+
+  const startedAt = Date.now();
+  const { baseUrls, digest, digestNetwork, output } = parseArgs(
+    process.argv.slice(2),
+  );
 
   const networkResults = {};
   let allBlocked = true;
@@ -235,40 +364,66 @@ const main = async () => {
   let categoriesAllMatch = true;
   let anyFailure = false;
 
-  for (const network of NETWORKS) {
-    const construct = probeConstruct(network);
+  const recordFailureCategory = (category) => {
+    anyFailure = true;
+    if (firstCategory === null) firstCategory = category;
+    else if (firstCategory !== category) categoriesAllMatch = false;
+    if (
+      category !== ErrorCategory.EndpointUnreachable &&
+      category !== ErrorCategory.Timeout
+    ) {
+      allBlocked = false;
+    }
+  };
+
+  const recordSuccess = () => {
+    allBlocked = false;
+    categoriesAllMatch = false;
+  };
+
+  const probeBaselineNetwork = async (network) => {
+    const construct = probeConstruct(network, baseUrlFor(network, baseUrls));
     if (!construct.ok) {
-      networkResults[network] = {
-        baseUrl: construct.baseUrl,
-        construct: { ok: false, error: construct.error },
-        chainIdentifier: { ok: false, error: { category: 'skipped' } },
+      return {
+        failureCategory: construct.error?.category ?? ErrorCategory.Unknown,
+        network,
+        row: {
+          baseUrl: construct.baseUrl,
+          construct: {
+            ok: false,
+            error: construct.error,
+            durationMs: construct.durationMs,
+          },
+          chainIdentifier: {
+            ok: false,
+            error: { category: ErrorCategory.Skipped },
+            durationMs: 0,
+          },
+        },
       };
-      anyFailure = true;
-      const cat = construct.error?.category ?? 'unknown';
-      if (firstCategory === null) firstCategory = cat;
-      else if (firstCategory !== cat) categoriesAllMatch = false;
-      if (cat !== 'endpoint-unreachable' && cat !== 'timeout')
-        allBlocked = false;
-      continue;
     }
 
     const chain = await probeChainIdentifier(construct.client);
-    networkResults[network] = {
-      baseUrl: construct.baseUrl,
-      construct: { ok: true },
-      chainIdentifier: chain,
+    return {
+      failureCategory: chain.ok
+        ? null
+        : chain.error?.category ?? ErrorCategory.Unknown,
+      network,
+      row: {
+        baseUrl: construct.baseUrl,
+        construct: { ok: true, durationMs: construct.durationMs },
+        chainIdentifier: chain,
+      },
     };
-    if (!chain.ok) {
-      anyFailure = true;
-      const cat = chain.error?.category ?? 'unknown';
-      if (firstCategory === null) firstCategory = cat;
-      else if (firstCategory !== cat) categoriesAllMatch = false;
-      if (cat !== 'endpoint-unreachable' && cat !== 'timeout')
-        allBlocked = false;
-    } else {
-      allBlocked = false;
-      categoriesAllMatch = false;
-    }
+  };
+
+  const baselineResults = await Promise.all(
+    NETWORKS.map((network) => probeBaselineNetwork(network)),
+  );
+  for (const { failureCategory, network, row } of baselineResults) {
+    networkResults[network] = row;
+    if (failureCategory) recordFailureCategory(failureCategory);
+    else recordSuccess();
   }
 
   const effectsBcs = { mode: null, perNetwork: {} };
@@ -278,17 +433,18 @@ const main = async () => {
     return Boolean(row && row.construct.ok && row.chainIdentifier.ok);
   };
 
+  const skippedAutoProbe = (network) => ({
+    tested: false,
+    source: 'auto',
+    network,
+    reason:
+      'baseline construct/chainIdentifier did not succeed; effects.bcs probe skipped',
+    durationMs: 0,
+  });
+
   const autoProbeNetwork = async (network) => {
-    if (!baselineOkFor(network)) {
-      return {
-        tested: false,
-        source: 'auto',
-        network,
-        reason:
-          'baseline construct/chainIdentifier did not succeed; effects.bcs probe skipped',
-      };
-    }
-    const construct = probeConstruct(network);
+    const startedAt = Date.now();
+    const construct = probeConstruct(network, baseUrlFor(network, baseUrls));
     if (!construct.ok) {
       return {
         tested: false,
@@ -297,6 +453,7 @@ const main = async () => {
         reason:
           'auto-probe could not re-construct SuiGrpcClient even after baseline succeeded',
         error: construct.error,
+        durationMs: elapsedMs(startedAt),
       };
     }
     try {
@@ -308,6 +465,7 @@ const main = async () => {
         network,
         checkpointSequence: found.checkpointSequence,
         ...probe,
+        durationMs: elapsedMs(startedAt),
       };
     } catch (err) {
       return {
@@ -317,10 +475,15 @@ const main = async () => {
         reason:
           'auto-probe could not discover a recent finalized digest via ledgerService.getCheckpoint',
         error: classifyError(err),
+        durationMs: elapsedMs(startedAt),
       };
     }
   };
 
+  // Manual digest mode is intentionally retained for transport regressions:
+  // when a specific finalized digest reproduces a SuiGrpcClient wait/finality
+  // issue, pass `--digest=<digest> --digest-network=<network>` to probe that
+  // exact transaction instead of relying on the auto-discovered recent digest.
   if (digest && digestNetwork) {
     effectsBcs.mode = 'manual';
     if (!NETWORKS.includes(digestNetwork)) {
@@ -330,6 +493,7 @@ const main = async () => {
           source: 'manual',
           network,
           reason: `digest-network must be one of ${NETWORKS.join('/')}, got ${digestNetwork}`,
+          durationMs: 0,
         };
       }
       anyFailure = true;
@@ -341,10 +505,12 @@ const main = async () => {
             source: 'manual',
             network,
             reason: `manual digest probe is scoped to ${digestNetwork}; rerun without --digest for auto-probe across networks`,
+            durationMs: 0,
           };
           continue;
         }
-        const construct = probeConstruct(network);
+        const startedAt = Date.now();
+        const construct = probeConstruct(network, baseUrlFor(network, baseUrls));
         if (!construct.ok) {
           effectsBcs.perNetwork[network] = {
             tested: false,
@@ -354,6 +520,7 @@ const main = async () => {
             reason:
               'cannot reuse SuiGrpcClient construction for manual effects probe',
             error: construct.error,
+            durationMs: elapsedMs(startedAt),
           };
           anyFailure = true;
         } else {
@@ -363,6 +530,7 @@ const main = async () => {
             source: 'manual',
             network,
             ...probe,
+            durationMs: elapsedMs(startedAt),
           };
           if (!probe.ok) anyFailure = true;
         }
@@ -370,8 +538,15 @@ const main = async () => {
     }
   } else {
     effectsBcs.mode = 'auto';
-    for (const network of NETWORKS) {
-      const result = await autoProbeNetwork(network);
+    const autoProbeResults = await Promise.all(
+      NETWORKS.map((network) =>
+        baselineOkFor(network)
+          ? autoProbeNetwork(network)
+          : skippedAutoProbe(network),
+      ),
+    );
+    for (const result of autoProbeResults) {
+      const { network } = result;
       effectsBcs.perNetwork[network] = result;
       if (result.tested === false) {
         anyFailure = true;
@@ -382,14 +557,17 @@ const main = async () => {
   }
 
   const summary = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     timestamp: new Date().toISOString(),
     sdkSource: '@mysten/sui/grpc (SuiGrpcClient + GrpcWebFetchTransport)',
     networks: networkResults,
     effectsBcs,
+    totalDurationMs: elapsedMs(startedAt),
   };
 
-  process.stdout.write(JSON.stringify(summary, null, 2) + '\n');
+  const json = JSON.stringify(summary, null, 2);
+  writeJsonOutput(output, json);
+  process.stdout.write(json + '\n');
 
   for (const network of NETWORKS) {
     const row = networkResults[network];
@@ -431,7 +609,8 @@ const main = async () => {
   if (
     allBlocked &&
     categoriesAllMatch &&
-    (firstCategory === 'endpoint-unreachable' || firstCategory === 'timeout')
+    (firstCategory === ErrorCategory.EndpointUnreachable ||
+      firstCategory === ErrorCategory.Timeout)
   ) {
     process.exit(2);
   }

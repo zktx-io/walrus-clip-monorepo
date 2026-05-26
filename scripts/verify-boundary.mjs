@@ -478,11 +478,15 @@ const checkVerifierNegativeControls = () => {
 
   const transportStaleSamples = [
     'Owner-boundary Sui client construction is on SDK 2.x SuiJsonRpcClient',
+    'Owner-boundary Sui client runtime transport construction defaults to `SuiJsonRpcClient`',
     'owner boundaries today use SuiJsonRpcClient',
     'runtime transport stays on `SuiJsonRpcClient`',
+    'runtime transport makes use of `SuiJsonRpcClient`',
     'SuiGrpcClient transport migration is a later follow-up',
+    'SuiGrpcClient transport migration not yet completed',
     'SuiGrpcClient transport swap remains pending',
     'Moving owner boundaries to the SDK 2.x Core/gRPC API is a later follow-up',
+    'Migrating owner boundaries to the SDK 2.x Core/gRPC API is not yet migrated',
     'transport migration remains a separate follow-up commit',
     // Prior multi-line wallet README claim, normalized as a paragraph block.
     // Earlier shape: "SDK 2.x Core/gRPC owner-boundary migration. That remains
@@ -498,6 +502,21 @@ const checkVerifierNegativeControls = () => {
     `runtime-transport stale SOT regex must catch every known stale claim shape; missed:\n${transportStaleSamples
       .filter((line) => !matchesAnyTransportStalePattern(line))
       .join('\n')}`,
+  );
+
+  const multiLineTransportStaleBlocks = collectParagraphBlocks(
+    [
+      'Owner-boundary Sui client runtime',
+      'transport construction runs on `SuiJsonRpcClient`',
+      'for wallet execution paths.',
+      '',
+      'SuiGrpcClient transport migration',
+      'not yet completed.',
+    ].join('\n'),
+  ).filter((block) => matchesAnyTransportStalePattern(block.normalized));
+  assert(
+    multiLineTransportStaleBlocks.length === 2,
+    'runtime-transport stale SOT paragraph scan must catch multi-line stale claims before line-level assumptions can miss them',
   );
 
   const transportLegitimateSamples = [
@@ -838,28 +857,52 @@ const checkDocumentation = () => {
 // Patterns are intentionally narrow so legitimate retain/follow-up wording
 // (coin-helper-specific follow-up, public helper return type follow-up,
 // dry-run review JSON-RPC, user manual smoke deferred) does not false-fire.
+const jsonRpcRuntimeVerbPattern = String.raw`(?:is|becomes|defaults\s+to|makes\s+use\s+of|runs\s+on|stays?|remains?|uses?)`;
+const deferredGrpcMigrationStatePattern = String.raw`(?:still|later|deferred|separate|pending|follow-?up(?:\s+commit)?|not\s+yet\s+(?:migrated|completed))`;
+const deferredGrpcMigrationPredicatePattern = String.raw`(?:(?:is|remains|stays?)\s+(?:a\s+)?${deferredGrpcMigrationStatePattern}|${deferredGrpcMigrationStatePattern})`;
 const runtimeTransportStalePatterns = [
   // 1. "Owner-boundary Sui client construction|runtime construction|... is/uses ... SuiJsonRpcClient"
   //    — Binds the verb directly to the transport class name (with only an
   //    optional `SDK X` qualifier in between) so legitimate retain wording
   //    inside a longer sentence about SuiGrpcClient does not match.
-  /(?:Owner[- ]?boundary|owner\s+boundaries)\s+Sui\s+client\s+\S+(?:\s+\S+)?\s+(?:is|stays?|remains?|uses?)\s+(?:on\s+)?(?:SDK\s+\S+\s+)?[`']?SuiJsonRpcClient/i,
+  new RegExp(
+    String.raw`(?:Owner[- ]?boundary|owner\s+boundaries)\s+Sui\s+client(?:\s+\S+){1,3}\s+${jsonRpcRuntimeVerbPattern}\s+(?:on\s+)?(?:SDK\s+\S+\s+)?['\x60]?SuiJsonRpcClient`,
+    'i',
+  ),
   // 2. "owner boundaries today use SuiJsonRpcClient"
-  /owner\s+boundaries?\s+today\s+use\s+(?:SDK\s+\S+\s+)?[`']?SuiJsonRpcClient/i,
+  new RegExp(
+    String.raw`owner\s+boundaries?\s+today\s+${jsonRpcRuntimeVerbPattern}\s+(?:on\s+)?(?:SDK\s+\S+\s+)?['\x60]?SuiJsonRpcClient`,
+    'i',
+  ),
   // 3. "runtime transport is/stays/remains on SuiJsonRpcClient"
-  /runtime\s+transport\s+(?:is|stays?|remains?)\s+(?:on\s+)?[`']?SuiJsonRpcClient/i,
+  new RegExp(
+    String.raw`runtime\s+transport\s+${jsonRpcRuntimeVerbPattern}\s+(?:on\s+)?['\x60]?SuiJsonRpcClient`,
+    'i',
+  ),
   // 4. "SuiGrpcClient transport migration|swap is/remains still|later|deferred|..."
-  /SuiGrpcClient\s+transport\s+(?:migration|swap)\s+(?:is|remains|stays?)\s+(?:a\s+)?(?:still|later|deferred|separate|pending|follow-?up)/i,
+  new RegExp(
+    String.raw`SuiGrpcClient\s+transport\s+(?:migration|swap)\s+${deferredGrpcMigrationPredicatePattern}`,
+    'i',
+  ),
   // 5. "moving owner boundaries to Core/gRPC ... is a later follow-up"
-  /(?:moving|migrating)\s+owner\s+boundaries?\s+to\s+(?:the\s+)?(?:SDK\s+2\.x\s+)?(?:Core\/?gRPC\s+API|`?SuiGrpcClient`?)[^\n]*?\s+is\s+a\s+later\s+follow-?up/i,
+  new RegExp(
+    String.raw`(?:moving|migrating)\s+owner\s+boundaries?\s+to\s+(?:the\s+)?(?:SDK\s+2\.x\s+)?(?:Core\/?gRPC\s+API|['\x60]?SuiGrpcClient['\x60]?)[^\n]*?\s+${deferredGrpcMigrationPredicatePattern}`,
+    'i',
+  ),
   // 6. "transport migration is/remains a still|later|separate|pending|... follow-up commit"
-  /transport\s+migration\s+(?:is|remains|stays?)\s+(?:a\s+)?(?:still|later|deferred|separate|pending|follow-?up\s+commit)/i,
+  new RegExp(
+    String.raw`transport\s+migration\s+${deferredGrpcMigrationPredicatePattern}`,
+    'i',
+  ),
   // 7. "(SDK X )?Core/gRPC owner-boundary migration ... is/remains a separate/follow-up/later/..."
   //    — Catches the earlier README claim "SDK 2.x Core/gRPC owner-boundary
   //    migration. That remains a separate modernization step". A short
   //    bounded gap (`{0,120}`) lets `That remains` / `It remains` / `This
   //    remains` connectives match without spanning entire paragraphs.
-  /owner[- ]?boundary\s+migration[\s\S]{0,120}?\s+(?:is|remains|stays?)\s+(?:a\s+)?(?:still|later|deferred|separate|pending|follow-?up)/i,
+  new RegExp(
+    String.raw`owner[- ]?boundary\s+migration[\s\S]{0,120}?\s+${deferredGrpcMigrationPredicatePattern}`,
+    'i',
+  ),
   // 8. "the wallet currently uses SuiJsonRpcClient ..." — Catches the
   //    earlier README continuation claim about the wallet runtime transport.
   /wallet\s+currently\s+uses\s+(?:SDK\s+\S+\s+)?[`']?SuiJsonRpcClient/i,
@@ -871,13 +914,13 @@ const matchesAnyTransportStalePattern = (line) =>
 const normalizeParagraphForStaleScan = (paragraph) =>
   paragraph.replace(/\s+/g, ' ').trim();
 
-// Markdown paragraphs are separated by blank lines. Stale wording can split
-// across multiple lines (the prior wallet README claim spanned two lines —
+// Paragraph/block scanning is the primary protection layer for SOT stale
+// claims. Markdown paragraphs are separated by blank lines, and stale wording
+// can split across multiple lines (the prior wallet README claim spanned
 // "SDK 2.x Core/gRPC owner-boundary migration. That remains a separate" /
-// "modernization step; the wallet currently uses `SuiJsonRpcClient`..."), so
-// line-by-line scanning would miss it. We collect each paragraph block,
-// collapse all whitespace (including its internal newlines) to a single
-// space, and run the regex set against that normalized form.
+// "modernization step; the wallet currently uses `SuiJsonRpcClient`...").
+// Keep future regex changes running against these normalized blocks instead
+// of relying on line-level scans alone.
 const collectParagraphBlocks = (text) => {
   const lines = text.split('\n');
   const blocks = [];

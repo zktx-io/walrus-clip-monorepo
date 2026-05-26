@@ -84,6 +84,8 @@ type WalrusWalletLoginRouteErrorInput = {
   accountPersisted?: boolean;
 };
 
+type WalrusWalletSuiTransport = 'grpc';
+
 export class WalrusWalletLoginRouteError extends WalrusWalletError {
   readonly address?: string;
   readonly network?: string;
@@ -160,17 +162,23 @@ export class WalrusWalletTransactionUncertainError extends WalrusWalletError {
     bytes,
     signature,
     reason,
+    suiTransport,
   }: {
     phase: 'confirmation' | 'sponsored-execution';
     digest: string;
     bytes: string;
     signature: string;
     reason: string;
+    suiTransport?: WalrusWalletSuiTransport;
   }) {
     super(
       'WALRUS_TRANSACTION_UNCERTAIN',
       `Transaction ${digest} was submitted or prepared, but ${phase} did not complete: ${reason}`,
-      { phase, digest },
+      {
+        phase,
+        digest,
+        ...(suiTransport ? { suiTransport } : {}),
+      },
     );
     this.name = 'WalrusWalletTransactionUncertainError';
     this.digest = digest;
@@ -184,6 +192,7 @@ type WalrusWalletTransactionExecutionErrorInput = {
   digest?: string;
   bytes?: string;
   signature?: string;
+  suiTransport?: WalrusWalletSuiTransport;
 };
 
 export class WalrusWalletTransactionExecutionError extends WalrusWalletError {
@@ -196,6 +205,9 @@ export class WalrusWalletTransactionExecutionError extends WalrusWalletError {
       typeof input === 'string' ? { reason: input } : input;
     super('WALRUS_TRANSACTION_EXECUTION_FAILED', normalized.reason, {
       ...(normalized.digest ? { digest: normalized.digest } : {}),
+      ...(normalized.suiTransport
+        ? { suiTransport: normalized.suiTransport }
+        : {}),
     });
     this.name = 'WalrusWalletTransactionExecutionError';
     this.digest = normalized.digest;

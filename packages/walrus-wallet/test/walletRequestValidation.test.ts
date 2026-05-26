@@ -17,6 +17,7 @@ const {
   WalrusWalletLoginRouteError,
   WalrusWalletQrRouteError,
   WalrusWalletTransactionExecutionError,
+  WalrusWalletTransactionUncertainError,
 } = await jiti.import<typeof import('../src/runtime/walletErrors.ts')>(
   '../src/runtime/walletErrors.ts',
 );
@@ -150,6 +151,19 @@ test('wallet transaction execution errors preserve the submitted digest from a C
   assert.equal(error.details.digest, 'digest-failed');
 });
 
+test('wallet transaction execution errors expose grpc transport identity for Sui execute failures', () => {
+  const error = new WalrusWalletTransactionExecutionError({
+    reason: 'Transaction digest-failed executed but reported failure: Move abort 5',
+    digest: 'digest-failed',
+    bytes: 'tx-bytes',
+    signature: 'signature',
+    suiTransport: 'grpc',
+  });
+
+  assert.equal(error.details.suiTransport, 'grpc');
+  assert.equal(error.message.includes('grpc'), false);
+});
+
 test('wallet transaction execution errors stay usable with the legacy string-only constructor for pre-submit failures with no digest', () => {
   const error = new WalrusWalletTransactionExecutionError(
     'Failed to execute transaction: network down',
@@ -160,4 +174,36 @@ test('wallet transaction execution errors stay usable with the legacy string-onl
   assert.equal(error.digest, undefined);
   assert.equal(error.bytes, undefined);
   assert.equal(error.signature, undefined);
+});
+
+test('wallet transaction uncertainty errors expose grpc transport identity for Sui confirmation failures', () => {
+  const error = new WalrusWalletTransactionUncertainError({
+    phase: 'confirmation',
+    digest: 'digest-submitted',
+    bytes: 'tx-bytes',
+    signature: 'signature',
+    reason: 'finality timeout',
+    suiTransport: 'grpc',
+  });
+
+  assert.equal(error.code, 'WALRUS_TRANSACTION_UNCERTAIN');
+  assert.equal(error.details.phase, 'confirmation');
+  assert.equal(error.details.digest, 'digest-submitted');
+  assert.equal(error.details.suiTransport, 'grpc');
+  assert.equal(error.message.includes('grpc'), false);
+});
+
+test('wallet transaction uncertainty errors do not attach Sui transport identity for sponsored endpoint failures', () => {
+  const error = new WalrusWalletTransactionUncertainError({
+    phase: 'sponsored-execution',
+    digest: 'digest-sponsored',
+    bytes: 'tx-bytes',
+    signature: 'signature',
+    reason: 'sponsor unavailable',
+  });
+
+  assert.equal(error.code, 'WALRUS_TRANSACTION_UNCERTAIN');
+  assert.equal(error.details.phase, 'sponsored-execution');
+  assert.equal(error.details.digest, 'digest-sponsored');
+  assert.equal(error.details.suiTransport, undefined);
 });

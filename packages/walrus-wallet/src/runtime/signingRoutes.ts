@@ -23,6 +23,8 @@ import {
   WalrusWalletTransactionUncertainError,
 } from './walletErrors';
 
+const WALRUS_WALLET_SUI_TRANSPORT = 'grpc' as const;
+
 export type WalletQrSignModal = (
   title: string,
   description: string,
@@ -115,6 +117,7 @@ const waitForExecutedTransaction = async ({
         bytes,
         signature,
         reason: error.message,
+        suiTransport: WALRUS_WALLET_SUI_TRANSPORT,
       });
     }
     throw error;
@@ -209,6 +212,7 @@ export const signAndExecuteTransactionWithLocalSigner = async ({
     if (error instanceof Error) {
       throw new WalrusWalletTransactionExecutionError({
         reason: `Failed to execute transaction: ${error.message}`,
+        suiTransport: WALRUS_WALLET_SUI_TRANSPORT,
       });
     }
     throw error;
@@ -223,6 +227,7 @@ export const signAndExecuteTransactionWithLocalSigner = async ({
       digest: result.digest,
       bytes,
       signature,
+      suiTransport: WALRUS_WALLET_SUI_TRANSPORT,
     });
   }
 
