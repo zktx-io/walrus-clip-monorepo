@@ -9,7 +9,12 @@ import {
 } from '../internal/walrusConnectRoute';
 import type { QRSignOutcome } from '../internal/walrusConnectRoute';
 
-import { createWalrusWalletSuiClient } from '../utils/suiClient';
+import {
+  buildWalrusWalletTransaction,
+  createWalrusWalletSuiClient,
+  executeWalrusWalletTransaction,
+  waitForWalrusWalletTransaction,
+} from '../utils/suiClient';
 import type { NETWORK } from '../utils/walletTypes';
 import type { ZkLoginSigner } from '../utils/zkLoginSigner';
 import {
@@ -92,7 +97,7 @@ const waitForExecutedTransaction = async ({
   signature: string;
 }): Promise<SuiSignAndExecuteTransactionOutput> => {
   try {
-    const { rawEffects } = await client.waitForTransaction({
+    const { rawEffects } = await waitForWalrusWalletTransaction(client, {
       digest,
       options: {
         showRawEffects: true,
@@ -131,7 +136,10 @@ export const signTransactionWithLocalSigner = async ({
   const client = createWalrusWalletSuiClient(network);
   const tx = Transaction.from(await transaction.toJSON());
   tx.setSenderIfNotSet(signer.toSuiAddress());
-  const txBytes = await tx.build({ client });
+  const txBytes = await buildWalrusWalletTransaction({
+    client,
+    transaction: tx,
+  });
 
   return signer.signTransaction(txBytes);
 };
@@ -152,8 +160,9 @@ export const signAndExecuteTransactionWithLocalSigner = async ({
   tx.setSenderIfNotSet(signer.toSuiAddress());
 
   if (sponsoredUrl) {
-    const transactionKindBytes = await tx.build({
+    const transactionKindBytes = await buildWalrusWalletTransaction({
       client,
+      transaction: tx,
       onlyTransactionKind: true,
     });
     const { bytes: sponsoredBytes, digest } = await createSponsoredTransaction(
@@ -187,12 +196,15 @@ export const signAndExecuteTransactionWithLocalSigner = async ({
     });
   }
 
-  const txBytes = await tx.build({ client });
+  const txBytes = await buildWalrusWalletTransaction({
+    client,
+    transaction: tx,
+  });
   const { bytes, signature } = await signer.signTransaction(txBytes);
 
   let digest: string;
   try {
-    const result = await client.executeTransactionBlock({
+    const result = await executeWalrusWalletTransaction(client, {
       transactionBlock: bytes,
       signature,
     });

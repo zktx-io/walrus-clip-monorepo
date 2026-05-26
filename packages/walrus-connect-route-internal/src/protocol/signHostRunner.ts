@@ -1,4 +1,3 @@
-import type { SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { toBase64 } from '@mysten/sui/utils';
 
@@ -50,7 +49,13 @@ import {
   type PendingSignTransaction,
   type SignProtocolPhase,
 } from '../utils/signProtocol';
-import { createWalrusConnectSuiClient } from '../utils/suiClient';
+import {
+  buildWalrusConnectTransaction,
+  createWalrusConnectSuiClient,
+  executeWalrusConnectTransaction,
+  waitForWalrusConnectTransaction,
+  type WalrusConnectSuiClient,
+} from '../utils/suiClient';
 
 export type { QRSignOutcome, QRSignResult } from './signLifecycle';
 export {
@@ -61,7 +66,7 @@ export {
 
 export type SignHostOutcome = QRSignOutcome;
 
-type SignHostClient = SuiClient;
+type SignHostClient = WalrusConnectSuiClient;
 
 type SignHostTransaction = {
   setSenderIfNotSet: (address: string) => void;
@@ -490,7 +495,7 @@ export const startSignHostRunner = ({
     let rawEffects: Uint8Array | number[] | null | undefined;
     try {
       ({ rawEffects } = await authority.postSubmitObservation(() =>
-        client.waitForTransaction({
+        waitForWalrusConnectTransaction(client, {
           digest,
           options: { showRawEffects: true },
           timeout: timeouts.finalityMs,
@@ -581,8 +586,9 @@ export const startSignHostRunner = ({
 
     if (sponsoredUrl !== undefined) {
       const txBytes = await authority.cancellable(() =>
-        txb.build({
+        buildWalrusConnectTransaction({
           client,
+          transaction: txb,
           onlyTransactionKind: true,
         }),
       );
@@ -614,7 +620,9 @@ export const startSignHostRunner = ({
       return;
     }
 
-    const txBytes = await authority.cancellable(() => txb.build({ client }));
+    const txBytes = await authority.cancellable(() =>
+      buildWalrusConnectTransaction({ client, transaction: txb }),
+    );
     const bytes = deps.encodeBytes(txBytes);
     const pending = {
       bytes,
@@ -730,7 +738,7 @@ export const startSignHostRunner = ({
     let digest: string;
     try {
       ({ digest } = await authority.irreversibleExecute(() =>
-        client.executeTransactionBlock({
+        executeWalrusConnectTransaction(client, {
           transactionBlock: pending.bytes,
           signature,
         }),

@@ -5,10 +5,12 @@ QR/WebRTC signing, account state, network selection, or signing outcomes.
 
 Current status: implemented but unverified.
 
-Reason: this change passed automated static scans, package builds, wallet
-runtime/helper tests, and `walrus-connect` protocol tests on 2026-05-26.
-Two-device QR/WebRTC and wallet UI smoke checks still require a manual
-browser/device pass.
+Reason: the current boundary work keeps existing QR/WebRTC and Wallet Standard
+signing behavior routed through the same public outcomes, but it touches the
+signing/client boundary and therefore still requires manual browser/device
+smoke before release. Automated static scans, package builds, wallet
+runtime/helper tests, and `walrus-connect` protocol tests are recorded
+separately from manual smoke evidence.
 
 Automated checks run:
 
@@ -34,6 +36,10 @@ Automated checks run:
 - static scans for public `wallet-route` imports, private route package source
   ownership, wallet public type leaks, signer-app generated d.ts route leaks,
   and connect/wallet tarball declaration artifacts
+- static scans for Sui client runtime imports/re-exports/dynamic imports,
+  require-style imports, fullnode URL construction, and transaction
+  build/execute/wait/dry-run/simulate/digest calls staying behind the
+  inventoried owner boundaries
 
 Completion gate:
 

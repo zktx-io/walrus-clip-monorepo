@@ -1,7 +1,7 @@
-import { getFullnodeUrl } from '@mysten/sui/client';
+import { createWalrusWalletDappKitNetworkConfig } from './suiClient';
 
 export const createWalrusWalletDappKitNetworks = () => ({
-  mainnet: { url: getFullnodeUrl('mainnet') },
-  testnet: { url: getFullnodeUrl('testnet') },
-  devnet: { url: getFullnodeUrl('devnet') },
+  mainnet: createWalrusWalletDappKitNetworkConfig('mainnet'),
+  testnet: createWalrusWalletDappKitNetworkConfig('testnet'),
+  devnet: createWalrusWalletDappKitNetworkConfig('devnet'),
 });

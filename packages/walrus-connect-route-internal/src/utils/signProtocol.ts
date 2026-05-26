@@ -1,4 +1,3 @@
-import type { SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 
 import type {
@@ -6,6 +5,7 @@ import type {
   ProtocolErrorCode,
   ProtocolErrorPayload,
 } from './message';
+import type { WalrusConnectSuiClient } from './suiClient';
 
 export const TRANSACTION_PROPOSAL_TIMEOUT_MS = 15000;
 export const SIGN_RESPONSE_TIMEOUT_MS = 30000;
@@ -37,6 +37,14 @@ export type PendingSignTransaction = {
   expectedDigest?: string;
   signerAddress: string;
 };
+
+export type WalrusConnectTransactionDigestReader = ({
+  client,
+  transaction,
+}: {
+  client: WalrusConnectSuiClient;
+  transaction: Transaction;
+}) => Promise<string> | string;
 
 export type SignProtocolValidationError = {
   code: Extract<
@@ -113,22 +121,28 @@ export const getExpectedSubmittedDigest = async ({
   tx,
   client,
   expectedDigest,
+  getTransactionDigest,
 }: {
   tx: Transaction;
-  client: SuiClient;
+  client: WalrusConnectSuiClient;
   expectedDigest?: string;
-}) => expectedDigest ?? tx.getDigest({ client });
+  getTransactionDigest: WalrusConnectTransactionDigestReader;
+}) =>
+  expectedDigest ??
+  getTransactionDigest({ client, transaction: tx });
 
 export const validateSubmittedDigest = async ({
   tx,
   client,
   expectedDigest,
   submittedDigest,
+  getTransactionDigest,
 }: {
   tx: Transaction;
-  client: SuiClient;
+  client: WalrusConnectSuiClient;
   expectedDigest?: string;
   submittedDigest: string;
+  getTransactionDigest: WalrusConnectTransactionDigestReader;
 }): Promise<
   | { ok: true; digest: string }
   | { ok: false; error: SignProtocolValidationError }
@@ -137,6 +151,7 @@ export const validateSubmittedDigest = async ({
     tx,
     client,
     expectedDigest,
+    getTransactionDigest,
   });
 
   if (submittedDigest !== resolvedExpectedDigest) {

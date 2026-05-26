@@ -1,4 +1,3 @@
-import type { SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 
@@ -45,7 +44,12 @@ import {
   validateProtocolMessageFresh,
   validateSubmittedDigest,
 } from '../utils/signProtocol';
-import { createWalrusConnectSuiClient } from '../utils/suiClient';
+import {
+  createWalrusConnectSuiClient,
+  getWalrusConnectTransactionDigest,
+  waitForWalrusConnectTransaction,
+  type WalrusConnectSuiClient,
+} from '../utils/suiClient';
 
 type SignedScannerTransaction = {
   tx: Transaction;
@@ -55,13 +59,14 @@ type SignedScannerTransaction = {
 };
 
 export type SignScannerRunnerDeps = {
-  createClient: (network: NETWORK) => SuiClient;
+  createClient: (network: NETWORK) => WalrusConnectSuiClient;
   decodeBytes: (bytes: string) => Uint8Array;
   encodeBytes: (bytes: Uint8Array) => string;
   createTransactionFromBytes: (bytes: Uint8Array) => Transaction;
   validateExpectedDigest: typeof validateExpectedDigest;
   validateSubmittedDigest: typeof validateSubmittedDigest;
   validateFinalizedDigest: typeof validateFinalizedDigest;
+  getTransactionDigest: typeof getWalrusConnectTransactionDigest;
   createSignTransactionReview: typeof createSignTransactionReview;
   approveSignTransactionReview: typeof approveSignTransactionReview;
   getTransactionSenderValidationError: typeof getTransactionSenderValidationError;
@@ -83,6 +88,7 @@ const defaultDeps: SignScannerRunnerDeps = {
   validateExpectedDigest,
   validateSubmittedDigest,
   validateFinalizedDigest,
+  getTransactionDigest: getWalrusConnectTransactionDigest,
   createSignTransactionReview,
   approveSignTransactionReview,
   getTransactionSenderValidationError,
@@ -306,6 +312,7 @@ export const startSignScannerRunner = ({
         client,
         expectedDigest: pendingTransaction.expectedDigest,
         submittedDigest: message.payload.digest,
+        getTransactionDigest: deps.getTransactionDigest,
       }),
     );
     if (isTerminal() || !session?.isActive()) return;
@@ -387,7 +394,7 @@ export const startSignScannerRunner = ({
     }
 
     const { rawEffects } = await authority.postSubmitObservation(() =>
-      client.waitForTransaction({
+      waitForWalrusConnectTransaction(client, {
         digest: message.payload.digest,
         options: { showRawEffects: true },
         timeout: timeouts.finalityMs,

@@ -2,7 +2,6 @@ import { bcs } from '@mysten/sui/bcs';
 import type {
   BalanceChange,
   DryRunTransactionBlockResponse,
-  SuiClient,
   SuiEvent,
   SuiObjectChange,
 } from '@mysten/sui/client';
@@ -22,6 +21,10 @@ import type {
   SignTransactionReviewInput,
 } from '../types';
 import type { ProtocolErrorCode } from './message';
+import {
+  dryRunWalrusConnectTransaction,
+  type WalrusConnectSuiClient,
+} from './suiClient';
 
 export type SignTransactionValidationError = {
   code: Extract<
@@ -800,7 +803,7 @@ export const createSignTransactionReview = async ({
   network,
 }: {
   tx: Transaction;
-  client: SuiClient;
+  client: WalrusConnectSuiClient;
   bytes: string;
   digest?: string;
   network: NETWORK;
@@ -821,7 +824,9 @@ export const createSignTransactionReview = async ({
 
   let dryRun: DryRunTransactionBlockResponse;
   try {
-    dryRun = await client.dryRunTransactionBlock({ transactionBlock: bytes });
+    dryRun = await dryRunWalrusConnectTransaction(client, {
+      transactionBlock: bytes,
+    });
   } catch {
     return {
       ok: false,

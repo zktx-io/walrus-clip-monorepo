@@ -29,6 +29,9 @@ const verifierChecks = new Set([
   'verifier-negative-controls',
   'boundary-inventory-mapping',
   'documentation-stale-outcomes',
+  'sui-client-boundary-source',
+  'sui-transaction-execution-boundary',
+  'sui-public-type-surface',
   'completion-staged-snapshot',
   'completion-manual-smoke',
 ]);
@@ -217,6 +220,123 @@ const forbiddenPackPaths = (files, rules) =>
       .map(({ label }) => `${label}: ${file}`),
   );
 
+const suiClientConstructionPattern =
+  /\b(?:new\s+SuiClient|new\s+SuiGraphQLClient|new\s+SuiGrpcClient|new\s+SuiJsonRpcClient|getFullnodeUrl\s*\(|getJsonRpcFullnodeUrl\s*\()/g;
+const suiClientStaticRuntimeModulePattern =
+  /\b(import|export)\s+(?!type\b)([^;]*?)\s+from\s+['"](@mysten\/sui\/(?:client|graphql|grpc|jsonRpc))['"]\s*;?/g;
+const suiClientSideEffectImportPattern =
+  /\bimport\s+['"](@mysten\/sui\/(?:client|graphql|grpc|jsonRpc))['"]\s*;?/g;
+const suiClientDynamicRuntimeModulePattern =
+  /\b(?:import|require)\s*\(\s*['"](@mysten\/sui\/(?:client|graphql|grpc|jsonRpc))['"]\s*\)/g;
+const suiTransactionBoundaryNames =
+  'executeTransactionBlock|executeTransaction|waitForTransaction|dryRunTransactionBlock|simulateTransaction|getLatestSuiSystemState|getDigest';
+const suiTransactionBoundaryPattern =
+  new RegExp(
+    `(?:\\.\\s*(?:${suiTransactionBoundaryNames})\\s*(?:\\?\\.)?\\s*\\(|\\[\\s*['"](?:${suiTransactionBoundaryNames})['"]\\s*\\]\\s*(?:\\?\\.)?\\s*\\()`,
+    'g',
+  );
+const suiTransactionBuildStartPattern =
+  /(?:\.\s*build\s*(?:\?\.)?\s*\(|\[\s*['"]build['"]\s*\]\s*(?:\?\.)?\s*\()/g;
+const publicReviewHelperFile =
+  'packages/walrus-connect/src/utils/signTransactionReview.ts';
+const publicSuiTypeSurfaceAllowlist = new Map([
+  [
+    'packages/walrus-connect/dist/types/types.d.ts',
+    new Set([
+      '@mysten/sui/cryptography',
+      '@mysten/sui/transactions',
+      '@mysten/wallet-standard',
+    ]),
+  ],
+  [
+    'packages/walrus-connect/dist/types/utils/signTransactionReview.d.ts',
+    new Set(['@mysten/sui/client', '@mysten/sui/transactions']),
+  ],
+  [
+    'packages/walrus-wallet/dist/types/utils/coinHelpers.d.ts',
+    new Set(['@mysten/sui/client']),
+  ],
+]);
+const mystenPublicTypeSpecifierPattern =
+  /^@mysten\/(?:sui(?:\/[^'"]+)?|wallet-standard|dapp-kit)$/;
+
+const lineNumberForOffset = (text, offset) =>
+  text.slice(0, offset).split('\n').length;
+
+const isTypeOnlyNamedImport = (specifier) => {
+  const trimmed = specifier.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return false;
+
+  return trimmed
+    .slice(1, -1)
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .every((part) => part.startsWith('type '));
+};
+
+const scanSuiClientRuntimeEdges = (file, text = readText(file)) => {
+  const matches = [];
+  let match;
+
+  suiClientStaticRuntimeModulePattern.lastIndex = 0;
+  while ((match = suiClientStaticRuntimeModulePattern.exec(text))) {
+    if (isTypeOnlyNamedImport(match[2])) continue;
+
+    const snippet = match[0].replace(/\s+/g, ' ').trim();
+    matches.push(
+      `${file}:${lineNumberForOffset(text, match.index)}: ${snippet}`,
+    );
+  }
+
+  for (const pattern of [
+    suiClientSideEffectImportPattern,
+    suiClientDynamicRuntimeModulePattern,
+  ]) {
+    pattern.lastIndex = 0;
+    while ((match = pattern.exec(text))) {
+      const snippet = match[0].replace(/\s+/g, ' ').trim();
+      matches.push(
+        `${file}:${lineNumberForOffset(text, match.index)}: ${snippet}`,
+      );
+    }
+  }
+
+  return matches;
+};
+
+const scanSuiTransactionBuildCalls = (file, text = readText(file)) => {
+  const matches = [];
+  let match;
+
+  suiTransactionBuildStartPattern.lastIndex = 0;
+  while ((match = suiTransactionBuildStartPattern.exec(text))) {
+    const lineEnd = text.indexOf('\n', match.index);
+    const snippet = text
+      .slice(match.index, lineEnd === -1 ? text.length : lineEnd)
+      .replace(/\s+/g, ' ')
+      .trim();
+    matches.push(
+      `${file}:${lineNumberForOffset(text, match.index)}: ${snippet}`,
+    );
+  }
+
+  return matches;
+};
+
+const isAllowedLine = (line, allowedFiles) =>
+  [...allowedFiles].some((file) => line.startsWith(`${file}:`));
+
+const isPublicReviewDryRunLine = (line) =>
+  line.startsWith(`${publicReviewHelperFile}:`) &&
+  /\.dryRunTransactionBlock\s*\(/.test(line);
+
+const isAllowedSuiTransactionBoundaryLine = (line, allowedFiles) =>
+  isAllowedLine(line, allowedFiles) || isPublicReviewDryRunLine(line);
+
+const isAllowedPublicSuiTypeSurface = (file, specifier) =>
+  publicSuiTypeSurfaceAllowlist.get(file)?.has(specifier) ?? false;
+
 const checkVerifierNegativeControls = () => {
   const repeatedDeclarationMatches = ['QRSignOutcome', 'QRSignOutcome'].filter(
     (line) => matchesPattern(/\bQRSignOutcome\b/g, line),
@@ -233,6 +353,123 @@ const checkVerifierNegativeControls = () => {
   assert(
     repeatedPackMatches.length === 2,
     'verifier pack matching must catch repeated forbidden artifact paths',
+  );
+
+  const repeatedSuiClientMatches = [
+    'new SuiClient({ url })',
+    'new SuiGraphQLClient({ url })',
+    'new SuiGrpcClient({ transport })',
+    'new SuiJsonRpcClient({ transport })',
+    'getFullnodeUrl("mainnet")',
+    'getJsonRpcFullnodeUrl("mainnet")',
+  ].filter((line) => matchesPattern(suiClientConstructionPattern, line));
+  assert(
+    repeatedSuiClientMatches.length === 6,
+    'verifier Sui client regex must catch direct current and SDK 2.x client/fullnode construction',
+  );
+
+  const repeatedSuiClientRuntimeImportMatches = scanSuiClientRuntimeEdges(
+    'negative-control.ts',
+    [
+      "import { SuiClient as Client } from '@mysten/sui/client';",
+      "import * as suiClient from '@mysten/sui/client';",
+      "import '@mysten/sui/client';",
+      "import { SuiGraphQLClient as GraphQL } from '@mysten/sui/graphql';",
+      "import { SuiGrpcClient as Grpc } from '@mysten/sui/grpc';",
+      "import { SuiJsonRpcClient as JsonRpc } from '@mysten/sui/jsonRpc';",
+      "export { SuiClient } from '@mysten/sui/client';",
+      "export * from '@mysten/sui/grpc';",
+      "const jsonRpc = await import('@mysten/sui/jsonRpc');",
+      "const client = require('@mysten/sui/client');",
+      "import suiClient = require('@mysten/sui/client');",
+      "import { type SuiClient } from '@mysten/sui/client';",
+      "import { type SuiGrpcClient } from '@mysten/sui/grpc';",
+      "import type { SuiClient } from '@mysten/sui/client';",
+      "import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';",
+      "export { type SuiClient } from '@mysten/sui/client';",
+      "export type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';",
+    ].join('\n'),
+  );
+  assert(
+    repeatedSuiClientRuntimeImportMatches.length === 11,
+    'verifier Sui client runtime edge scan must catch current and SDK 2.x imports, re-exports, dynamic imports, and require-style calls while allowing type-only imports',
+  );
+
+  const repeatedSuiTransactionMethodMatches = [
+    'client.executeTransactionBlock({})',
+    'client.executeTransactionBlock?.({})',
+    'client["executeTransactionBlock"]({})',
+    'client.executeTransaction({ transaction, signatures })',
+    'client.waitForTransaction({ digest })',
+    "client['waitForTransaction']({ digest })",
+    'client.dryRunTransactionBlock({ transactionBlock: bytes })',
+    'client.simulateTransaction({ transaction })',
+    'client.simulateTransaction?.({ transaction })',
+    'client.getLatestSuiSystemState()',
+    'tx.getDigest({ client })',
+    'tx["getDigest"]({ client })',
+  ].filter((line) => matchesPattern(suiTransactionBoundaryPattern, line));
+  assert(
+    repeatedSuiTransactionMethodMatches.length === 12,
+    'verifier Sui transaction regex must catch direct current and SDK 2.x execute/wait/dry-run/simulate/digest/system-state calls, including bracket and optional-call forms',
+  );
+
+  const repeatedSuiTransactionBuildMatches = scanSuiTransactionBuildCalls(
+    'negative-control.ts',
+    [
+      'tx.build({ client })',
+      'tx.build({ onlyTransactionKind: true, client })',
+      'tx.build({',
+      '  onlyTransactionKind: true,',
+      '  client,',
+      '})',
+      'tx.build()',
+      'tx.build?.({ client })',
+      'tx["build"]({ client })',
+    ].join('\n'),
+  );
+  assert(
+    repeatedSuiTransactionBuildMatches.length === 6,
+    'verifier Sui transaction build scan must catch direct build calls regardless of options shape, line breaks, bracket access, or optional-call form',
+  );
+
+  assert(
+    isPublicReviewDryRunLine(
+      `${publicReviewHelperFile}:825: dryRun = await client.dryRunTransactionBlock({ transactionBlock: bytes });`,
+    ),
+    'public review helper exception must allow only the inventoried dry-run call',
+  );
+  assert(
+    !isPublicReviewDryRunLine(
+      `${publicReviewHelperFile}:1: await client.executeTransactionBlock({ transactionBlock: bytes, signature });`,
+    ),
+    'public review helper exception must not allow execute/wait/build calls',
+  );
+  assert(
+    !isPublicReviewDryRunLine(
+      `${publicReviewHelperFile}:1: await client.simulateTransaction({ transaction });`,
+    ),
+    'public review helper exception must not allow SDK 2.x simulate calls',
+  );
+  assert(
+    !isPublicReviewDryRunLine(
+      `${publicReviewHelperFile}:1: await transaction.getDigest({ client });`,
+    ),
+    'public review helper exception must not allow direct digest calls',
+  );
+  assert(
+    isAllowedPublicSuiTypeSurface(
+      'packages/walrus-connect/dist/types/types.d.ts',
+      '@mysten/sui/transactions',
+    ),
+    'verifier public Sui type surface allowlist must allow inventoried public signer-app transaction types',
+  );
+  assert(
+    !isAllowedPublicSuiTypeSurface(
+      'packages/walrus-connect/dist/types/index.d.ts',
+      '@mysten/sui/client',
+    ),
+    'verifier public Sui type surface allowlist must reject uninventoried public client type exposure',
   );
 };
 
@@ -548,6 +785,91 @@ const checkDocumentation = () => {
   );
 };
 
+const checkSuiClientBoundarySource = () => {
+  const files = [
+    ...listFiles('packages/walrus-wallet/src'),
+    ...listFiles(internalWorkspace + '/src'),
+    ...listFiles('packages/walrus-connect/src'),
+    ...listFiles('packages/clip/src'),
+    ...listFiles('packages/demo/src'),
+  ];
+  const allowedFiles = new Set([
+    'packages/walrus-wallet/src/utils/suiClient.ts',
+    'packages/walrus-connect-route-internal/src/utils/suiClient.ts',
+  ]);
+
+  const directClientMatches = scanFiles(
+    files,
+    suiClientConstructionPattern,
+  )
+    .concat(files.flatMap((file) => scanSuiClientRuntimeEdges(file)))
+    .filter((line) => !isAllowedLine(line, allowedFiles));
+
+  assert(
+    directClientMatches.length === 0,
+    `Sui client and fullnode URL construction must stay in the wallet or private route client boundary:\n${directClientMatches.join('\n')}`,
+  );
+};
+
+const checkSuiTransactionExecutionBoundary = () => {
+  const files = [
+    ...listFiles('packages/walrus-wallet/src'),
+    ...listFiles(internalWorkspace + '/src'),
+    ...listFiles('packages/walrus-connect/src'),
+    ...listFiles('packages/clip/src'),
+    ...listFiles('packages/demo/src'),
+  ];
+  const allowedFiles = new Set([
+    'packages/walrus-wallet/src/utils/suiClient.ts',
+    'packages/walrus-connect-route-internal/src/utils/suiClient.ts',
+  ]);
+
+  const directExecutionMatches = scanFiles(
+    files,
+    suiTransactionBoundaryPattern,
+  )
+    .concat(files.flatMap((file) => scanSuiTransactionBuildCalls(file)))
+    .filter((line) => !isAllowedSuiTransactionBoundaryLine(line, allowedFiles));
+  const publicReviewDryRunMatches = scanFiles(
+    [publicReviewHelperFile],
+    suiTransactionBoundaryPattern,
+  ).filter(isPublicReviewDryRunLine);
+
+  assert(
+    directExecutionMatches.length === 0,
+    `Sui transaction build/execute/wait/dry-run/simulate/digest calls must stay behind the owner boundary; the public review helper is the only inventoried temporary dry-run exception:\n${directExecutionMatches.join('\n')}`,
+  );
+  assert(
+    publicReviewDryRunMatches.length === 1,
+    `the public review helper dry-run exception must stay narrow and appear exactly once:\n${publicReviewDryRunMatches.join('\n')}`,
+  );
+};
+
+const checkSuiPublicTypeSurfaces = () => {
+  const declarationFiles = [
+    ...listGeneratedDeclarationFiles('packages/walrus-connect/dist/types'),
+    ...listGeneratedDeclarationFiles('packages/walrus-wallet/dist/types'),
+  ];
+  const unexpected = [];
+
+  for (const file of declarationFiles) {
+    const specifiers = declarationSpecifiers(readText(file)).filter((specifier) =>
+      mystenPublicTypeSpecifierPattern.test(specifier),
+    );
+
+    for (const specifier of specifiers) {
+      if (!isAllowedPublicSuiTypeSurface(file, specifier)) {
+        unexpected.push(`${file}: ${specifier}`);
+      }
+    }
+  }
+
+  assert(
+    unexpected.length === 0,
+    `public generated declarations must expose only inventoried Sui, Wallet Standard, or dApp Kit type surfaces:\n${unexpected.join('\n')}`,
+  );
+};
+
 const checkCompletionState = () => {
   const statusLines = execFileSync('git', ['status', '--short'], {
     cwd: root,
@@ -595,6 +917,9 @@ checkGeneratedDeclarationArtifacts();
 checkPackArtifacts();
 checkBoundaryInventoryMapping();
 checkDocumentation();
+checkSuiClientBoundarySource();
+checkSuiTransactionExecutionBoundary();
+checkSuiPublicTypeSurfaces();
 
 if (mode === 'completion') {
   checkCompletionState();

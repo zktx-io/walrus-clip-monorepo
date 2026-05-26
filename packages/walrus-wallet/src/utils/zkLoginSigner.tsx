@@ -16,7 +16,7 @@ import type { NETWORK } from './walletTypes';
 import ReactDOM from 'react-dom/client';
 
 import { IZkLogin } from './types';
-import { createWalrusWalletSuiClient } from './suiClient';
+import { getWalrusWalletCurrentEpoch } from './suiClient';
 import { decryptText } from './utils';
 import { PwConfirm } from '../components/PwConfirm';
 
@@ -97,8 +97,7 @@ export class ZkLoginSigner extends Signer {
     bytes: Uint8Array,
     type: 'sign' | 'signTransaction' | 'signPersonalMessage',
   ): Promise<SignatureWithBytes> {
-    const client = createWalrusWalletSuiClient(this.#network);
-    const { epoch } = await client.getLatestSuiSystemState();
+    const epoch = await getWalrusWalletCurrentEpoch(this.#network);
     if (Number(epoch) > this.#zkLogin.expiration) {
       throw new Error('zkLogin session expired. Please reconnect.');
     }

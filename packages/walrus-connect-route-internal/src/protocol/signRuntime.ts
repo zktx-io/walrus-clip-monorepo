@@ -1,4 +1,3 @@
-import type { SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64 } from '@mysten/sui/utils';
 import { verifyTransactionSignature } from '@mysten/sui/verify';
@@ -17,7 +16,11 @@ import {
   type PendingSignTransaction,
   type SignProtocolPhase,
 } from '../utils/signProtocol';
-import { createWalrusConnectGraphQLClient } from '../utils/suiClient';
+import {
+  createWalrusConnectGraphQLClient,
+  getWalrusConnectTransactionDigest,
+  type WalrusConnectSuiClient,
+} from '../utils/suiClient';
 
 export const protocolCodec = {
   createMessage: createProtocolMessage,
@@ -118,12 +121,15 @@ export const verifyPendingTransactionSignature = async ({
 
 export const validateExpectedDigest = async (
   tx: Transaction,
-  client: SuiClient,
+  client: WalrusConnectSuiClient,
   expectedDigest?: string,
 ) => {
   if (!expectedDigest) return;
 
-  const computedDigest = await tx.getDigest({ client });
+  const computedDigest = await getWalrusConnectTransactionDigest({
+    client,
+    transaction: tx,
+  });
   if (computedDigest !== expectedDigest) {
     throw new ProtocolMessageError(
       createSignProtocolErrorPayload({

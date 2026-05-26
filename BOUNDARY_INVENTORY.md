@@ -11,6 +11,59 @@ registration/runtime. External dApps must not be able to integrate directly
 with the QR/WebRTC wallet route through package exports, source imports,
 generated declarations, or npm tarball artifacts.
 
+## Sui Client Boundary Baseline
+
+Current status: Sui SDK/Core client boundary baseline before an SDK 2.x
+dependency upgrade. The dependency versions remain `@mysten/sui@1.38.0`,
+`@mysten/dapp-kit@0.18.0`, and `@mysten/wallet-standard@0.17.0`.
+`.WORK/ts-sdks/packages/sui/package.json` is the SDK 2.17.0 reference source.
+
+Invariant: Sui client construction, fullnode URL selection, transaction
+build, transaction execution, transaction finality wait, and route
+dry-run calls must be owned by a package boundary before any SDK 2.x/Core/gRPC
+migration. Wallet Standard caller-visible results must preserve the fields that
+belong to each public outcome: sign-only returns `bytes` and `signature`, while
+post-submit sign-and-execute paths preserve `digest`, `bytes`, `signature`,
+`effects`, and explicit finality uncertainty instead of collapsing outcomes
+into generic strings.
+
+Owners:
+
+- `packages/walrus-wallet/src/utils/suiClient.ts` owns wallet runtime Sui
+  client creation, dApp Kit network-map URL selection, local route transaction
+  build, local route execution, local finality wait, and zkLogin epoch reads.
+- `packages/walrus-connect-route-internal/src/utils/suiClient.ts` owns private
+  QR/WebRTC route Sui client creation, GraphQL client creation, transaction
+  build, digest calculation, dry-run, execution, and finality wait.
+- `packages/clip` and `packages/demo` remain thin consumers of
+  `createWalrusWalletDappKitNetworks`; they must not construct Sui clients or
+  fullnode URL maps directly.
+- `packages/walrus-connect/src/utils/signTransactionReview.ts` remains a
+  temporary public review helper that can dry-run through an injected client.
+  It is inventoried as a legacy exception, not as a new owner.
+
+### Sui Usage Inventory
+
+| Surface | Current repo usage | Owner | Status | SDK 2.17.0 target fact | Gate |
+| --- | --- | --- | --- | --- | --- |
+| `SuiClient` / `getFullnodeUrl` runtime construction | wallet and private route client helpers only | wallet + private route client boundaries | keep temporarily | SDK 2.17.0 still exports `client`, but Core/gRPC clients are available under `grpc` and `client` | `sui-client-boundary-source` |
+| `SuiClient` type surface | wallet helpers, coin helpers, private route review, public review helper | wallet + private route boundaries; public review helper type exception | keep temporarily | SDK 2.17.0 still has client types, but public helper type exposure must be reviewed during the dependency upgrade | inventory only; runtime import scan blocks new construction |
+| `SuiGraphQLClient` | private route signature verification client helper | private route client boundary | keep temporarily | SDK 2.17.0 GraphQL client exists and constructor requires `network` with `url` | `sui-client-boundary-source` |
+| dApp Kit provider network config | `clip` and `demo` consume `createWalrusWalletDappKitNetworks` | wallet temporary dApp Kit adapter | move behind boundary | modern dApp Kit core derives chain from current client; replacement is blocked by dependency upgrade | `sui-client-boundary-source` |
+| `executeTransactionBlock` | local wallet execution and QR host execution via boundary wrappers | wallet + private route client boundaries | move behind boundary | SDK 2.17.0 Core/gRPC/GraphQL method is `executeTransaction({ transaction, signatures })`; JSON-RPC keeps legacy method behind `jsonRpc` | `sui-transaction-execution-boundary` |
+| `waitForTransaction` | local wallet confirmation and QR route finality via boundary wrappers | wallet + private route client boundaries | move behind boundary | SDK 2.17.0 Core keeps `waitForTransaction`, but result shape is `TransactionResult` / `FailedTransaction` with include flags | `sui-transaction-execution-boundary` |
+| `dryRunTransactionBlock` | private route review via boundary wrapper; public review helper temporary exception | private route client boundary; public helper exception | move behind boundary / keep temporarily | SDK 2.17.0 Core/GQL/gRPC replacement is `simulateTransaction`; dry-run response mapping requires source verification | `sui-transaction-execution-boundary` |
+| `Transaction` build/from/toJSON/getDigest | wallet, private route, public review helper, demo kiosk | wallet + private route for runtime build; private route client boundary owns digest calculation; protocol validation owns digest comparison | keep temporarily | SDK 2.17.0 still exports `Transaction`, `Transaction.from`, `toJSON`, `build`, and `getDigest`; serialized v2 data and supported intents must be re-checked before upgrade | `sui-transaction-execution-boundary` for build and digest |
+| zkLogin SDK imports | wallet zkLogin nonce/proof/signer and Clip signer app public identifier type | wallet zkLogin runtime; clip reference app | requires source verification | SDK 2.17.0 exports current names, but `jwtToAddress(jwt, salt, legacyAddress)` requires an explicit legacy-address flag | source inventory; no SDK 2.x implementation yet |
+| Wallet Standard `sui:signTransaction` input/output types | wallet runtime and private/public signer types | wallet runtime public outcome boundary | blocked by dependency upgrade | `.WORK/ts-sdks/packages/wallet-standard/package.json` is `@mysten/wallet-standard@0.20.3` with `{ toJSON }` input and `{ bytes, signature }` output | wallet public outcome tests + boundary scans |
+| Wallet Standard `sui:signAndExecuteTransaction` input/output types | wallet runtime and private/public signer types | wallet runtime public outcome boundary | blocked by dependency upgrade | `.WORK/ts-sdks/packages/wallet-standard/package.json` is `@mysten/wallet-standard@0.20.3` with `{ toJSON }` input and `{ bytes, signature, digest, effects }` output | wallet public outcome tests + boundary scans |
+| read-only coin helpers | `getWalrusCoinBalances` and `getWalrusCoins` through wallet client helper | wallet read-only helper surface | keep temporarily | SDK 2.17.0 Core uses `listBalances`, `listCoins`, and `getCoinMetadata`; current `getAllBalances`/`getCoins` mapping requires verification | wallet helper tests |
+
+Unverified SDK APIs are not implemented in this baseline. They remain
+`requires source verification` until the dependency upgrade task maps result
+shapes, include flags, zkLogin address compatibility, and Wallet Standard
+feature behavior from `.WORK/ts-sdks`.
+
 ## Public Surface
 
 ### `@zktx.io/walrus-wallet`
@@ -120,6 +173,9 @@ helpers, or protocol declarations.
 | F-WALLET-PACK-PRIVATE-DTS | `@zktx.io/walrus-wallet` tarball containing internal route, private runtime, private component, private state, or private utility declarations | npm pack artifact | `wallet-pack-artifact` |
 | F-DOCS-STALE-OUTCOMES | docs mentioning stale route-level outcome error classes as wallet-facing API | docs | `documentation-stale-outcomes` |
 | F-VERIFIER-REPEATED-FORBIDDEN-MISS | verifier missing repeated forbidden declaration or tarball artifact matches because a stateful regex was reused | verifier implementation | `verifier-negative-controls` |
+| F-SUI-CLIENT-CREATION-SPREAD | runtime import, re-export, dynamic import, `require`, TypeScript import-equals, direct `new SuiClient`, `new SuiGraphQLClient`, `new SuiGrpcClient`, `new SuiJsonRpcClient`, `getFullnodeUrl()`, or `getJsonRpcFullnodeUrl()` outside the wallet/private-route client boundary | source import / construction | `sui-client-boundary-source` |
+| F-SUI-TRANSACTION-EXECUTION-SPREAD | direct transaction build/execute/wait/dry-run/simulate/digest calls outside the owner boundary, including dot, bracket, and optional-call forms, except the inventoried public review helper dry-run | source method call | `sui-transaction-execution-boundary` |
+| F-SUI-PUBLIC-TYPE-SURFACE-DRIFT | public generated declarations exposing uninventoried Sui, Wallet Standard, or dApp Kit type imports | generated d.ts | `sui-public-type-surface` |
 
 ## Behavior Matrix
 
@@ -160,3 +216,7 @@ helpers, or protocol declarations.
   amounts without metadata.
 - Smoke checklist statuses are recorded as not-run with manual execution
   requirements; automated build/test evidence is separate from manual QR smoke.
+- SDK 2.x/Core/gRPC migration is intentionally not implemented in this
+  baseline. The current boundary fixes owner/gate shape first; unverified
+  SDK 2.17.0 API details stay in the inventory until the dependency upgrade
+  task.
