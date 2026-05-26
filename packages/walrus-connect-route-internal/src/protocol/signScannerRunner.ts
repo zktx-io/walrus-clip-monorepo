@@ -45,10 +45,12 @@ import {
   validateSubmittedDigest,
 } from '../utils/signProtocol';
 import {
-  createWalrusConnectSuiClient,
+  createWalrusConnectReviewClient,
+  createWalrusConnectGrpcClient,
   getWalrusConnectTransactionDigest,
   waitForWalrusConnectTransaction,
-  type WalrusConnectSuiClient,
+  type WalrusConnectReviewClient,
+  type WalrusConnectGrpcClient,
 } from '../utils/suiClient';
 
 type SignedScannerTransaction = {
@@ -59,7 +61,8 @@ type SignedScannerTransaction = {
 };
 
 export type SignScannerRunnerDeps = {
-  createClient: (network: NETWORK) => WalrusConnectSuiClient;
+  createClient: (network: NETWORK) => WalrusConnectGrpcClient;
+  createReviewClient: (network: NETWORK) => WalrusConnectReviewClient;
   decodeBytes: (bytes: string) => Uint8Array;
   encodeBytes: (bytes: Uint8Array) => string;
   createTransactionFromBytes: (bytes: Uint8Array) => Transaction;
@@ -81,7 +84,8 @@ export type SignScannerRunnerTimeouts = {
 };
 
 const defaultDeps: SignScannerRunnerDeps = {
-  createClient: createWalrusConnectSuiClient,
+  createClient: createWalrusConnectGrpcClient,
+  createReviewClient: createWalrusConnectReviewClient,
   decodeBytes: fromBase64,
   encodeBytes: toBase64,
   createTransactionFromBytes: (bytes) => Transaction.from(bytes),
@@ -144,6 +148,7 @@ export const startSignScannerRunner = ({
   const deps = { ...defaultDeps, ...partialDeps };
   const timeouts = { ...defaultTimeouts, ...partialTimeouts };
   const client = deps.createClient(network);
+  const reviewClient = deps.createReviewClient(network);
   const authority = new EffectAuthority();
   let state: SignScannerLifecycleState = initialSignScannerLifecycleState();
   let signedTransaction: SignedScannerTransaction | undefined;
@@ -456,7 +461,7 @@ export const startSignScannerRunner = ({
     const reviewResult = await authority.cancellable(() =>
       deps.createSignTransactionReview({
         tx,
-        client,
+        client: reviewClient,
         bytes,
         digest: expectedDigest,
         network,

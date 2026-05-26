@@ -475,6 +475,47 @@ const checkVerifierNegativeControls = () => {
     ),
     'verifier public Sui type surface allowlist must reject uninventoried public client type exposure',
   );
+
+  const transportStaleSamples = [
+    'Owner-boundary Sui client construction is on SDK 2.x SuiJsonRpcClient',
+    'owner boundaries today use SuiJsonRpcClient',
+    'runtime transport stays on `SuiJsonRpcClient`',
+    'SuiGrpcClient transport migration is a later follow-up',
+    'SuiGrpcClient transport swap remains pending',
+    'Moving owner boundaries to the SDK 2.x Core/gRPC API is a later follow-up',
+    'transport migration remains a separate follow-up commit',
+    // Prior multi-line wallet README claim, normalized as a paragraph block.
+    // Earlier shape: "SDK 2.x Core/gRPC owner-boundary migration. That remains
+    // a separate\nmodernization step; the wallet currently uses
+    // `SuiJsonRpcClient` for\nJSON-RPC compatibility."
+    'SDK 2.x Core/gRPC owner-boundary migration. That remains a separate modernization step; the wallet currently uses `SuiJsonRpcClient` for JSON-RPC compatibility.',
+  ];
+  const detectedStaleSamples = transportStaleSamples.filter((line) =>
+    matchesAnyTransportStalePattern(line),
+  );
+  assert(
+    detectedStaleSamples.length === transportStaleSamples.length,
+    `runtime-transport stale SOT regex must catch every known stale claim shape; missed:\n${transportStaleSamples
+      .filter((line) => !matchesAnyTransportStalePattern(line))
+      .join('\n')}`,
+  );
+
+  const transportLegitimateSamples = [
+    'User manual smoke against `SuiGrpcClient` transport is still deferred',
+    'wallet read-only coin helpers continue to consume the public `createWalrusWalletSuiClient`',
+    'Core API (`listBalances`, `listCoins`, `getCoinMetadata`) remains a coin-helper-specific follow-up',
+    'Migrating the public `createWalrusWalletSuiClient` return type away from `SuiJsonRpcClient` would be a separate public-API change',
+    'QR/private dry-run review helper takes a dedicated `createWalrusConnectReviewClient(network) -> SuiJsonRpcClient`',
+    'The owner-boundary runtime transport has already moved to `SuiGrpcClient`',
+    'transport remains deferred to the user, so the overall architecture cycle',
+  ];
+  const flaggedLegitimateSamples = transportLegitimateSamples.filter((line) =>
+    matchesAnyTransportStalePattern(line),
+  );
+  assert(
+    flaggedLegitimateSamples.length === 0,
+    `runtime-transport stale SOT regex must not false-fire on legitimate retain/follow-up wording:\n${flaggedLegitimateSamples.join('\n')}`,
+  );
 };
 
 const checkWorkspacePackage = () => {
@@ -789,6 +830,111 @@ const checkDocumentation = () => {
   );
 };
 
+// SOT documents must not re-claim that the wallet/QR runtime transport is
+// `SuiJsonRpcClient` or that the SDK 2.x Core/gRPC transport migration is
+// "still/later/deferred/follow-up". The active runtime transport is
+// `SuiGrpcClient`; `SuiJsonRpcClient` is retained inside the owner files only
+// for the public client helper, wallet coin helpers, and dry-run review.
+// Patterns are intentionally narrow so legitimate retain/follow-up wording
+// (coin-helper-specific follow-up, public helper return type follow-up,
+// dry-run review JSON-RPC, user manual smoke deferred) does not false-fire.
+const runtimeTransportStalePatterns = [
+  // 1. "Owner-boundary Sui client construction|runtime construction|... is/uses ... SuiJsonRpcClient"
+  //    — Binds the verb directly to the transport class name (with only an
+  //    optional `SDK X` qualifier in between) so legitimate retain wording
+  //    inside a longer sentence about SuiGrpcClient does not match.
+  /(?:Owner[- ]?boundary|owner\s+boundaries)\s+Sui\s+client\s+\S+(?:\s+\S+)?\s+(?:is|stays?|remains?|uses?)\s+(?:on\s+)?(?:SDK\s+\S+\s+)?[`']?SuiJsonRpcClient/i,
+  // 2. "owner boundaries today use SuiJsonRpcClient"
+  /owner\s+boundaries?\s+today\s+use\s+(?:SDK\s+\S+\s+)?[`']?SuiJsonRpcClient/i,
+  // 3. "runtime transport is/stays/remains on SuiJsonRpcClient"
+  /runtime\s+transport\s+(?:is|stays?|remains?)\s+(?:on\s+)?[`']?SuiJsonRpcClient/i,
+  // 4. "SuiGrpcClient transport migration|swap is/remains still|later|deferred|..."
+  /SuiGrpcClient\s+transport\s+(?:migration|swap)\s+(?:is|remains|stays?)\s+(?:a\s+)?(?:still|later|deferred|separate|pending|follow-?up)/i,
+  // 5. "moving owner boundaries to Core/gRPC ... is a later follow-up"
+  /(?:moving|migrating)\s+owner\s+boundaries?\s+to\s+(?:the\s+)?(?:SDK\s+2\.x\s+)?(?:Core\/?gRPC\s+API|`?SuiGrpcClient`?)[^\n]*?\s+is\s+a\s+later\s+follow-?up/i,
+  // 6. "transport migration is/remains a still|later|separate|pending|... follow-up commit"
+  /transport\s+migration\s+(?:is|remains|stays?)\s+(?:a\s+)?(?:still|later|deferred|separate|pending|follow-?up\s+commit)/i,
+  // 7. "(SDK X )?Core/gRPC owner-boundary migration ... is/remains a separate/follow-up/later/..."
+  //    — Catches the earlier README claim "SDK 2.x Core/gRPC owner-boundary
+  //    migration. That remains a separate modernization step". A short
+  //    bounded gap (`{0,120}`) lets `That remains` / `It remains` / `This
+  //    remains` connectives match without spanning entire paragraphs.
+  /owner[- ]?boundary\s+migration[\s\S]{0,120}?\s+(?:is|remains|stays?)\s+(?:a\s+)?(?:still|later|deferred|separate|pending|follow-?up)/i,
+  // 8. "the wallet currently uses SuiJsonRpcClient ..." — Catches the
+  //    earlier README continuation claim about the wallet runtime transport.
+  /wallet\s+currently\s+uses\s+(?:SDK\s+\S+\s+)?[`']?SuiJsonRpcClient/i,
+];
+
+const matchesAnyTransportStalePattern = (line) =>
+  runtimeTransportStalePatterns.some((pattern) => pattern.test(line));
+
+const normalizeParagraphForStaleScan = (paragraph) =>
+  paragraph.replace(/\s+/g, ' ').trim();
+
+// Markdown paragraphs are separated by blank lines. Stale wording can split
+// across multiple lines (the prior wallet README claim spanned two lines —
+// "SDK 2.x Core/gRPC owner-boundary migration. That remains a separate" /
+// "modernization step; the wallet currently uses `SuiJsonRpcClient`..."), so
+// line-by-line scanning would miss it. We collect each paragraph block,
+// collapse all whitespace (including its internal newlines) to a single
+// space, and run the regex set against that normalized form.
+const collectParagraphBlocks = (text) => {
+  const lines = text.split('\n');
+  const blocks = [];
+  let current = [];
+  let startLine = 1;
+
+  const flush = () => {
+    if (current.length === 0) return;
+    blocks.push({
+      startLine,
+      normalized: normalizeParagraphForStaleScan(current.join(' ')),
+    });
+    current = [];
+  };
+
+  lines.forEach((line, index) => {
+    if (line.trim() === '') {
+      flush();
+      startLine = index + 2;
+    } else {
+      if (current.length === 0) startLine = index + 1;
+      current.push(line);
+    }
+  });
+  flush();
+
+  return blocks;
+};
+
+const checkRuntimeTransportSotAlignment = () => {
+  const sotFiles = [
+    'AGENTS.md',
+    'BOUNDARY_INVENTORY.md',
+    'packages/walrus-connect/README.md',
+    'packages/walrus-wallet/README.md',
+  ].filter((file) => existsSync(path.join(root, file)));
+
+  const matches = [];
+  for (const file of sotFiles) {
+    const blocks = collectParagraphBlocks(readText(file));
+    for (const block of blocks) {
+      if (matchesAnyTransportStalePattern(block.normalized)) {
+        const preview =
+          block.normalized.length > 240
+            ? `${block.normalized.slice(0, 240)}…`
+            : block.normalized;
+        matches.push(`${file}:${block.startLine}: ${preview}`);
+      }
+    }
+  }
+
+  assert(
+    matches.length === 0,
+    `SOT documents must not claim the wallet/QR runtime transport is SuiJsonRpcClient or that the gRPC transport migration is still/later/deferred/follow-up. The active runtime transport is SuiGrpcClient; JSON-RPC is retained only for the public client helper, coin helpers, and dry-run review:\n${matches.join('\n')}`,
+  );
+};
+
 const checkSuiClientBoundarySource = () => {
   const files = [
     ...listFiles('packages/walrus-wallet/src'),
@@ -921,6 +1067,7 @@ checkGeneratedDeclarationArtifacts();
 checkPackArtifacts();
 checkBoundaryInventoryMapping();
 checkDocumentation();
+checkRuntimeTransportSotAlignment();
 checkSuiClientBoundarySource();
 checkSuiTransactionExecutionBoundary();
 checkSuiPublicTypeSurfaces();

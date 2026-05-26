@@ -17,9 +17,9 @@ import {
   type SignProtocolPhase,
 } from '../utils/signProtocol';
 import {
-  createWalrusConnectSuiClient,
+  createWalrusConnectGrpcClient,
   getWalrusConnectTransactionDigest,
-  type WalrusConnectSuiClient,
+  type WalrusConnectGrpcClient,
 } from '../utils/suiClient';
 
 export const protocolCodec = {
@@ -107,7 +107,7 @@ export const verifyPendingTransactionSignature = async ({
   signature: string;
   network: NETWORK;
 }) => {
-  const client = createWalrusConnectSuiClient(network);
+  const client = createWalrusConnectGrpcClient(network);
 
   await verifyTransactionSignature(
     fromBase64(pendingTransaction.bytes),
@@ -121,7 +121,7 @@ export const verifyPendingTransactionSignature = async ({
 
 export const validateExpectedDigest = async (
   tx: Transaction,
-  client: WalrusConnectSuiClient,
+  client: WalrusConnectGrpcClient,
   expectedDigest?: string,
 ) => {
   if (!expectedDigest) return;

@@ -6,9 +6,11 @@ import { createJiti } from 'jiti';
 const jiti = createJiti(import.meta.url);
 
 const {
+  createWalrusWalletGrpcClient,
   createWalrusWalletSuiClient,
   executeWalrusWalletTransaction,
   getWalrusWalletFullnodeUrl,
+  getWalrusWalletGrpcBaseUrl,
   readEpochFromWalrusWalletClient,
   waitForWalrusWalletTransaction,
 } = await jiti.import<typeof import('../src/utils/suiClient.ts')>(
@@ -22,9 +24,9 @@ type FakeCore = {
 };
 
 const fakeClient = (core: FakeCore) =>
-  ({ core }) as unknown as ReturnType<typeof createWalrusWalletSuiClient>;
+  ({ core }) as unknown as ReturnType<typeof createWalrusWalletGrpcClient>;
 
-test('wallet Sui client boundary owns fullnode URL selection', () => {
+test('wallet Sui client boundary owns the JSON-RPC fullnode URL for the retained public client', () => {
   assert.equal(
     getWalrusWalletFullnodeUrl('mainnet'),
     'https://fullnode.mainnet.sui.io:443',
@@ -39,7 +41,22 @@ test('wallet Sui client boundary owns fullnode URL selection', () => {
   );
 });
 
-test('createWalrusWalletSuiClient routes each network to the matching JSON-RPC client', () => {
+test('wallet Sui client boundary owns the gRPC-Web baseUrl per network', () => {
+  assert.equal(
+    getWalrusWalletGrpcBaseUrl('mainnet'),
+    'https://fullnode.mainnet.sui.io:443',
+  );
+  assert.equal(
+    getWalrusWalletGrpcBaseUrl('testnet'),
+    'https://fullnode.testnet.sui.io:443',
+  );
+  assert.equal(
+    getWalrusWalletGrpcBaseUrl('devnet'),
+    'https://fullnode.devnet.sui.io:443',
+  );
+});
+
+test('createWalrusWalletSuiClient stays on JSON-RPC compatibility transport for dApp Kit and coin helpers', () => {
   const mainnetClient = createWalrusWalletSuiClient('mainnet');
   assert.equal(mainnetClient.network, 'mainnet');
 
@@ -47,6 +64,17 @@ test('createWalrusWalletSuiClient routes each network to the matching JSON-RPC c
   assert.equal(testnetClient.network, 'testnet');
 
   const devnetClient = createWalrusWalletSuiClient('devnet');
+  assert.equal(devnetClient.network, 'devnet');
+});
+
+test('createWalrusWalletGrpcClient routes each network to the matching gRPC transport client', () => {
+  const mainnetClient = createWalrusWalletGrpcClient('mainnet');
+  assert.equal(mainnetClient.network, 'mainnet');
+
+  const testnetClient = createWalrusWalletGrpcClient('testnet');
+  assert.equal(testnetClient.network, 'testnet');
+
+  const devnetClient = createWalrusWalletGrpcClient('devnet');
   assert.equal(devnetClient.network, 'devnet');
 });
 

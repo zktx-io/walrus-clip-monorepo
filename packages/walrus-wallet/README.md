@@ -32,10 +32,14 @@ runtime delegates to its `sui:signAndExecuteTransaction` feature.
 - Wallet account/session state and Wallet Standard events.
 - Routing Wallet Standard signing requests to the active supported signer path.
 - zkLogin nonce, proof, password confirmation, and local signer handling.
-- Centralized Sui client creation through the wallet Sui client boundary
-  (currently `SuiJsonRpcClient` from `@mysten/sui@2.x`'s `jsonRpc` subpath).
+- Centralized Sui client creation through the wallet Sui client boundary.
+  The boundary owns both `SuiGrpcClient` (from `@mysten/sui@2.x`'s `grpc`
+  subpath) for runtime build/execute/wait/epoch paths and `SuiJsonRpcClient`
+  (from `@mysten/sui@2.x`'s `jsonRpc` subpath) for the public
+  `createWalrusWalletSuiClient` consumed by dApp Kit `createClient` and the
+  wallet read-only coin helpers.
 - Read-only basic `Coin<T>` helper queries through the wallet Sui client
-  boundary.
+  boundary's JSON-RPC compatibility client.
 
 ## Not Owned Here
 
@@ -44,9 +48,10 @@ runtime delegates to its `sui:signAndExecuteTransaction` feature.
 - dApp Kit provider wiring. Modern dApp Kit (`@mysten/dapp-kit-react`,
   `@mysten/dapp-kit-core`) is owned by the consumer app shell; the wallet
   exposes only the network tuple and the Sui client factory.
-- SDK 2.x Core/gRPC owner-boundary migration. That remains a separate
-  modernization step; the wallet currently uses `SuiJsonRpcClient` for
-  JSON-RPC compatibility.
+- Migrating the public `createWalrusWalletSuiClient` return type away from
+  `SuiJsonRpcClient`. The owner-boundary runtime transport has already moved
+  to `SuiGrpcClient`; changing the public client helper return type would be
+  a separate public-API change and is not part of the current boundary.
 
 ## Public React Surface
 

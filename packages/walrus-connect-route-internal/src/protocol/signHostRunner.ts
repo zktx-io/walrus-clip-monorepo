@@ -51,10 +51,10 @@ import {
 } from '../utils/signProtocol';
 import {
   buildWalrusConnectTransaction,
-  createWalrusConnectSuiClient,
+  createWalrusConnectGrpcClient,
   executeWalrusConnectTransaction,
   waitForWalrusConnectTransaction,
-  type WalrusConnectSuiClient,
+  type WalrusConnectGrpcClient,
 } from '../utils/suiClient';
 
 export type { QRSignOutcome, QRSignResult } from './signLifecycle';
@@ -66,7 +66,7 @@ export {
 
 export type SignHostOutcome = QRSignOutcome;
 
-type SignHostClient = WalrusConnectSuiClient;
+type SignHostClient = WalrusConnectGrpcClient;
 
 type SignHostTransaction = {
   setSenderIfNotSet: (address: string) => void;
@@ -104,7 +104,7 @@ export type StartSignHostRunnerParams = {
 };
 
 const defaultDeps: SignHostRunnerDeps = {
-  createClient: createWalrusConnectSuiClient,
+  createClient: createWalrusConnectGrpcClient,
   createTransactionFromJson: (json) => Transaction.from(json),
   encodeBytes: toBase64,
   createSponsoredTransaction,

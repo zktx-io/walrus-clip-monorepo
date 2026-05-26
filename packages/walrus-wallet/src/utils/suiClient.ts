@@ -1,3 +1,4 @@
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import {
   getJsonRpcFullnodeUrl,
   SuiJsonRpcClient,
@@ -7,8 +8,21 @@ import type { NETWORK } from './walletTypes';
 
 export type WalrusWalletSuiClient = SuiJsonRpcClient;
 
+export type WalrusWalletGrpcClient = SuiGrpcClient;
+
 export const getWalrusWalletFullnodeUrl = (network: NETWORK) =>
   getJsonRpcFullnodeUrl(network);
+
+// SDK README documents these as the gRPC-Web baseUrls.
+// `.WORK/ts-sdks/packages/sui/README.md:75-81`.
+const WALRUS_WALLET_GRPC_BASE_URLS: Record<NETWORK, string> = {
+  mainnet: 'https://fullnode.mainnet.sui.io:443',
+  testnet: 'https://fullnode.testnet.sui.io:443',
+  devnet: 'https://fullnode.devnet.sui.io:443',
+};
+
+export const getWalrusWalletGrpcBaseUrl = (network: NETWORK) =>
+  WALRUS_WALLET_GRPC_BASE_URLS[network];
 
 export const createWalrusWalletSuiClient = (network: NETWORK) =>
   new SuiJsonRpcClient({
@@ -16,12 +30,18 @@ export const createWalrusWalletSuiClient = (network: NETWORK) =>
     url: getWalrusWalletFullnodeUrl(network),
   });
 
+export const createWalrusWalletGrpcClient = (network: NETWORK) =>
+  new SuiGrpcClient({
+    network,
+    baseUrl: getWalrusWalletGrpcBaseUrl(network),
+  });
+
 export const buildWalrusWalletTransaction = ({
   client,
   transaction,
   onlyTransactionKind,
 }: {
-  client: WalrusWalletSuiClient;
+  client: WalrusWalletGrpcClient;
   transaction: Transaction;
   onlyTransactionKind?: boolean;
 }) =>
@@ -41,7 +61,7 @@ export type WalrusWalletExecuteResult = {
 };
 
 export const executeWalrusWalletTransaction = async (
-  client: WalrusWalletSuiClient,
+  client: WalrusWalletGrpcClient,
   input: WalrusWalletExecuteInput,
 ): Promise<WalrusWalletExecuteResult> => {
   const result = await client.core.executeTransaction({
@@ -69,7 +89,7 @@ export type WalrusWalletWaitResult = {
 };
 
 export const waitForWalrusWalletTransaction = async (
-  client: WalrusWalletSuiClient,
+  client: WalrusWalletGrpcClient,
   input: WalrusWalletWaitInput,
 ): Promise<WalrusWalletWaitResult> => {
   const result = await client.core.waitForTransaction({
@@ -91,11 +111,11 @@ export const waitForWalrusWalletTransaction = async (
 };
 
 export const readEpochFromWalrusWalletClient = async (
-  client: WalrusWalletSuiClient,
+  client: WalrusWalletGrpcClient,
 ): Promise<string> => {
   const { systemState } = await client.core.getCurrentSystemState();
   return systemState.epoch;
 };
 
 export const getWalrusWalletCurrentEpoch = (network: NETWORK) =>
-  readEpochFromWalrusWalletClient(createWalrusWalletSuiClient(network));
+  readEpochFromWalrusWalletClient(createWalrusWalletGrpcClient(network));

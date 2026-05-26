@@ -14,24 +14,28 @@ generated declarations, or npm tarball artifacts.
 ## Sui Client Boundary Baseline
 
 Current status: `@mysten/sui@2.17.0` and `@mysten/wallet-standard@0.20.3` are
-installed. Wallet and private-route owner boundaries construct
-`SuiJsonRpcClient` (from `@mysten/sui/jsonRpc`) with explicit `network` for
-JSON-RPC compatibility transport. Owner-internal execute, finality wait,
-zkLogin epoch read, and zkLogin signature verification call paths now go
-through the unified Core API (`client.core.executeTransaction`,
+installed. Wallet and private-route owner boundaries now construct two
+transport clients side by side. Owner-internal execute, finality wait,
+zkLogin epoch read, transaction build, transaction digest, and zkLogin
+signature verification call paths run against `SuiGrpcClient` (from
+`@mysten/sui/grpc`) created with the SDK-documented gRPC-Web baseUrl
+`https://fullnode.<network>.sui.io:443`
+(`.WORK/ts-sdks/packages/sui/README.md:75-81`). They invoke the unified
+Core API (`client.core.executeTransaction`,
 `client.core.waitForTransaction({ include: { effects: true } })`,
-`client.core.getCurrentSystemState`, and `ClientWithCoreApi`-based
-`verifyTransactionSignature` / `verifyPersonalMessageSignature`) rather
-than the legacy JSON-RPC method names. Transport migration to
-`SuiGrpcClient` is deferred to a separate commit but the
-mainnet/testnet/devnet gRPC-Web availability against the SDK-documented
-baseUrl (`https://fullnode.<network>.sui.io:443`,
-`.WORK/ts-sdks/packages/sui/README.md:75-81`) plus `effects.bcs`
-preservation on a real finalized digest are now proven by the read-only
-harness at `scripts/verify-sui-grpc-transport.mjs`. Dry-run review and
-read-only coin helpers remain on JSON-RPC; SDK Core/gRPC equivalents
-lose the review object-change union, `lockedBalance`, and
-`CoinStruct.previousTransaction` and are not lossless replacements.
+`client.core.getCurrentSystemState`, plus `ClientWithCoreApi`-based
+`verifyTransactionSignature` / `verifyPersonalMessageSignature`). A
+retained `SuiJsonRpcClient` (from `@mysten/sui/jsonRpc`) lives only inside
+the same owner files for paths that the inspected Core/gRPC shape cannot
+replace losslessly: the QR/private dry-run review helper, the
+`@zktx.io/walrus-wallet` public `createWalrusWalletSuiClient` factory
+consumed by app-shell dApp Kit `createClient` wiring, and the read-only
+coin helpers (`getAllBalances`, `getCoins`, `getCoinMetadata`). The
+public client helper return type is intentionally unchanged. SDK Core
+alternatives (`simulateTransaction`, `listBalances`, `listCoins`) still
+remove the JSON-RPC `DryRunTransactionBlockResponse` object-change union,
+`CoinBalance.lockedBalance`, and `CoinStruct.previousTransaction` and are
+not lossless replacements.
 Modern dApp Kit (`@mysten/dapp-kit-react@2.0.3`,
 `@mysten/dapp-kit-core@1.3.2`) is installed in `clip` and `demo`;
 `walrus-wallet` no longer depends on any dApp Kit package and exposes the
@@ -73,31 +77,31 @@ Owners:
 
 | Surface | Current repo usage | Owner | Status | SDK 2.17.0 current fact | Gate |
 | --- | --- | --- | --- | --- | --- |
-| `SuiJsonRpcClient` / `getJsonRpcFullnodeUrl` runtime construction | wallet and private route client helpers only | wallet + private route client boundaries | keep temporarily | SDK 2.17.0 exposes JSON-RPC compatibility through `@mysten/sui/jsonRpc`; Core/gRPC/GraphQL clients are the longer-term targets but still out of scope this commit | `sui-client-boundary-source` |
-| `SuiJsonRpcClient` type surface | wallet helpers, coin helpers, private route review, public review helper | wallet + private route boundaries; public review helper type exception | keep temporarily | SDK 2.17.0 JSON-RPC client and response types live under `@mysten/sui/jsonRpc`; public helper type exposure remains an inventoried exception | inventory only; runtime import scan blocks new construction |
+| `SuiJsonRpcClient` / `getJsonRpcFullnodeUrl` runtime construction | retained for the wallet public client helper (`createWalrusWalletSuiClient`) consumed by dApp Kit `createClient` and the wallet read-only coin helpers, plus the QR/private dry-run review helper (`createWalrusConnectReviewClient`) | wallet + private route client boundaries | keep for the JSON-RPC-only paths above; do not reintroduce outside the owner files | SDK 2.17.0 exposes JSON-RPC compatibility through `@mysten/sui/jsonRpc`; Core/gRPC equivalents (`simulateTransaction`, `listBalances`, `listCoins`) drop the JSON-RPC `DryRunTransactionBlockResponse` object-change union, `CoinBalance.lockedBalance`, and `CoinStruct.previousTransaction`, so JSON-RPC stays for these paths | `sui-client-boundary-source` |
+| `SuiGrpcClient` runtime construction | wallet runtime build/execute/wait/epoch path and private QR route build/digest/execute/wait/signature-verification path; baseUrl uses the SDK-documented `https://fullnode.<network>.sui.io:443` per `.WORK/ts-sdks/packages/sui/README.md:75-81` | wallet + private route client boundaries | implemented but unverified (manual user smoke deferred); transport viability proof recorded in `scripts/verify-sui-grpc-transport.mjs` | SDK 2.17.0 exposes `SuiGrpcClient` from `@mysten/sui/grpc` with `{ network, baseUrl }`; no `getGrpcFullnodeUrl` helper exists, so baseUrl is owned inside the owner file as a constant tuple | `sui-client-boundary-source` |
+| `SuiJsonRpcClient` type surface | wallet public client helper, wallet coin helpers, private QR route review, public review helper | wallet + private route boundaries; public review helper type exception | keep for the JSON-RPC-only surfaces above | SDK 2.17.0 JSON-RPC client and response types live under `@mysten/sui/jsonRpc`; public helper type exposure remains an inventoried exception | inventory only; runtime import scan blocks new construction |
 | `SuiGraphQLClient` | not constructed by wallet, QR route, or app shells | n/a | retired from runtime boundary; defensive ban retained | QR route signature verification now passes the JSON-RPC owner client (`ClientWithCoreApi`) to `verifyTransactionSignature` / `verifyPersonalMessageSignature` instead of constructing a GraphQL client; no source imports `@mysten/sui/graphql` today | `sui-client-boundary-source` retains the `new SuiGraphQLClient` construction ban and the `@mysten/sui/graphql` runtime-import scan defensively, so a future regression that re-introduces a GraphQL transport outside the owner files fails the gate |
 | dApp Kit provider network config | `clip` and `demo` own modern dApp Kit `createDAppKit({ networks, createClient, slushWalletConfig: null })`; `walrus-wallet` exposes `WALRUS_WALLET_SUPPORTED_NETWORKS` + `createWalrusWalletSuiClient` only | app shell owns dApp Kit provider; wallet exposes networks tuple + client factory | landed in `e13f981 refactor(app): migrate to modern dapp kit`; user smoke deferred | modern dApp Kit core derives chain from current client; the legacy `createWalrusWalletDappKitNetworks` helper is no longer present | `sui-client-boundary-source` |
-| `executeTransactionBlock` | banned at runtime everywhere outside owner files; owners now call `client.core.executeTransaction({ transaction, signatures })` and unwrap the `TransactionResult` `$kind` discriminant to preserve digest on success and on `FailedTransaction` | wallet + private route client boundaries | adapter migrated to Core API on JSON-RPC transport | SDK 2.17.0 Core method is `executeTransaction({ transaction: Uint8Array, signatures })`; `SuiJsonRpcClient.core.executeTransaction` internally calls `executeTransactionBlock` and shape-converts to `TransactionResult` so transport stays JSON-RPC until the transport-migration commit lands (`SuiGrpcClient` mainnet/testnet/devnet endpoint + `effects.bcs` are already proven by `scripts/verify-sui-grpc-transport.mjs`) | `sui-transaction-execution-boundary` |
-| `waitForTransaction` | owner adapters call `client.core.waitForTransaction({ digest, include: { effects: true }, timeout })` and extract `Transaction.effects.bcs` as the raw effects byte payload; missing `effects.bcs` is a failing condition that surfaces as a typed uncertainty error from the caller | wallet + private route client boundaries | adapter migrated to Core API on JSON-RPC transport | SDK 2.17.0 Core `waitForTransaction` uses `include` flags and exposes raw effects bytes at `Transaction.effects.bcs` (`.WORK/ts-sdks/packages/sui/src/client/types.ts:838-851`) | `sui-transaction-execution-boundary` |
+| `executeTransactionBlock` | banned at runtime everywhere outside owner files; owners now call `client.core.executeTransaction({ transaction, signatures })` on `SuiGrpcClient` and unwrap the `TransactionResult` `$kind` discriminant to preserve digest on success and on `FailedTransaction` | wallet + private route client boundaries | adapter migrated to Core API on gRPC transport | SDK 2.17.0 Core method is `executeTransaction({ transaction: Uint8Array, signatures })`; `SuiGrpcClient.core.executeTransaction` (`.WORK/ts-sdks/packages/sui/src/grpc/core.ts:346-395`) shares the `parseTransaction` pipeline with `waitForTransaction` so the adapter sequence (execute returns digest, separate wait reads effects.bcs) is unchanged | `sui-transaction-execution-boundary` |
+| `waitForTransaction` | owner adapters call `client.core.waitForTransaction({ digest, include: { effects: true }, timeout })` on `SuiGrpcClient` and extract `Transaction.effects.bcs` as the raw effects byte payload; missing `effects.bcs` is a failing condition that surfaces as a typed uncertainty error from the caller | wallet + private route client boundaries | adapter migrated to Core API on gRPC transport | SDK 2.17.0 Core `waitForTransaction` uses `include` flags and exposes raw effects bytes at `Transaction.effects.bcs` (`.WORK/ts-sdks/packages/sui/src/client/types.ts:838-851`); gRPC populates it from `effects.bcs?.value` (`.WORK/ts-sdks/packages/sui/src/grpc/core.ts:1132-1158,1241-1264`) | `sui-transaction-execution-boundary` |
 | `dryRunTransactionBlock` | private route review via boundary wrapper; public review helper temporary exception | private route client boundary; public helper exception | move behind boundary / keep temporarily | SDK 2.17.0 Core replacement is `simulateTransaction`; JSON-RPC client preserves the legacy method and `DryRunTransactionBlockResponse` type lives at `@mysten/sui/jsonRpc` | `sui-transaction-execution-boundary` |
-| `Transaction` build/from/toJSON/getDigest | wallet, private route, public review helper, demo kiosk | wallet + private route for runtime build; private route client boundary owns digest calculation; protocol validation owns digest comparison | keep temporarily | SDK 2.17.0 exports `Transaction`, `Transaction.from`, `toJSON`, `build`, and `getDigest` with the same call shape as SDK 1.x; serialized v2 data and supported intents pass through `SuiJsonRpcClient` build/digest under the owner boundary | `sui-transaction-execution-boundary` for build and digest |
+| `Transaction` build/from/toJSON/getDigest | wallet, private route, public review helper, demo kiosk | wallet + private route for runtime build; private route client boundary owns digest calculation; protocol validation owns digest comparison | keep temporarily | SDK 2.17.0 exports `Transaction`, `Transaction.from`, `toJSON`, `build`, and `getDigest` with the same call shape as SDK 1.x; serialized v2 data and supported intents pass through `SuiGrpcClient` build/digest under the owner boundary (the `transaction.build({ client })` / `transaction.getDigest({ client })` resolver plugin is transport-agnostic and runs against the owner-owned gRPC transport client) | `sui-transaction-execution-boundary` for build and digest |
 | zkLogin SDK imports | wallet zkLogin nonce/proof/signer and Clip signer app public identifier type | wallet zkLogin runtime; clip reference app | implemented on SDK 2.17.0 | `jwtToAddress(jwt, salt, false)` and `toZkLoginPublicIdentifier(addressSeed, iss, { legacyAddress: false })` explicitly preserve SDK 1.x address semantics; other zkLogin exports (`generateNonce`, `generateRandomness`, `getExtendedEphemeralPublicKey`, `getZkLoginSignature`, `genAddressSeed`) keep their SDK 1.x signatures | wallet build + manual zkLogin smoke (pending) |
 | Wallet Standard `sui:signTransaction` input/output types | wallet runtime and private/public signer types | wallet runtime public outcome boundary | installed on `@mysten/wallet-standard@0.20.3` | feature input `{ transaction: { toJSON }, account, chain, signal? }` and output `{ bytes, signature }` are preserved at the wallet runtime boundary | wallet public outcome tests + boundary scans |
 | Wallet Standard `sui:signAndExecuteTransaction` input/output types | wallet runtime and private/public signer types | wallet runtime public outcome boundary | installed on `@mysten/wallet-standard@0.20.3` | feature output `{ bytes, signature, digest, effects }` (base64 BCS effects) is preserved by the wallet runtime and QR sign host | wallet public outcome tests + boundary scans |
-| read-only coin helpers | `getWalrusCoinBalances` and `getWalrusCoins` through wallet client helper | wallet read-only helper surface | keep temporarily | implemented through `SuiJsonRpcClient` (`getAllBalances`, `getCoins`, `getCoinMetadata`) on SDK 2.17.0; SDK 2.x Core API (`listBalances`, `listCoins`, `getCoinMetadata`) remains a later follow-up | wallet helper tests |
+| read-only coin helpers | `getWalrusCoinBalances` and `getWalrusCoins` through wallet client helper | wallet read-only helper surface | keep temporarily | implemented through `SuiJsonRpcClient` (`getAllBalances`, `getCoins`, `getCoinMetadata`) on SDK 2.17.0; this is a coin-helper-specific follow-up only — the wallet/QR runtime transport has already moved to `SuiGrpcClient`, but Core API `listBalances`/`listCoins` are not lossless replacements (they drop `CoinBalance.lockedBalance` and `CoinStruct.previousTransaction`) so the coin-helper migration is intentionally deferred as a separate optional follow-up | wallet helper tests |
 
 Owner-internal call paths now use the unified Core API
 (`client.core.executeTransaction`, `client.core.waitForTransaction`,
 `client.core.getCurrentSystemState`, and `ClientWithCoreApi` for zkLogin
-signature verification). Transport remains `SuiJsonRpcClient` for the
-runtime path. The `SuiGrpcClient` baseUrl
-(`https://fullnode.<network>.sui.io:443`,
+signature verification) against `SuiGrpcClient` transport. The
+`SuiGrpcClient` baseUrl (`https://fullnode.<network>.sui.io:443`,
 `.WORK/ts-sdks/packages/sui/README.md:75-81`) and `effects.bcs`
 preservation through `client.core.waitForTransaction({ include: { effects:
 true } })` were verified by the read-only harness at
 `scripts/verify-sui-grpc-transport.mjs` against mainnet, testnet, and
-devnet. Each network was probed directly: mainnet `effects.bcs` byteLength
-`424` on checkpoint `280000318` digest
+devnet before the swap landed. Each network was probed directly: mainnet
+`effects.bcs` byteLength `424` on checkpoint `280000318` digest
 `DR3rrxXCAYy7MPm2veXfqPfS4ZrUCKuxvREjJ4zrz1mz`; testnet `effects.bcs`
 byteLength `424` on checkpoint `341385413` digest
 `AzCmpJA97FJ4e2xq4CN3erPB1WKkqMqVfmNNAcSZaLzM`; devnet `effects.bcs`
@@ -107,9 +111,11 @@ byteLength `249` on checkpoint `440551` digest
 proof. `simulateTransaction` and Core coin readers (`listBalances`,
 `listCoins`) remain unused: their result shape removes JSON-RPC
 `DryRunTransactionBlockResponse` object-change union, `lockedBalance`,
-and `CoinStruct.previousTransaction`, so the public review helper and
-read-only coin helpers stay on `dryRunTransactionBlock` /
-`getAllBalances` / `getCoins`.
+and `CoinStruct.previousTransaction`, so the QR/private dry-run review
+helper (`dryRunWalrusConnectTransaction`) takes a dedicated
+`createWalrusConnectReviewClient(network) -> SuiJsonRpcClient`, and the
+wallet read-only coin helpers continue to consume the public
+`createWalrusWalletSuiClient(network) -> SuiJsonRpcClient` factory.
 
 ## Public Surface
 
@@ -277,20 +283,26 @@ helpers, or protocol declarations.
 - Smoke checklist statuses are recorded as not-run with manual execution
   requirements; automated build/test evidence is separate from manual QR smoke.
 - `@mysten/sui@2.17.0` and `@mysten/wallet-standard@0.20.3` are installed.
-  Wallet and private-route client boundaries construct
-  `SuiJsonRpcClient` with explicit `network` for JSON-RPC compatibility;
-  owner-internal execution/finality/epoch/signature-verification call paths
-  use `client.core.*` adapters where those adapters preserve the existing
-  public outcomes. `SuiGrpcClient` transport migration remains a follow-up
-  but is no longer blocked by missing transport evidence: the SuiGrpc
-  transport viability proof (mainnet/testnet/devnet construct +
-  `getChainIdentifier`, plus mainnet `effects.bcs` from a real finalized
-  digest) is recorded in
+  Wallet and private-route client boundaries now construct two transport
+  clients side by side inside the same owner file: `SuiGrpcClient` for
+  build/digest/execute/finality/epoch/signature-verification, and
+  `SuiJsonRpcClient` for the retained JSON-RPC compatibility paths
+  (public `createWalrusWalletSuiClient` consumed by dApp Kit, wallet
+  read-only coin helpers, and the QR/private dry-run review helper via
+  `createWalrusConnectReviewClient`). Owner-internal call paths continue
+  to consume only the unified `client.core.*` shape so the adapter
+  signatures (`executeWalrusWalletTransaction`,
+  `waitForWalrusWalletTransaction`, `executeWalrusConnectTransaction`,
+  `waitForWalrusConnectTransaction`) are unchanged. The SuiGrpc transport
+  viability proof (mainnet/testnet/devnet construct +
+  `getChainIdentifier`, plus per-network `effects.bcs` from real
+  finalized digests) is recorded in
   `.WORK/SUI_REFACTOR_CURRENT_REVIEW.md` § `SuiGrpc Transport Viability Proof`
   and `.WORK/SUI_CORE_GRPC_MIGRATION_PREFLIGHT.md` § `SuiGrpc Transport
   Viability Proof Result`; the harness lives at
   `scripts/verify-sui-grpc-transport.mjs` and is invoked via
-  `npm run verify:sui-grpc-transport`.
+  `npm run verify:sui-grpc-transport`. User manual smoke against the
+  swapped runtime transport is deferred.
   `@mysten/dapp-kit-react@2.0.3`
   and `@mysten/dapp-kit-core@1.3.2` are installed in `clip` and `demo`;
   the legacy `@mysten/dapp-kit@0.18.0` peer-dep on `walrus-wallet` is

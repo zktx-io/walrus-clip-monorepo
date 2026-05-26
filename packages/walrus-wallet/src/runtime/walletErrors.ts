@@ -179,9 +179,27 @@ export class WalrusWalletTransactionUncertainError extends WalrusWalletError {
   }
 }
 
+type WalrusWalletTransactionExecutionErrorInput = {
+  reason: string;
+  digest?: string;
+  bytes?: string;
+  signature?: string;
+};
+
 export class WalrusWalletTransactionExecutionError extends WalrusWalletError {
-  constructor(reason: string) {
-    super('WALRUS_TRANSACTION_EXECUTION_FAILED', reason);
+  readonly digest?: string;
+  readonly bytes?: string;
+  readonly signature?: string;
+
+  constructor(input: string | WalrusWalletTransactionExecutionErrorInput) {
+    const normalized: WalrusWalletTransactionExecutionErrorInput =
+      typeof input === 'string' ? { reason: input } : input;
+    super('WALRUS_TRANSACTION_EXECUTION_FAILED', normalized.reason, {
+      ...(normalized.digest ? { digest: normalized.digest } : {}),
+    });
     this.name = 'WalrusWalletTransactionExecutionError';
+    this.digest = normalized.digest;
+    this.bytes = normalized.bytes;
+    this.signature = normalized.signature;
   }
 }

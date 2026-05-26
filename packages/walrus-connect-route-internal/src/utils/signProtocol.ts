@@ -5,7 +5,7 @@ import type {
   ProtocolErrorCode,
   ProtocolErrorPayload,
 } from './message';
-import type { WalrusConnectSuiClient } from './suiClient';
+import type { WalrusConnectGrpcClient } from './suiClient';
 
 export const TRANSACTION_PROPOSAL_TIMEOUT_MS = 15000;
 export const SIGN_RESPONSE_TIMEOUT_MS = 30000;
@@ -43,7 +43,7 @@ export type WalrusConnectTransactionDigestReader = ({
   client,
   transaction,
 }: {
-  client: WalrusConnectSuiClient;
+  client: WalrusConnectGrpcClient;
   transaction: Transaction;
 }) => Promise<string> | string;
 
@@ -125,7 +125,7 @@ export const getExpectedSubmittedDigest = async ({
   getTransactionDigest,
 }: {
   tx: Transaction;
-  client: WalrusConnectSuiClient;
+  client: WalrusConnectGrpcClient;
   expectedDigest?: string;
   getTransactionDigest: WalrusConnectTransactionDigestReader;
 }) =>
@@ -140,7 +140,7 @@ export const validateSubmittedDigest = async ({
   getTransactionDigest,
 }: {
   tx: Transaction;
-  client: WalrusConnectSuiClient;
+  client: WalrusConnectGrpcClient;
   expectedDigest?: string;
   submittedDigest: string;
   getTransactionDigest: WalrusConnectTransactionDigestReader;

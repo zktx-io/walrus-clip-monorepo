@@ -23,7 +23,7 @@ import type {
 import type { ProtocolErrorCode } from './message';
 import {
   dryRunWalrusConnectTransaction,
-  type WalrusConnectSuiClient,
+  type WalrusConnectReviewClient,
 } from './suiClient';
 
 export type SignTransactionValidationError = {
@@ -803,7 +803,7 @@ export const createSignTransactionReview = async ({
   network,
 }: {
   tx: Transaction;
-  client: WalrusConnectSuiClient;
+  client: WalrusConnectReviewClient;
   bytes: string;
   digest?: string;
   network: NETWORK;

@@ -14,7 +14,7 @@ This branch is for a breaking modernization. Do not preserve legacy compatibilit
 
 Targets:
 
-- Owner-boundary Sui client construction is on SDK 2.x `SuiJsonRpcClient` (`@mysten/sui/jsonRpc`) today. Moving owner boundaries to the SDK 2.x Core/gRPC API (`client.core.*`, `SuiGrpcClient`) is a later follow-up commit; legacy `SuiClient`/`getFullnodeUrl` runtime imports are blocked.
+- Owner-boundary Sui client runtime construction is on SDK 2.x `SuiGrpcClient` (`@mysten/sui/grpc`) for build/execute/wait/epoch/signature-verification paths. The wallet/private-route owner files retain `SuiJsonRpcClient` (`@mysten/sui/jsonRpc`) inside the same owner boundary only for the public `createWalrusWalletSuiClient` consumed by dApp Kit `createClient`, the wallet read-only coin helpers, and the QR/private dry-run review helper (`createWalrusConnectReviewClient`). Legacy `SuiClient`/`getFullnodeUrl` runtime imports are blocked.
 - Replace legacy `@mysten/dapp-kit` with the modern dApp Kit packages.
 - Move toward React 19.
 - Remove Recoil if wallet state can be handled with a smaller local state layer.
@@ -278,7 +278,7 @@ Keep demo logic thin. Shared behavior belongs in `walrus-connect` or `walrus-wal
 ## Sui SDK Rules
 
 - `@mysten/sui@1.x`, `SuiClient`, `getFullnodeUrl`, and the `@mysten/sui/client` legacy JSON-RPC subpath are removed from source and blocked by `scripts/verify-boundary.mjs` as forbidden tokens outside owner files. Do not reintroduce them.
-- Owner-boundary Sui client construction is on `@mysten/sui@2.17.0` `SuiJsonRpcClient` + `getJsonRpcFullnodeUrl` (`@mysten/sui/jsonRpc` subpath) today. Moving owner boundaries to the SDK 2.x Core/gRPC API (`client.core.*`, `SuiGrpcClient`) is a later follow-up commit; do not begin that migration as a side effect of unrelated work.
+- Owner-boundary Sui client runtime transport is on `@mysten/sui@2.17.0` `SuiGrpcClient` (`@mysten/sui/grpc` subpath) for wallet build/execute/wait/epoch and QR route build/digest/execute/wait/signature-verification paths; baseUrl uses the SDK-documented `https://fullnode.<network>.sui.io:443`. `SuiJsonRpcClient` + `getJsonRpcFullnodeUrl` remain inside the same owner files only for the public wallet client helper, the wallet read-only coin helpers, and the QR/private dry-run review helper. Do not reintroduce JSON-RPC transport for the runtime execute/wait/epoch paths or relocate the retained JSON-RPC helpers outside the owner files.
 - When official docs, `.WORK/ts-sdks`, and installed dependencies disagree, state the discrepancy and follow the source that matches the current task. For active migration work, prefer the target SDK source in `.WORK/ts-sdks`.
 - Centralize Sui client creation and network configuration.
 - Do not introduce new scattered fullnode URL construction.

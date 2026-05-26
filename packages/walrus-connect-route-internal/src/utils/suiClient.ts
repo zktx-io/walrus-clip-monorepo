@@ -1,3 +1,4 @@
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 import {
   getJsonRpcFullnodeUrl,
   SuiJsonRpcClient,
@@ -6,10 +7,11 @@ import type { Transaction } from '@mysten/sui/transactions';
 
 import type { NETWORK } from '../types';
 
-export type WalrusConnectSuiClient = SuiJsonRpcClient;
+export type WalrusConnectGrpcClient = SuiGrpcClient;
+export type WalrusConnectReviewClient = SuiJsonRpcClient;
 export type WalrusConnectBuildableTransaction = {
   build: (input: {
-    client: WalrusConnectSuiClient;
+    client: WalrusConnectGrpcClient;
     onlyTransactionKind?: boolean;
   }) => Promise<Uint8Array>;
 };
@@ -17,7 +19,28 @@ export type WalrusConnectBuildableTransaction = {
 export const getWalrusConnectFullnodeUrl = (network: NETWORK) =>
   getJsonRpcFullnodeUrl(network);
 
-export const createWalrusConnectSuiClient = (network: NETWORK) =>
+// SDK README documents these as the gRPC-Web baseUrls.
+// `.WORK/ts-sdks/packages/sui/README.md:75-81`.
+const WALRUS_CONNECT_GRPC_BASE_URLS: Record<NETWORK, string> = {
+  mainnet: 'https://fullnode.mainnet.sui.io:443',
+  testnet: 'https://fullnode.testnet.sui.io:443',
+  devnet: 'https://fullnode.devnet.sui.io:443',
+};
+
+export const getWalrusConnectGrpcBaseUrl = (network: NETWORK) =>
+  WALRUS_CONNECT_GRPC_BASE_URLS[network];
+
+export const createWalrusConnectGrpcClient = (network: NETWORK) =>
+  new SuiGrpcClient({
+    network,
+    baseUrl: getWalrusConnectGrpcBaseUrl(network),
+  });
+
+// Dry-run review still needs JSON-RPC compatibility:
+// Core `simulateTransaction` does not preserve the JSON-RPC
+// `DryRunTransactionBlockResponse` object-change union, balance-change owner
+// fields, or event facts that the existing review surface depends on.
+export const createWalrusConnectReviewClient = (network: NETWORK) =>
   new SuiJsonRpcClient({
     network,
     url: getWalrusConnectFullnodeUrl(network),
@@ -28,7 +51,7 @@ export const buildWalrusConnectTransaction = ({
   transaction,
   onlyTransactionKind,
 }: {
-  client: WalrusConnectSuiClient;
+  client: WalrusConnectGrpcClient;
   transaction: WalrusConnectBuildableTransaction;
   onlyTransactionKind?: boolean;
 }) =>
@@ -41,13 +64,13 @@ export const getWalrusConnectTransactionDigest = ({
   client,
   transaction,
 }: {
-  client: WalrusConnectSuiClient;
+  client: WalrusConnectGrpcClient;
   transaction: Transaction;
 }) => transaction.getDigest({ client });
 
 export const dryRunWalrusConnectTransaction = (
-  client: WalrusConnectSuiClient,
-  input: Parameters<WalrusConnectSuiClient['dryRunTransactionBlock']>[0],
+  client: WalrusConnectReviewClient,
+  input: Parameters<WalrusConnectReviewClient['dryRunTransactionBlock']>[0],
 ) => client.dryRunTransactionBlock(input);
 
 export type WalrusConnectExecuteInput = {
@@ -61,7 +84,7 @@ export type WalrusConnectExecuteResult = {
 };
 
 export const executeWalrusConnectTransaction = async (
-  client: WalrusConnectSuiClient,
+  client: WalrusConnectGrpcClient,
   input: WalrusConnectExecuteInput,
 ): Promise<WalrusConnectExecuteResult> => {
   const result = await client.core.executeTransaction({
@@ -89,7 +112,7 @@ export type WalrusConnectWaitResult = {
 };
 
 export const waitForWalrusConnectTransaction = async (
-  client: WalrusConnectSuiClient,
+  client: WalrusConnectGrpcClient,
   input: WalrusConnectWaitInput,
 ): Promise<WalrusConnectWaitResult> => {
   const result = await client.core.waitForTransaction({

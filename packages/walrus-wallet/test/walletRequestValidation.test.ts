@@ -16,6 +16,7 @@ const {
   WalrusWalletChainMismatchError,
   WalrusWalletLoginRouteError,
   WalrusWalletQrRouteError,
+  WalrusWalletTransactionExecutionError,
 } = await jiti.import<typeof import('../src/runtime/walletErrors.ts')>(
   '../src/runtime/walletErrors.ts',
 );
@@ -132,4 +133,31 @@ test('wallet login route errors expose wallet-owned recovery details', () => {
   assert.equal(error.details.address, '0xabc');
   assert.equal(error.details.network, 'testnet');
   assert.equal(error.accountPersisted, false);
+});
+
+test('wallet transaction execution errors preserve the submitted digest from a Core API FailedTransaction so dApps can recover', () => {
+  const error = new WalrusWalletTransactionExecutionError({
+    reason: 'Transaction digest-failed executed but reported failure: Move abort 5',
+    digest: 'digest-failed',
+    bytes: 'tx-bytes',
+    signature: 'signature',
+  });
+
+  assert.equal(error.code, 'WALRUS_TRANSACTION_EXECUTION_FAILED');
+  assert.equal(error.digest, 'digest-failed');
+  assert.equal(error.bytes, 'tx-bytes');
+  assert.equal(error.signature, 'signature');
+  assert.equal(error.details.digest, 'digest-failed');
+});
+
+test('wallet transaction execution errors stay usable with the legacy string-only constructor for pre-submit failures with no digest', () => {
+  const error = new WalrusWalletTransactionExecutionError(
+    'Failed to execute transaction: network down',
+  );
+
+  assert.equal(error.code, 'WALRUS_TRANSACTION_EXECUTION_FAILED');
+  assert.equal(error.message, 'Failed to execute transaction: network down');
+  assert.equal(error.digest, undefined);
+  assert.equal(error.bytes, undefined);
+  assert.equal(error.signature, undefined);
 });

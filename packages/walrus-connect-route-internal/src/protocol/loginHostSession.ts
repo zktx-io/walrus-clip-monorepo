@@ -22,7 +22,7 @@ import {
   type ProtocolErrorPayload,
 } from '../utils/message';
 import { ACK_TIMEOUT_MS, CLOSE_FALLBACK_TIMEOUT_MS } from '../utils/signProtocol';
-import { createWalrusConnectSuiClient } from '../utils/suiClient';
+import { createWalrusConnectGrpcClient } from '../utils/suiClient';
 
 export type LoginHostOutcome =
   | { type: 'connected'; address: string; network: NETWORK }
@@ -43,7 +43,7 @@ type LoginHostState =
   | { type: 'terminal'; outcome: LoginHostOutcome };
 
 export type LoginHostSessionDeps = {
-  createClient: typeof createWalrusConnectSuiClient;
+  createClient: typeof createWalrusConnectGrpcClient;
   verifyPersonalMessageSignature: typeof verifyPersonalMessageSignature;
   publicKeyFromSuiBytes: typeof publicKeyFromSuiBytes;
 };
@@ -61,7 +61,7 @@ export type StartLoginHostSessionParams = {
 };
 
 const defaultDeps: LoginHostSessionDeps = {
-  createClient: createWalrusConnectSuiClient,
+  createClient: createWalrusConnectGrpcClient,
   verifyPersonalMessageSignature,
   publicKeyFromSuiBytes,
 };

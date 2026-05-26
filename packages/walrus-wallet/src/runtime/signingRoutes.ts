@@ -11,7 +11,7 @@ import type { QRSignOutcome } from '../internal/walrusConnectRoute';
 
 import {
   buildWalrusWalletTransaction,
-  createWalrusWalletSuiClient,
+  createWalrusWalletGrpcClient,
   executeWalrusWalletTransaction,
   waitForWalrusWalletTransaction,
 } from '../utils/suiClient';
@@ -91,7 +91,7 @@ const waitForExecutedTransaction = async ({
   bytes,
   signature,
 }: {
-  client: ReturnType<typeof createWalrusWalletSuiClient>;
+  client: ReturnType<typeof createWalrusWalletGrpcClient>;
   digest: string;
   bytes: string;
   signature: string;
@@ -130,7 +130,7 @@ export const signTransactionWithLocalSigner = async ({
   network: NETWORK;
   transaction: { toJSON: () => Promise<string> };
 }): Promise<SignedTransaction> => {
-  const client = createWalrusWalletSuiClient(network);
+  const client = createWalrusWalletGrpcClient(network);
   const tx = Transaction.from(await transaction.toJSON());
   tx.setSenderIfNotSet(signer.toSuiAddress());
   const txBytes = await buildWalrusWalletTransaction({
@@ -152,7 +152,7 @@ export const signAndExecuteTransactionWithLocalSigner = async ({
   transaction: { toJSON: () => Promise<string> };
   sponsoredUrl?: string;
 }): Promise<SuiSignAndExecuteTransactionOutput> => {
-  const client = createWalrusWalletSuiClient(network);
+  const client = createWalrusWalletGrpcClient(network);
   const tx = Transaction.from(await transaction.toJSON());
   tx.setSenderIfNotSet(signer.toSuiAddress());
 
@@ -199,26 +199,39 @@ export const signAndExecuteTransactionWithLocalSigner = async ({
   });
   const { bytes, signature } = await signer.signTransaction(txBytes);
 
-  let digest: string;
+  let result: Awaited<ReturnType<typeof executeWalrusWalletTransaction>>;
   try {
-    const result = await executeWalrusWalletTransaction(client, {
+    result = await executeWalrusWalletTransaction(client, {
       bytes: txBytes,
       signature,
     });
-    if (result.errors.length > 0) {
-      throw new Error(result.errors.join(', '));
-    }
-    digest = result.digest;
   } catch (error) {
     if (error instanceof Error) {
-      throw new WalrusWalletTransactionExecutionError(
-        `Failed to execute transaction: ${error.message}`,
-      );
+      throw new WalrusWalletTransactionExecutionError({
+        reason: `Failed to execute transaction: ${error.message}`,
+      });
     }
     throw error;
   }
 
-  return waitForExecutedTransaction({ client, digest, bytes, signature });
+  if (result.errors.length > 0) {
+    // Core API returned a FailedTransaction. The transaction reached
+    // execution and has a known digest; preserve it (and the signed
+    // bytes/signature) on the caller-visible error so dApps can recover.
+    throw new WalrusWalletTransactionExecutionError({
+      reason: `Transaction ${result.digest} executed but reported failure: ${result.errors.join(', ')}`,
+      digest: result.digest,
+      bytes,
+      signature,
+    });
+  }
+
+  return waitForExecutedTransaction({
+    client,
+    digest: result.digest,
+    bytes,
+    signature,
+  });
 };
 
 export const signAndExecuteTransactionWithQrRoute = async ({
