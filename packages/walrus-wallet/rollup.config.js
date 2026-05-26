@@ -59,7 +59,6 @@ export default {
     /^@mysten\/sui(\/.*)?$/,
     /^@mysten\/dapp-kit(\/.*)?$/,
     '@zktx.io/walrus-connect',
-    /^recoil(\/.*)?$/,
     'lucide-react',
     'framer-motion',
   ],

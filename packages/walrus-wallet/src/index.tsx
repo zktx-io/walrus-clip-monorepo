@@ -10,10 +10,9 @@ import { genAddressSeed } from '@mysten/sui/zklogin';
 import { registerWallet } from '@mysten/wallet-standard';
 import { useWalrusScan, WalrusScan } from './internal/walrusConnectRoute';
 import { decodeJwt } from 'jose';
-import { RecoilRoot } from 'recoil';
 
 import { ActionDrawer } from './components/ActionDrawer';
-import { useWalletState } from './recoil';
+import { useWalletState, WalletStateProvider } from './state/walletState';
 import { createProof } from './utils/createProof';
 import { DEFAULT_ICON, DEFAULT_NAME } from './utils/default';
 import {
@@ -263,7 +262,7 @@ export const WalrusWallet = ({
   ...others
 }: IWalrusWalletProps) => {
   return (
-    <RecoilRoot>
+    <WalletStateProvider>
       <WalrusScan
         mode={others.mode || 'light'}
         icon={icon || DEFAULT_ICON}
@@ -279,7 +278,7 @@ export const WalrusWallet = ({
           {children}
         </WalrusWalletRoot>
       </WalrusScan>
-    </RecoilRoot>
+    </WalletStateProvider>
   );
 };
 

@@ -13,7 +13,7 @@ import {
 import { motion } from 'framer-motion';
 import { LogOut, QrCode } from 'lucide-react';
 
-import { useWalletState } from '../recoil';
+import { useWalletState } from '../state/walletState';
 import type { NotiVariant } from '../utils/walletTypes';
 
 export const ActionDrawer = ({
