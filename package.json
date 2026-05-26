@@ -22,6 +22,7 @@
     "build": "npm run build:connect && npm run build:connect-route-internal && npm run build:wallet",
     "verify:boundary": "node scripts/verify-boundary.mjs",
     "verify:completion": "node scripts/verify-boundary.mjs --completion",
+    "verify:sui-grpc-transport": "node scripts/verify-sui-grpc-transport.mjs",
     "version:patch": "lerna version patch",
     "version:minor": "lerna version minor"
   },
