@@ -75,7 +75,7 @@ export const createProof = async (
       };
     }
 
-    const address = jwtToAddress(jwt, BigInt(enoki.salt));
+    const address = jwtToAddress(jwt, BigInt(enoki.salt), false);
     const res = await fetch(getProverUrl(network), {
       method: 'POST',
       headers: {

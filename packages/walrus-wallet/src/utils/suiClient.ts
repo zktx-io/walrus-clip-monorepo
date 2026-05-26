@@ -1,18 +1,24 @@
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
+import {
+  getJsonRpcFullnodeUrl,
+  SuiJsonRpcClient,
+} from '@mysten/sui/jsonRpc';
 import type { Transaction } from '@mysten/sui/transactions';
 import type { NETWORK } from './walletTypes';
 
-export type WalrusWalletSuiClient = SuiClient;
+export type WalrusWalletSuiClient = SuiJsonRpcClient;
 
 export const getWalrusWalletFullnodeUrl = (network: NETWORK) =>
-  getFullnodeUrl(network);
+  getJsonRpcFullnodeUrl(network);
 
 export const createWalrusWalletDappKitNetworkConfig = (network: NETWORK) => ({
   url: getWalrusWalletFullnodeUrl(network),
 });
 
 export const createWalrusWalletSuiClient = (network: NETWORK) =>
-  new SuiClient({ url: getWalrusWalletFullnodeUrl(network) });
+  new SuiJsonRpcClient({
+    network,
+    url: getWalrusWalletFullnodeUrl(network),
+  });
 
 export const buildWalrusWalletTransaction = ({
   client,

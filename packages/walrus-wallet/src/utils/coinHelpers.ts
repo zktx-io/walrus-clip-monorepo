@@ -2,7 +2,7 @@ import type {
   CoinBalance,
   CoinMetadata,
   CoinStruct,
-} from '@mysten/sui/client';
+} from '@mysten/sui/jsonRpc';
 import type { NETWORK } from './walletTypes';
 
 import { createWalrusWalletSuiClient } from './suiClient';

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { SuiClient } from '@mysten/sui/client';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 
 import { createProtocolMessage, parseProtocolMessage } from '../../walrus-connect-route-internal/src/utils/message.ts';
@@ -54,7 +54,7 @@ test('rejects submitted digest mismatch', async () => {
   assert.deepEqual(
     await validateSubmittedDigest({
       tx: new Transaction(),
-      client: {} as SuiClient,
+      client: {} as SuiJsonRpcClient,
       expectedDigest: 'expected-digest',
       submittedDigest: 'other-digest',
     }),

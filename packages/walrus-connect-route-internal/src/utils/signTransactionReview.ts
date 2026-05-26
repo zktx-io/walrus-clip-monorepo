@@ -4,7 +4,7 @@ import type {
   DryRunTransactionBlockResponse,
   SuiEvent,
   SuiObjectChange,
-} from '@mysten/sui/client';
+} from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import {
   fromBase64,

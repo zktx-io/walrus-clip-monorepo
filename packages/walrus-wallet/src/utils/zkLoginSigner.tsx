@@ -136,6 +136,7 @@ export class ZkLoginSigner extends Signer {
     return toZkLoginPublicIdentifier(
       BigInt(this.#zkLogin.proofInfo.addressSeed),
       this.#zkLogin.proofInfo.iss,
+      { legacyAddress: false },
     );
   }
 

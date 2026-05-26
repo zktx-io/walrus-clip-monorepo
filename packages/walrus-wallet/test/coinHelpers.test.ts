@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { CoinBalance, CoinMetadata } from '@mysten/sui/client';
+import type { CoinBalance, CoinMetadata } from '@mysten/sui/jsonRpc';
 import { createJiti } from 'jiti';
 
 const jiti = createJiti(import.meta.url);

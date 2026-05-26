@@ -14,7 +14,7 @@ This branch is for a breaking modernization. Do not preserve legacy compatibilit
 
 Targets:
 
-- Move from legacy JSON-RPC `SuiClient` usage to Sui SDK 2.x gRPC/Core API patterns.
+- Owner-boundary Sui client construction is on SDK 2.x `SuiJsonRpcClient` (`@mysten/sui/jsonRpc`) today. Moving owner boundaries to the SDK 2.x Core/gRPC API (`client.core.*`, `SuiGrpcClient`) is a later follow-up commit; legacy `SuiClient`/`getFullnodeUrl` runtime imports are blocked.
 - Replace legacy `@mysten/dapp-kit` with the modern dApp Kit packages.
 - Move toward React 19.
 - Remove Recoil if wallet state can be handled with a smaller local state layer.
@@ -201,6 +201,20 @@ During implementation:
   acknowledgement that must still be sent, model that exception explicitly
   instead of bypassing the guard with a catch block.
 
+For source-of-truth or planning updates, including `AGENTS.md`,
+`BOUNDARY_INVENTORY.md`, `SMOKE_CHECKLIST.md`, workflows, package manifests, and
+`.WORK/` planning notes, run an explicit alignment pass before completion:
+
+- State the target current state before editing.
+- Update every surface that claims current status, owner, version, scope,
+  verification, or next work.
+- Mark historical notes as historical instead of letting them read as current
+  guidance.
+- Search for stale old versions, old status labels, old touch counts, and
+  `next` / `in progress` wording after edits.
+- Treat ignored `.WORK/` planning notes as agent inputs even though they are not
+  commit artifacts; keep them consistent or clearly superseded.
+
 Before completion:
 
 - Classify the result using the status labels in `Status And Completion
@@ -239,7 +253,7 @@ Owns Wallet Standard registration and wallet runtime behavior:
 - Sui client integration through a centralized client boundary.
 - Minimal account, connection, signing, and basic `Coin<T>` helper surfaces.
 
-Do not create new direct `SuiClient` call sites. Add or update a client adapter instead. Do not add dApp-specific checkout, NFT dashboard, kiosk, or advanced asset UX here.
+Do not create new direct Sui client construction (`SuiJsonRpcClient`, `SuiGraphQLClient`, future `SuiGrpcClient`, or legacy `SuiClient`) or fullnode URL helper (`getJsonRpcFullnodeUrl`, legacy `getFullnodeUrl`) call sites. Add or update a client adapter at the wallet or private-route boundary instead. Do not add dApp-specific checkout, NFT dashboard, kiosk, or advanced asset UX here.
 
 ### `packages/clip`
 
@@ -263,8 +277,8 @@ Keep demo logic thin. Shared behavior belongs in `walrus-connect` or `walrus-wal
 
 ## Sui SDK Rules
 
-- Treat `@mysten/sui@1.x`, `SuiClient`, `getFullnodeUrl`, and legacy JSON-RPC patterns as migration targets.
-- Prefer SDK 2.x gRPC/Core API patterns from `.WORK/ts-sdks` and official Mysten docs.
+- `@mysten/sui@1.x`, `SuiClient`, `getFullnodeUrl`, and the `@mysten/sui/client` legacy JSON-RPC subpath are removed from source and blocked by `scripts/verify-boundary.mjs` as forbidden tokens outside owner files. Do not reintroduce them.
+- Owner-boundary Sui client construction is on `@mysten/sui@2.17.0` `SuiJsonRpcClient` + `getJsonRpcFullnodeUrl` (`@mysten/sui/jsonRpc` subpath) today. Moving owner boundaries to the SDK 2.x Core/gRPC API (`client.core.*`, `SuiGrpcClient`) is a later follow-up commit; do not begin that migration as a side effect of unrelated work.
 - When official docs, `.WORK/ts-sdks`, and installed dependencies disagree, state the discrepancy and follow the source that matches the current task. For active migration work, prefer the target SDK source in `.WORK/ts-sdks`.
 - Centralize Sui client creation and network configuration.
 - Do not introduce new scattered fullnode URL construction.

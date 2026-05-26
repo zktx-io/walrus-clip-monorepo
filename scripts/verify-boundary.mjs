@@ -250,11 +250,11 @@ const publicSuiTypeSurfaceAllowlist = new Map([
   ],
   [
     'packages/walrus-connect/dist/types/utils/signTransactionReview.d.ts',
-    new Set(['@mysten/sui/client', '@mysten/sui/transactions']),
+    new Set(['@mysten/sui/jsonRpc', '@mysten/sui/transactions']),
   ],
   [
     'packages/walrus-wallet/dist/types/utils/coinHelpers.d.ts',
-    new Set(['@mysten/sui/client']),
+    new Set(['@mysten/sui/jsonRpc']),
   ],
 ]);
 const mystenPublicTypeSpecifierPattern =

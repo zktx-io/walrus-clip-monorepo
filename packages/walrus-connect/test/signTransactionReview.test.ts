@@ -3,8 +3,8 @@ import test from 'node:test';
 
 import type {
   DryRunTransactionBlockResponse,
-  SuiClient,
-} from '@mysten/sui/client';
+  SuiJsonRpcClient,
+} from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 
 import {
@@ -28,11 +28,11 @@ const createClient = (
   dryRun:
     | DryRunTransactionBlockResponse
     | (() => Promise<DryRunTransactionBlockResponse>),
-): SuiClient =>
+): SuiJsonRpcClient =>
   ({
     dryRunTransactionBlock:
       typeof dryRun === 'function' ? dryRun : async () => dryRun,
-  }) as unknown as SuiClient;
+  }) as unknown as SuiJsonRpcClient;
 
 const createDryRun = (
   status: 'success' | 'failure' = 'success',

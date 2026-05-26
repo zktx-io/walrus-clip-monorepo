@@ -1,10 +1,13 @@
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
+import {
+  getJsonRpcFullnodeUrl,
+  SuiJsonRpcClient,
+} from '@mysten/sui/jsonRpc';
 import type { Transaction } from '@mysten/sui/transactions';
 
 import type { NETWORK } from '../types';
 
-export type WalrusConnectSuiClient = SuiClient;
+export type WalrusConnectSuiClient = SuiJsonRpcClient;
 export type WalrusConnectGraphQLClient = SuiGraphQLClient;
 export type WalrusConnectBuildableTransaction = {
   build: (input: {
@@ -14,13 +17,16 @@ export type WalrusConnectBuildableTransaction = {
 };
 
 export const getWalrusConnectFullnodeUrl = (network: NETWORK) =>
-  getFullnodeUrl(network);
+  getJsonRpcFullnodeUrl(network);
 
 export const getWalrusConnectGraphQLUrl = (network: NETWORK) =>
   `https://sui-${network}.mystenlabs.com/graphql`;
 
 export const createWalrusConnectSuiClient = (network: NETWORK) =>
-  new SuiClient({ url: getWalrusConnectFullnodeUrl(network) });
+  new SuiJsonRpcClient({
+    network,
+    url: getWalrusConnectFullnodeUrl(network),
+  });
 
 export const createWalrusConnectGraphQLClient = (network: NETWORK) =>
   new SuiGraphQLClient({

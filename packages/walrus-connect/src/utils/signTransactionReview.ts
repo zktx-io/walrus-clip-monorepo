@@ -2,10 +2,10 @@ import { bcs } from '@mysten/sui/bcs';
 import type {
   BalanceChange,
   DryRunTransactionBlockResponse,
-  SuiClient,
   SuiEvent,
+  SuiJsonRpcClient,
   SuiObjectChange,
-} from '@mysten/sui/client';
+} from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import {
   fromBase64,
@@ -801,7 +801,7 @@ export const createSignTransactionReview = async ({
   network,
 }: {
   tx: Transaction;
-  client: SuiClient;
+  client: SuiJsonRpcClient;
   bytes: string;
   digest?: string;
   network: NETWORK;
