@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 
 import { QRScan } from '../components/QRScan';
 import { ClipSigner, NETWORK, NotiVariant } from '../types';
@@ -56,7 +56,7 @@ export const WalrusScan = ({
         if (isScannerEnabled) {
           const container = document.createElement('div');
           document.body.appendChild(container);
-          const root = ReactDOM.createRoot(container);
+          const root = createRoot(container);
           root.render(
             <QRScan
               open
@@ -92,7 +92,7 @@ export const WalrusScan = ({
       return new Promise((resolve) => {
         const container = document.createElement('div');
         document.body.appendChild(container);
-        const root = ReactDOM.createRoot(container);
+        const root = createRoot(container);
         root.render(
           <QRSign
             mode={mode || 'light'}

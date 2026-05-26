@@ -13,14 +13,14 @@ import {
   toZkLoginPublicIdentifier,
 } from '@mysten/sui/zklogin';
 import type { NETWORK } from './walletTypes';
-import ReactDOM from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 
 import { IZkLogin } from './types';
 import { getWalrusWalletCurrentEpoch } from './suiClient';
 import { decryptText } from './utils';
 import { PwConfirm } from '../components/PwConfirm';
 
-export const cleanup = (container: HTMLDivElement, root: ReactDOM.Root) => {
+export const cleanup = (container: HTMLDivElement, root: Root) => {
   // Use requestAnimationFrame to ensure React finishes its work before cleanup
   requestAnimationFrame(() => {
     try {
@@ -61,7 +61,7 @@ export class ZkLoginSigner extends Signer {
     return new Promise((resolve, reject) => {
       const container = document.createElement('div');
       document.body.appendChild(container);
-      const root = ReactDOM.createRoot(container);
+      const root = createRoot(container);
       root.render(
         <PwConfirm
           mode={this.#mode}

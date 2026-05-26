@@ -3,7 +3,7 @@ import {
   loginHostOutcomeToResult,
 } from '../internal/walrusConnectRoute';
 import type { LoginHostOutcome } from '../internal/walrusConnectRoute';
-import ReactDOM from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 
 import { PwCreate } from '../components/PwCreate';
 import { createNonce } from '../utils/createNonce';
@@ -37,7 +37,7 @@ export const openZkLoginModal = ({
   new Promise((resolve, reject) => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const root = ReactDOM.createRoot(container);
+    const root = createRoot(container);
     root.render(
       <PwCreate
         mode={mode}
@@ -76,7 +76,7 @@ export const openQrLoginModal = ({
   new Promise((resolve, reject) => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const root = ReactDOM.createRoot(container);
+    const root = createRoot(container);
     root.render(
       <QRLogin
         mode={mode}
