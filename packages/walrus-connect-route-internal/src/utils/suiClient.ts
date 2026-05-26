@@ -1,4 +1,3 @@
-import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import {
   getJsonRpcFullnodeUrl,
   SuiJsonRpcClient,
@@ -8,7 +7,6 @@ import type { Transaction } from '@mysten/sui/transactions';
 import type { NETWORK } from '../types';
 
 export type WalrusConnectSuiClient = SuiJsonRpcClient;
-export type WalrusConnectGraphQLClient = SuiGraphQLClient;
 export type WalrusConnectBuildableTransaction = {
   build: (input: {
     client: WalrusConnectSuiClient;
@@ -19,19 +17,10 @@ export type WalrusConnectBuildableTransaction = {
 export const getWalrusConnectFullnodeUrl = (network: NETWORK) =>
   getJsonRpcFullnodeUrl(network);
 
-export const getWalrusConnectGraphQLUrl = (network: NETWORK) =>
-  `https://sui-${network}.mystenlabs.com/graphql`;
-
 export const createWalrusConnectSuiClient = (network: NETWORK) =>
   new SuiJsonRpcClient({
     network,
     url: getWalrusConnectFullnodeUrl(network),
-  });
-
-export const createWalrusConnectGraphQLClient = (network: NETWORK) =>
-  new SuiGraphQLClient({
-    network,
-    url: getWalrusConnectGraphQLUrl(network),
   });
 
 export const buildWalrusConnectTransaction = ({
@@ -61,12 +50,62 @@ export const dryRunWalrusConnectTransaction = (
   input: Parameters<WalrusConnectSuiClient['dryRunTransactionBlock']>[0],
 ) => client.dryRunTransactionBlock(input);
 
-export const executeWalrusConnectTransaction = (
-  client: WalrusConnectSuiClient,
-  input: Parameters<WalrusConnectSuiClient['executeTransactionBlock']>[0],
-) => client.executeTransactionBlock(input);
+export type WalrusConnectExecuteInput = {
+  bytes: Uint8Array;
+  signature: string;
+};
 
-export const waitForWalrusConnectTransaction = (
+export type WalrusConnectExecuteResult = {
+  digest: string;
+  errors: string[];
+};
+
+export const executeWalrusConnectTransaction = async (
   client: WalrusConnectSuiClient,
-  input: Parameters<WalrusConnectSuiClient['waitForTransaction']>[0],
-) => client.waitForTransaction(input);
+  input: WalrusConnectExecuteInput,
+): Promise<WalrusConnectExecuteResult> => {
+  const result = await client.core.executeTransaction({
+    transaction: input.bytes,
+    signatures: [input.signature],
+  });
+  if (result.$kind === 'Transaction') {
+    return { digest: result.Transaction.digest, errors: [] };
+  }
+  const failed = result.FailedTransaction;
+  const message =
+    failed.status.success === false
+      ? failed.status.error.message
+      : 'Transaction execution reported failure without an error message';
+  return { digest: failed.digest, errors: [message] };
+};
+
+export type WalrusConnectWaitInput = {
+  digest: string;
+  timeout?: number;
+};
+
+export type WalrusConnectWaitResult = {
+  rawEffects: Uint8Array;
+};
+
+export const waitForWalrusConnectTransaction = async (
+  client: WalrusConnectSuiClient,
+  input: WalrusConnectWaitInput,
+): Promise<WalrusConnectWaitResult> => {
+  const result = await client.core.waitForTransaction({
+    digest: input.digest,
+    include: { effects: true },
+    timeout: input.timeout,
+  });
+  const transaction =
+    result.$kind === 'Transaction'
+      ? result.Transaction
+      : result.FailedTransaction;
+  const bcs = transaction.effects?.bcs;
+  if (!bcs) {
+    throw new Error(
+      `Transaction ${input.digest} finalized but effects.bcs is missing.`,
+    );
+  }
+  return { rawEffects: bcs };
+};

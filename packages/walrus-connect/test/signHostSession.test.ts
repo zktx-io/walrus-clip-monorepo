@@ -224,23 +224,53 @@ const emitHostInbound = <TType extends ProtocolMessageType>({
   );
 };
 
+type CoreExecuteResult = {
+  $kind: 'Transaction';
+  Transaction: { digest: string };
+};
+
+type CoreWaitResult = {
+  $kind: 'Transaction';
+  Transaction: { effects: { bcs: Uint8Array } };
+};
+
+const executeSuccess = (digest: string): CoreExecuteResult => ({
+  $kind: 'Transaction',
+  Transaction: { digest },
+});
+
+const waitWithEffects = (bcs: Uint8Array): CoreWaitResult => ({
+  $kind: 'Transaction',
+  Transaction: { effects: { bcs } },
+});
+
+const fakeCoreClient = ({
+  executeTransaction,
+  waitForTransaction,
+}: {
+  executeTransaction: () => Promise<CoreExecuteResult>;
+  waitForTransaction: () => Promise<CoreWaitResult>;
+}) =>
+  ({
+    core: { executeTransaction, waitForTransaction },
+  }) as unknown as ReturnType<SignHostRunnerDeps['createClient']>;
+
 const createDeps = ({
   executeDigest = 'digest-1',
   waitForTransaction,
 }: {
   executeDigest?: string;
-  waitForTransaction?: ReturnType<
-    SignHostRunnerDeps['createClient']
-  >['waitForTransaction'];
+  waitForTransaction?: () => Promise<CoreWaitResult>;
 } = {}): SignHostRunnerDeps => ({
-  createClient: () => ({
-    executeTransactionBlock: async () => ({ digest: executeDigest }),
-    waitForTransaction:
-      waitForTransaction ??
-      (async () => ({
-        rawEffects: new Uint8Array([9, 9, 9]),
-      })),
-  }),
+  createClient: () =>
+    ({
+      core: {
+        executeTransaction: async () => executeSuccess(executeDigest),
+        waitForTransaction:
+          waitForTransaction ??
+          (async () => waitWithEffects(new Uint8Array([9, 9, 9]))),
+      },
+    }) as unknown as ReturnType<SignHostRunnerDeps['createClient']>,
   createTransactionFromJson: () => ({
     setSenderIfNotSet: () => {},
     build: async () => new Uint8Array([1, 2, 3]),
@@ -434,15 +464,16 @@ test('preserves remote terminal reason when execution succeeds after protocol er
   const transport = new FakeTransport();
   const outcomes: unknown[] = [];
   const deps = createDeps();
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => {
-      executeStarted = true;
-      return execution.promise;
-    },
-    waitForTransaction: async () => ({
-      rawEffects: new Uint8Array([9, 9, 9]),
-    }),
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () => {
+        executeStarted = true;
+        const { digest } = await execution.promise;
+        return executeSuccess(digest);
+      },
+      waitForTransaction: async () =>
+        waitWithEffects(new Uint8Array([9, 9, 9])),
+    });
 
   startSignHostRunner({
     sessionId,
@@ -510,15 +541,15 @@ test('remote close before verification completes prevents execution', async () =
     verificationStarted = true;
     return verification.promise;
   };
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => {
-      executeStarted = true;
-      return { digest: 'digest-should-not-execute' };
-    },
-    waitForTransaction: async () => ({
-      rawEffects: new Uint8Array([9, 9, 9]),
-    }),
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () => {
+        executeStarted = true;
+        return executeSuccess('digest-should-not-execute');
+      },
+      waitForTransaction: async () =>
+        waitWithEffects(new Uint8Array([9, 9, 9])),
+    });
 
   startSignHostRunner({
     sessionId,
@@ -637,15 +668,15 @@ test('cancel before execute prevents execution', async () => {
     verificationStarted = true;
     return verification.promise;
   };
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => {
-      executeStarted = true;
-      return { digest: 'digest-should-not-execute' };
-    },
-    waitForTransaction: async () => ({
-      rawEffects: new Uint8Array([9, 9, 9]),
-    }),
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () => {
+        executeStarted = true;
+        return executeSuccess('digest-should-not-execute');
+      },
+      waitForTransaction: async () =>
+        waitWithEffects(new Uint8Array([9, 9, 9])),
+    });
 
   const runner = startSignHostRunner({
     sessionId,
@@ -696,15 +727,16 @@ test('cancel during execute preserves submitted digest', async () => {
   const transport = new FakeTransport();
   const outcomes: unknown[] = [];
   const deps = createDeps();
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => {
-      executeStarted = true;
-      return execution.promise;
-    },
-    waitForTransaction: async () => ({
-      rawEffects: new Uint8Array([9, 9, 9]),
-    }),
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () => {
+        executeStarted = true;
+        const { digest } = await execution.promise;
+        return executeSuccess(digest);
+      },
+      waitForTransaction: async () =>
+        waitWithEffects(new Uint8Array([9, 9, 9])),
+    });
 
   const runner = startSignHostRunner({
     sessionId,
@@ -757,15 +789,16 @@ test('dispose during execute preserves submitted digest instead of going silent'
   const transport = new FakeTransport();
   const outcomes: unknown[] = [];
   const deps = createDeps();
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => {
-      executeStarted = true;
-      return execution.promise;
-    },
-    waitForTransaction: async () => ({
-      rawEffects: new Uint8Array([9, 9, 9]),
-    }),
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () => {
+        executeStarted = true;
+        const { digest } = await execution.promise;
+        return executeSuccess(digest);
+      },
+      waitForTransaction: async () =>
+        waitWithEffects(new Uint8Array([9, 9, 9])),
+    });
 
   const runner = startSignHostRunner({
     sessionId,
@@ -815,15 +848,16 @@ test('execute rejection after start settles explicit uncertainty', async () => {
   const transport = new FakeTransport();
   const outcomes: unknown[] = [];
   const deps = createDeps();
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => {
-      executeStarted = true;
-      return execution.promise;
-    },
-    waitForTransaction: async () => ({
-      rawEffects: new Uint8Array([9, 9, 9]),
-    }),
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () => {
+        executeStarted = true;
+        const { digest } = await execution.promise;
+        return executeSuccess(digest);
+      },
+      waitForTransaction: async () =>
+        waitWithEffects(new Uint8Array([9, 9, 9])),
+    });
 
   startSignHostRunner({
     sessionId,
@@ -874,15 +908,16 @@ test('remote close during execute preserves submitted digest', async () => {
   const transport = new FakeTransport();
   const outcomes: unknown[] = [];
   const deps = createDeps();
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => {
-      executeStarted = true;
-      return execution.promise;
-    },
-    waitForTransaction: async () => ({
-      rawEffects: new Uint8Array([9, 9, 9]),
-    }),
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () => {
+        executeStarted = true;
+        const { digest } = await execution.promise;
+        return executeSuccess(digest);
+      },
+      waitForTransaction: async () =>
+        waitWithEffects(new Uint8Array([9, 9, 9])),
+    });
 
   startSignHostRunner({
     sessionId,
@@ -1228,13 +1263,16 @@ test('close during finality observation preserves finalized chain result', async
   });
   const outcomes: unknown[] = [];
   const deps = createDeps();
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => ({ digest: 'digest-finality-after-close' }),
-    waitForTransaction: async () => {
-      finalityStarted = true;
-      return finality.promise;
-    },
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () =>
+        executeSuccess('digest-finality-after-close'),
+      waitForTransaction: async () => {
+        finalityStarted = true;
+        const { rawEffects } = await finality.promise;
+        return waitWithEffects(rawEffects);
+      },
+    });
 
   startSignHostRunner({
     sessionId,
@@ -1301,15 +1339,16 @@ test('execute uncertainty is delivered as structured terminal when session is op
   });
   const outcomes: unknown[] = [];
   const deps = createDeps();
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => {
-      executeStarted = true;
-      return execution.promise;
-    },
-    waitForTransaction: async () => ({
-      rawEffects: new Uint8Array([9, 9, 9]),
-    }),
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () => {
+        executeStarted = true;
+        const { digest } = await execution.promise;
+        return executeSuccess(digest);
+      },
+      waitForTransaction: async () =>
+        waitWithEffects(new Uint8Array([9, 9, 9])),
+    });
 
   startSignHostRunner({
     sessionId,
@@ -1599,13 +1638,15 @@ test('sign host finality observation drops queued app messages without downgradi
   });
   const outcomes: unknown[] = [];
   const deps = createDeps();
-  deps.createClient = () => ({
-    executeTransactionBlock: async () => ({ digest: 'digest-finalized' }),
-    waitForTransaction: async () => {
-      finalityStarted = true;
-      return finality.promise;
-    },
-  });
+  deps.createClient = () =>
+    fakeCoreClient({
+      executeTransaction: async () => executeSuccess('digest-finalized'),
+      waitForTransaction: async () => {
+        finalityStarted = true;
+        const { rawEffects } = await finality.promise;
+        return waitWithEffects(rawEffects);
+      },
+    });
 
   startSignHostRunner({
     sessionId,

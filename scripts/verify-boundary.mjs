@@ -229,7 +229,7 @@ const suiClientSideEffectImportPattern =
 const suiClientDynamicRuntimeModulePattern =
   /\b(?:import|require)\s*\(\s*['"](@mysten\/sui\/(?:client|graphql|grpc|jsonRpc))['"]\s*\)/g;
 const suiTransactionBoundaryNames =
-  'executeTransactionBlock|executeTransaction|waitForTransaction|dryRunTransactionBlock|simulateTransaction|getLatestSuiSystemState|getDigest';
+  'executeTransactionBlock|executeTransaction|waitForTransaction|dryRunTransactionBlock|simulateTransaction|getLatestSuiSystemState|getCurrentSystemState|getDigest';
 const suiTransactionBoundaryPattern =
   new RegExp(
     `(?:\\.\\s*(?:${suiTransactionBoundaryNames})\\s*(?:\\?\\.)?\\s*\\(|\\[\\s*['"](?:${suiTransactionBoundaryNames})['"]\\s*\\]\\s*(?:\\?\\.)?\\s*\\()`,

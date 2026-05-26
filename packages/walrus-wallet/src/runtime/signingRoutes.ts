@@ -99,16 +99,13 @@ const waitForExecutedTransaction = async ({
   try {
     const { rawEffects } = await waitForWalrusWalletTransaction(client, {
       digest,
-      options: {
-        showRawEffects: true,
-      },
       timeout: 30000,
     });
     return {
       digest,
       bytes,
       signature,
-      effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
+      effects: toBase64(rawEffects),
     };
   } catch (error) {
     if (error instanceof Error) {
@@ -205,10 +202,10 @@ export const signAndExecuteTransactionWithLocalSigner = async ({
   let digest: string;
   try {
     const result = await executeWalrusWalletTransaction(client, {
-      transactionBlock: bytes,
+      bytes: txBytes,
       signature,
     });
-    if (result.errors && result.errors.length > 0) {
+    if (result.errors.length > 0) {
       throw new Error(result.errors.join(', '));
     }
     digest = result.digest;

@@ -34,6 +34,7 @@ export type SignProtocolPhase =
 
 export type PendingSignTransaction = {
   bytes: string;
+  rawBytes?: Uint8Array;
   expectedDigest?: string;
   signerAddress: string;
 };

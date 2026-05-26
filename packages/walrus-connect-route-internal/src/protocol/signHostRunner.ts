@@ -119,9 +119,9 @@ const defaultTimeouts: SignHostRunnerTimeouts = {
 };
 
 const rawEffectsToBase64 = (
-  rawEffects: Uint8Array | number[] | null | undefined,
+  rawEffects: Uint8Array,
   encodeBytes: (bytes: Uint8Array) => string,
-) => (rawEffects ? encodeBytes(new Uint8Array(rawEffects)) : '');
+) => encodeBytes(rawEffects);
 
 const normalizeSignerAddressOrThrow = (address: string): string => {
   const normalizedSigner = normalizeSignTransactionAddress(address);
@@ -492,12 +492,11 @@ export const startSignHostRunner = ({
       publicSettlement: { type: 'unresolved' },
     };
 
-    let rawEffects: Uint8Array | number[] | null | undefined;
+    let rawEffects: Uint8Array;
     try {
       ({ rawEffects } = await authority.postSubmitObservation(() =>
         waitForWalrusConnectTransaction(client, {
           digest,
-          options: { showRawEffects: true },
           timeout: timeouts.finalityMs,
         }),
       ));
@@ -626,6 +625,7 @@ export const startSignHostRunner = ({
     const bytes = deps.encodeBytes(txBytes);
     const pending = {
       bytes,
+      rawBytes: txBytes,
       signerAddress,
     };
     state = {
@@ -735,11 +735,21 @@ export const startSignHostRunner = ({
       return;
     }
 
+    if (!pending.rawBytes) {
+      throw new ProtocolMessageError(
+        createSignProtocolErrorPayload({
+          code: 'invalid_payload',
+          message: 'Non-sponsored sign response has no raw transaction bytes',
+          phase: 'execute',
+        }),
+      );
+    }
+    const rawBytes = pending.rawBytes;
     let digest: string;
     try {
       ({ digest } = await authority.irreversibleExecute(() =>
         executeWalrusConnectTransaction(client, {
-          transactionBlock: pending.bytes,
+          bytes: rawBytes,
           signature,
         }),
       ));

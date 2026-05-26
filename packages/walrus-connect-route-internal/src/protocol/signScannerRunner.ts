@@ -396,15 +396,12 @@ export const startSignScannerRunner = ({
     const { rawEffects } = await authority.postSubmitObservation(() =>
       waitForWalrusConnectTransaction(client, {
         digest: message.payload.digest,
-        options: { showRawEffects: true },
         timeout: timeouts.finalityMs,
       }),
     );
     if (isTerminal() || !session?.isActive()) return;
 
-    const verifiedEffects = rawEffects
-      ? deps.encodeBytes(new Uint8Array(rawEffects))
-      : '';
+    const verifiedEffects = deps.encodeBytes(rawEffects);
     if (message.payload.effects !== verifiedEffects) {
       throw new ProtocolMessageError(
         createSignProtocolErrorPayload({

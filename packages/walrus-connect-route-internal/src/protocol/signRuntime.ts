@@ -17,7 +17,7 @@ import {
   type SignProtocolPhase,
 } from '../utils/signProtocol';
 import {
-  createWalrusConnectGraphQLClient,
+  createWalrusConnectSuiClient,
   getWalrusConnectTransactionDigest,
   type WalrusConnectSuiClient,
 } from '../utils/suiClient';
@@ -107,7 +107,7 @@ export const verifyPendingTransactionSignature = async ({
   signature: string;
   network: NETWORK;
 }) => {
-  const client = createWalrusConnectGraphQLClient(network);
+  const client = createWalrusConnectSuiClient(network);
 
   await verifyTransactionSignature(
     fromBase64(pendingTransaction.bytes),
