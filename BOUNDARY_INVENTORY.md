@@ -17,8 +17,10 @@ Current status: `@mysten/sui@2.17.0` and `@mysten/wallet-standard@0.20.3` are
 installed. Wallet and private-route owner boundaries construct
 `SuiJsonRpcClient` (from `@mysten/sui/jsonRpc`) with explicit `network` for
 JSON-RPC compatibility; the SDK 2.x Core/gRPC client families remain a
-later follow-up. `@mysten/dapp-kit@0.18.0` is held at the legacy version
-until a separate dApp Kit migration commit.
+later follow-up. Modern dApp Kit (`@mysten/dapp-kit-react@2.0.3`,
+`@mysten/dapp-kit-core@1.3.2`) is installed in `clip` and `demo`;
+`walrus-wallet` no longer depends on any dApp Kit package and exposes the
+network tuple + Sui client factory the app shell consumes.
 `.WORK/ts-sdks/packages/sui/package.json` is the in-tree SDK source
 reference.
 
@@ -42,9 +44,10 @@ Owners:
 - `packages/walrus-connect-route-internal/src/utils/suiClient.ts` owns private
   QR/WebRTC route Sui client creation, GraphQL client creation, transaction
   build, digest calculation, dry-run, execution, and finality wait.
-- `packages/clip` and `packages/demo` remain thin consumers of
-  `createWalrusWalletDappKitNetworks`; they must not construct Sui clients or
-  fullnode URL maps directly.
+- `packages/clip` and `packages/demo` own modern dApp Kit provider wiring
+  (`createDAppKit`, `<DAppKitProvider>`) and consume `WALRUS_WALLET_SUPPORTED_NETWORKS`
+  + `createWalrusWalletSuiClient` from `@zktx.io/walrus-wallet`; they must not
+  construct Sui clients or fullnode URL maps directly.
 - `packages/walrus-connect/src/utils/signTransactionReview.ts` remains a
   temporary public review helper that can dry-run through an injected client.
   It is inventoried as a legacy exception, not as a new owner.
@@ -56,7 +59,7 @@ Owners:
 | `SuiJsonRpcClient` / `getJsonRpcFullnodeUrl` runtime construction | wallet and private route client helpers only | wallet + private route client boundaries | keep temporarily | SDK 2.17.0 exposes JSON-RPC compatibility through `@mysten/sui/jsonRpc`; Core/gRPC/GraphQL clients are the longer-term targets but still out of scope this commit | `sui-client-boundary-source` |
 | `SuiJsonRpcClient` type surface | wallet helpers, coin helpers, private route review, public review helper | wallet + private route boundaries; public review helper type exception | keep temporarily | SDK 2.17.0 JSON-RPC client and response types live under `@mysten/sui/jsonRpc`; public helper type exposure remains an inventoried exception | inventory only; runtime import scan blocks new construction |
 | `SuiGraphQLClient` | private route signature verification client helper | private route client boundary | keep temporarily | SDK 2.17.0 GraphQL client exists and constructor requires `network` with `url` | `sui-client-boundary-source` |
-| dApp Kit provider network config | `clip` and `demo` consume `createWalrusWalletDappKitNetworks` | wallet temporary dApp Kit adapter | move behind boundary | modern dApp Kit core derives chain from current client; replacement is blocked by dApp Kit migration follow-up | `sui-client-boundary-source` |
+| dApp Kit provider network config | `clip` and `demo` own modern dApp Kit `createDAppKit({ networks, createClient, slushWalletConfig: null })`; `walrus-wallet` exposes `WALRUS_WALLET_SUPPORTED_NETWORKS` + `createWalrusWalletSuiClient` only | app shell owns dApp Kit provider; wallet exposes networks tuple + client factory | staged for next commit; user smoke deferred | modern dApp Kit core derives chain from current client; legacy `createWalrusWalletDappKitNetworks` is deleted by the staged changes | `sui-client-boundary-source` |
 | `executeTransactionBlock` | local wallet execution and QR host execution via boundary wrappers | wallet + private route client boundaries | move behind boundary | SDK 2.17.0 Core method is `executeTransaction({ transaction, signatures })`; JSON-RPC compatibility client (`SuiJsonRpcClient`) still preserves the legacy method shape | `sui-transaction-execution-boundary` |
 | `waitForTransaction` | local wallet confirmation and QR route finality via boundary wrappers | wallet + private route client boundaries | move behind boundary | SDK 2.17.0 Core keeps `waitForTransaction`; JSON-RPC client preserves the legacy `{ digest, options, timeout, pollInterval }` shape used today | `sui-transaction-execution-boundary` |
 | `dryRunTransactionBlock` | private route review via boundary wrapper; public review helper temporary exception | private route client boundary; public helper exception | move behind boundary / keep temporarily | SDK 2.17.0 Core replacement is `simulateTransaction`; JSON-RPC client preserves the legacy method and `DryRunTransactionBlockResponse` type lives at `@mysten/sui/jsonRpc` | `sui-transaction-execution-boundary` |
@@ -80,7 +83,13 @@ sites.
 ### `@zktx.io/walrus-wallet`
 
 - `WalrusWallet`: registers the Wallet Standard wallet and hosts private route
-  UI.
+  UI. Accepts an optional `onLogout?: () => void | Promise<void>` prop with
+  override semantics: when set, the action drawer's logout button awaits
+  `onLogout()` (and does not call the wallet's own `standard:disconnect`);
+  when unset, the drawer falls back to calling `standard:disconnect.disconnect()`
+  directly. App shells using modern dApp Kit pass
+  `onLogout={() => dAppKit.disconnectWallet()}` so exactly one wallet
+  disconnect runs per logout.
 - `useWalrusWallet`: reference app helper for OAuth callback completion and
   connection status.
 - `WALLET_NAME`: Wallet Standard display name.
@@ -88,8 +97,9 @@ sites.
 - `getWalrusCoinBalances`, `getWalrusCoins`, `formatWalrusCoinAmount`, and
   `WalrusCoinBalance`: read-only basic `Coin<T>` helper surface backed by the
   wallet Sui client boundary.
-- `createWalrusWalletDappKitNetworks`: temporary dApp Kit network-map helper
-  until the dApp Kit/Sui client migration removes scattered fullnode setup.
+- `WALRUS_WALLET_SUPPORTED_NETWORKS` (`readonly ['mainnet', 'testnet', 'devnet']`)
+  and `createWalrusWalletSuiClient(network)`: network tuple and JSON-RPC
+  compatibility client factory consumed by app-shell `createDAppKit` calls.
 - `WalrusWalletError` and typed subclasses: caller-visible recovery contract
   for account mismatch, network mismatch, unsupported features, QR/login route
   failures, pre-submit execution failure, and post-submit uncertainty. These
@@ -107,17 +117,21 @@ sites.
 
 ### `packages/clip`
 
-- May use `WalrusWallet`, `WALLET_NAME`, and `useWalrusWallet` from
+- May use `WalrusWallet`, `WALLET_NAME`, `useWalrusWallet`,
+  `WALRUS_WALLET_SUPPORTED_NETWORKS`, and `createWalrusWalletSuiClient` from
   `walrus-wallet`.
 - May use `WalrusSignerScan`, `useWalrusSignerScan`, and
   `formatSignTransactionReview` only for the reference signer app scan flow.
-- Owns OAuth callback handling and dApp Kit provider wiring.
+- Owns OAuth callback handling and modern dApp Kit provider wiring
+  (`createDAppKit({ ..., slushWalletConfig: null })`, `<DAppKitProvider>`,
+  `useCurrentNetwork`, `useDAppKit`).
 
 ### `packages/demo`
 
-- May use `WalrusWallet` and `./index.css` from `walrus-wallet`.
-- Owns consumer example flows through dApp Kit and Wallet Standard feature
-  calls.
+- May use `WalrusWallet`, `./index.css`, `WALRUS_WALLET_SUPPORTED_NETWORKS`,
+  and `createWalrusWalletSuiClient` from `walrus-wallet`.
+- Owns consumer example flows through modern dApp Kit (`createDAppKit`,
+  `<DAppKitProvider>`) and Wallet Standard feature calls.
 
 ## Private Packaged Surface
 
@@ -219,9 +233,11 @@ helpers, or protocol declarations.
   The public `@zktx.io/walrus-connect/wallet-route` subpath has been removed.
   Wallet route internals are bundled into `walrus-wallet` through the private
   workspace-only `@zktx.io/walrus-connect-route-internal` package.
-- `clip` and `demo` use the temporary
-  `createWalrusWalletDappKitNetworks` helper instead of directly constructing
-  provider network maps with `getJsonRpcFullnodeUrl`.
+- `clip` and `demo` construct their modern dApp Kit instance via
+  `createDAppKit({ networks: [...WALRUS_WALLET_SUPPORTED_NETWORKS],
+  createClient: createWalrusWalletSuiClient, slushWalletConfig: null,
+  ... })`; they do not call `getJsonRpcFullnodeUrl` or build provider
+  network maps directly.
 - Basic `Coin<T>` helper behavior is read-only, centralized through
   `walrus-wallet` Sui client helpers, and does not fabricate formatted display
   amounts without metadata.
@@ -230,15 +246,14 @@ helpers, or protocol declarations.
 - `@mysten/sui@2.17.0` and `@mysten/wallet-standard@0.20.3` are installed.
   Wallet and private-route client boundaries construct
   `SuiJsonRpcClient` with explicit `network` for JSON-RPC compatibility;
-  Core/gRPC migration remains a follow-up. `@mysten/dapp-kit@0.18.0`
-  still installs its own pinned SDK 1.38.0 under
-  `node_modules/@mysten/dapp-kit/node_modules/@mysten/sui`, and its
-  transitive `@mysten/slush-wallet@0.2.0` also pins SDK 1.38.0 directly
-  under `node_modules/@mysten/slush-wallet/node_modules/@mysten/sui`.
-  Both nested copies share the same root cause (dApp Kit 0.18 pinning
-  SDK 1.38.0 across its subtree) and are removed by the dApp Kit
-  migration follow-up. No workspace package depends on
-  `@mysten/slush-wallet` directly.
+  Core/gRPC migration remains a follow-up. `@mysten/dapp-kit-react@2.0.3`
+  and `@mysten/dapp-kit-core@1.3.2` are installed in `clip` and `demo`;
+  the legacy `@mysten/dapp-kit@0.18.0` peer-dep on `walrus-wallet` is
+  removed. Transitive `@mysten/slush-wallet@1.0.5` deduplicates against
+  the root `@mysten/sui@2.17.0` (the modern Slush peer-deps SDK 2.x),
+  so no nested SDK 1.x or `@mysten/wallet-standard@0.17.0` copy remains.
+  Auto-registration of Slush in the dApp Kit instance is disabled via
+  `slushWalletConfig: null`.
 - SDK 2.x publishes ESM-only types via `exports.types.import`
   (`.d.mts`). The three library workspaces
   (`packages/walrus-wallet`, `packages/walrus-connect`,

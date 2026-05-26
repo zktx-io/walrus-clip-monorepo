@@ -5,12 +5,14 @@ QR/WebRTC signing, account state, network selection, or signing outcomes.
 
 Current status: implemented but unverified.
 
-Reason: the current boundary work keeps existing QR/WebRTC and Wallet Standard
-signing behavior routed through the same public outcomes, but it touches the
-signing/client boundary and therefore still requires manual browser/device
-smoke before release. Automated static scans, package builds, wallet
-runtime/helper tests, and `walrus-connect` protocol tests are recorded
-separately from manual smoke evidence.
+Reason: the modern dApp Kit migration changes are present in the working
+tree on top of the SDK 2 checkpoint (`998885e`) and are being staged as
+one coherent commit snapshot. The boundary work routes existing QR/WebRTC
+and Wallet Standard signing behavior through the same public outcomes and
+the working-tree changes pass the automated boundary gate. Manual browser
+or device smoke is intentionally deferred for the user to run later; this
+keeps the release status below `verified`, but it is not a blocker for the
+current commit snapshot.
 
 Automated checks run:
 
@@ -44,9 +46,10 @@ Automated checks run:
 Completion gate:
 
 - `npm run verify:completion` must pass before this change can be called
-  `verified`.
-- While any manual item below is `not run`, `verify:completion` is expected to
-  fail and the correct status remains `implemented but unverified`.
+  `verified`. With user smoke deferred, it is expected to fail on this
+  file's non-`verified` status and the six manual smoke entries below.
+- The correct cycle status is `implemented but unverified` until the user
+  completes the deferred manual smoke pass.
 
 ## QR Login
 

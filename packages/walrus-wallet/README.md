@@ -18,12 +18,13 @@ The current QR route finalizes `sui:signAndExecuteTransaction` requests. Pure
 the preserved QR/WebRTC protocol baseline does not model a sign-only terminal
 state.
 
-Legacy dApp Kit hooks that implement sign-and-execute by calling
+dApp Kit hooks that implement sign-and-execute by calling
 `sui:signTransaction` and then executing outside the wallet are not treated as a
 core compatibility target for QR-only accounts. dApps that need QR signing
 should call the selected wallet's Wallet Standard
-`sui:signAndExecuteTransaction` feature directly until the modern dApp Kit
-migration is implemented.
+`sui:signAndExecuteTransaction` feature, or the modern dApp Kit
+`dAppKit.signAndExecuteTransaction({ transaction })` action, which the wallet
+runtime delegates to its `sui:signAndExecuteTransaction` feature.
 
 ## Owned Responsibilities
 
@@ -31,7 +32,8 @@ migration is implemented.
 - Wallet account/session state and Wallet Standard events.
 - Routing Wallet Standard signing requests to the active supported signer path.
 - zkLogin nonce, proof, password confirmation, and local signer handling.
-- Centralized Sui client creation for the current legacy SDK boundary.
+- Centralized Sui client creation through the wallet Sui client boundary
+  (currently `SuiJsonRpcClient` from `@mysten/sui@2.x`'s `jsonRpc` subpath).
 - Read-only basic `Coin<T>` helper queries through the wallet Sui client
   boundary.
 
@@ -39,18 +41,33 @@ migration is implemented.
 
 - dApp-specific checkout, kiosk, NFT dashboard, or advanced asset UX.
 - QR/WebRTC protocol internals beyond invoking the internal signing route.
-- Sui SDK 2.x migration work. That remains a separate modernization step.
+- dApp Kit provider wiring. Modern dApp Kit (`@mysten/dapp-kit-react`,
+  `@mysten/dapp-kit-core`) is owned by the consumer app shell; the wallet
+  exposes only the network tuple and the Sui client factory.
+- SDK 2.x Core/gRPC owner-boundary migration. That remains a separate
+  modernization step; the wallet currently uses `SuiJsonRpcClient` for
+  JSON-RPC compatibility.
 
 ## Public React Surface
 
 - `WalrusWallet`: provider that registers the Wallet Standard wallet and hosts
-  the internal signing route UI.
+  the internal signing route UI. Accepts an optional
+  `onLogout?: () => void | Promise<void>` prop with **override semantics**:
+  when set, the action drawer's logout button awaits `onLogout()` and does
+  not call the wallet's own `standard:disconnect`; when unset, the drawer
+  calls `standard:disconnect.disconnect()` directly. App shells using modern
+  dApp Kit typically pass `onLogout={() => dAppKit.disconnectWallet()}` so
+  exactly one wallet disconnect runs per logout.
 - `useWalrusWallet`: reference-app helper for OAuth callback completion and
   connection status.
 - `WALLET_NAME`: the Wallet Standard display name.
-- `createWalrusWalletDappKitNetworks`: temporary legacy dApp Kit network-map
-  helper used by the reference apps until the modern dApp Kit/Sui client
-  boundary is implemented.
+- `WALRUS_WALLET_SUPPORTED_NETWORKS`: a `readonly ['mainnet', 'testnet',
+  'devnet']` tuple of the networks the wallet runtime supports. Consumer
+  apps spread it into modern dApp Kit's `createDAppKit({ networks })`.
+- `createWalrusWalletSuiClient(network)`: returns a JSON-RPC-compatible
+  Sui client (`SuiJsonRpcClient`) for the requested network, sourced from
+  the wallet's Sui client boundary. Consumer apps pass it as
+  `createDAppKit({ createClient })`.
 - `WalrusWalletError` and its typed subclasses: caller-visible wallet errors
   for account mismatch, network mismatch, unsupported route features,
   QR/login route failures, pre-submit execution failure, and post-submit

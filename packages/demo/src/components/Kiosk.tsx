@@ -1,10 +1,7 @@
 import { useState } from 'react';
 
-import {
-  ConnectButton,
-  useCurrentAccount,
-  useCurrentWallet,
-} from '@mysten/dapp-kit';
+import { useCurrentAccount, useCurrentWallet, useDAppKit } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { Transaction } from '@mysten/sui/transactions';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -24,9 +21,13 @@ const menuItems: Item[] = [
 
 type Network = 'mainnet' | 'testnet' | 'devnet';
 
+const explorerUrl = (network: Network, digest: string) =>
+  `https://suiscan.xyz/${network}/tx/${digest}`;
+
 export const Kiosk = ({ network }: { network: Network }) => {
   const account = useCurrentAccount();
-  const { currentWallet } = useCurrentWallet();
+  const currentWallet = useCurrentWallet();
+  const dAppKit = useDAppKit();
 
   const [cart, setCart] = useState<Item[]>([]);
   const [orderedItems, setOrderedItems] = useState<Item[]>([]);
@@ -53,14 +54,6 @@ export const Kiosk = ({ network }: { network: Network }) => {
         throw new Error('Connect a Wallet Standard wallet before checkout.');
       }
 
-      const signAndExecuteFeature =
-        currentWallet.features['sui:signAndExecuteTransaction'];
-      if (!signAndExecuteFeature) {
-        throw new Error(
-          "The connected wallet doesn't support signAndExecuteTransaction.",
-        );
-      }
-
       const transaction = new Transaction();
       transaction.moveCall({
         target:
@@ -72,13 +65,14 @@ export const Kiosk = ({ network }: { network: Network }) => {
         ],
       });
 
-      const result = await signAndExecuteFeature.signAndExecuteTransaction({
-        transaction,
-        account,
-        chain: `sui:${network}`,
-      });
+      const result = await dAppKit.signAndExecuteTransaction({ transaction });
+      if (result.$kind !== 'Transaction') {
+        throw new Error(
+          `Transaction failed: ${result.FailedTransaction.status.error ?? 'unknown error'}`,
+        );
+      }
 
-      setTxDigest(result.digest);
+      setTxDigest(result.Transaction.digest);
       setOrderedItems(cart);
       setIsModalOpen(true);
       setCart([]);
@@ -185,8 +179,21 @@ export const Kiosk = ({ network }: { network: Network }) => {
               <h2 className="text-xl font-bold text-black mb-4">
                 Payment Successful!
               </h2>
-              <p className="text-black">Transaction ID:</p>
-              <p className="text-sm break-all text-gray-600 mb-4">{txDigest}</p>
+              <p className="text-black">
+                Transaction ID on{' '}
+                <span className="font-mono text-gray-700">{network}</span>:
+              </p>
+              <p className="text-sm break-all text-gray-600 mb-2">{txDigest}</p>
+              {txDigest && (
+                <a
+                  className="text-sm text-blue-600 underline mb-4 inline-block"
+                  href={explorerUrl(network, txDigest)}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  View on explorer
+                </a>
+              )}
               <h3 className="text-lg font-semibold text-black mb-2">
                 Your Order
               </h3>

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { useConnectWallet, useWallets } from '@mysten/dapp-kit';
+import { useDAppKit, useWallets } from '@mysten/dapp-kit-react';
 import { useWalrusWallet, WALLET_NAME } from '@zktx.io/walrus-wallet';
 import queryString from 'query-string';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -11,7 +11,7 @@ export const Auth = () => {
 
   const { walrusWalletStatus, updateJwt } = useWalrusWallet();
   const wallets = useWallets();
-  const { mutate: connect } = useConnectWallet();
+  const dAppKit = useDAppKit();
 
   useEffect(() => {
     const init = async () => {
@@ -27,12 +27,8 @@ export const Auth = () => {
         if (wallet) {
           const isSuccess = await updateJwt(jwt);
           if (isSuccess) {
-            connect(
-              { wallet },
-              {
-                onSuccess: () => navigate('/'),
-              },
-            );
+            await dAppKit.connectWallet({ wallet });
+            navigate('/');
           }
         }
       } catch (error) {
@@ -40,7 +36,7 @@ export const Auth = () => {
       }
     };
     init();
-  }, [location, navigate, updateJwt, wallets, connect, walrusWalletStatus]);
+  }, [location, navigate, updateJwt, wallets, dAppKit, walrusWalletStatus]);
 
   return (
     <div className="flex flex-col items-center p-4">

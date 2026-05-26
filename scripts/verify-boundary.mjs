@@ -256,9 +256,13 @@ const publicSuiTypeSurfaceAllowlist = new Map([
     'packages/walrus-wallet/dist/types/utils/coinHelpers.d.ts',
     new Set(['@mysten/sui/jsonRpc']),
   ],
+  [
+    'packages/walrus-wallet/dist/types/utils/publicSuiClient.d.ts',
+    new Set(['@mysten/sui/jsonRpc']),
+  ],
 ]);
 const mystenPublicTypeSpecifierPattern =
-  /^@mysten\/(?:sui(?:\/[^'"]+)?|wallet-standard|dapp-kit)$/;
+  /^@mysten\/(?:sui(?:\/[^'"]+)?|wallet-standard|dapp-kit|dapp-kit-react|dapp-kit-core)$/;
 
 const lineNumberForOffset = (text, offset) =>
   text.slice(0, offset).split('\n').length;
@@ -665,7 +669,7 @@ const checkGeneratedDeclarationArtifacts = () => {
     'packages/walrus-wallet/dist/types/index.d.ts',
     'packages/walrus-wallet/dist/types/runtime/walletErrors.d.ts',
     'packages/walrus-wallet/dist/types/utils/coinHelpers.d.ts',
-    'packages/walrus-wallet/dist/types/utils/dappKitNetworks.d.ts',
+    'packages/walrus-wallet/dist/types/utils/publicSuiClient.d.ts',
     'packages/walrus-wallet/dist/types/utils/walletTypes.d.ts',
   ]);
   const walletDeclarations = listGeneratedDeclarationFiles(
@@ -721,7 +725,7 @@ const checkPackArtifacts = () => {
     { label: 'wallet private component declaration', pattern: /^dist\/types\/components\// },
     { label: 'wallet private runtime declaration', pattern: /^dist\/types\/runtime\/(?!walletErrors\.d\.ts$)/ },
     { label: 'wallet private state declaration', pattern: /^dist\/types\/recoil\// },
-    { label: 'wallet private utility declaration', pattern: /^dist\/types\/utils\/(?!coinHelpers\.d\.ts$|dappKitNetworks\.d\.ts$|walletTypes\.d\.ts$)/ },
+    { label: 'wallet private utility declaration', pattern: /^dist\/types\/utils\/(?!coinHelpers\.d\.ts$|publicSuiClient\.d\.ts$|walletTypes\.d\.ts$)/ },
   ]);
 
   assert(

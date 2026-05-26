@@ -6,7 +6,6 @@ import React, {
   useRef,
 } from 'react';
 
-import { useDisconnectWallet } from '@mysten/dapp-kit';
 import { genAddressSeed } from '@mysten/sui/zklogin';
 import { registerWallet } from '@mysten/wallet-standard';
 import { useWalrusScan, WalrusScan } from './internal/walrusConnectRoute';
@@ -30,7 +29,12 @@ import './index.css';
 type NETWORK = 'mainnet' | 'testnet' | 'devnet';
 type NotiVariant = 'success' | 'warning' | 'info' | 'error';
 
-export { createWalrusWalletDappKitNetworks } from './utils/dappKitNetworks';
+export const WALRUS_WALLET_SUPPORTED_NETWORKS = [
+  'mainnet',
+  'testnet',
+  'devnet',
+] as const;
+export { createWalrusWalletSuiClient } from './utils/publicSuiClient';
 export {
   formatWalrusCoinAmount,
   getWalrusCoinBalances,
@@ -68,6 +72,7 @@ interface IWalrusWalletProps {
     epochOffset?: number;
   };
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
+  onLogout?: () => void | Promise<void>;
   children: React.ReactNode;
 }
 
@@ -84,6 +89,7 @@ const WalrusWalletRoot = ({
   sponsoredUrl,
   zklogin,
   onEvent,
+  onLogout,
   children,
 }: IWalrusWalletProps) => {
   const walletRef = useRef<WalletStandard | undefined>(undefined);
@@ -95,7 +101,6 @@ const WalrusWalletRoot = ({
     null,
   );
   const { openSignTxModal } = useWalrusScan();
-  const { mutate: dappKitDisconnect } = useDisconnectWallet();
   const { setWallet, setMode } = useWalletState();
   const [isConnected, setIsConnected] = React.useState<boolean>(false);
 
@@ -242,14 +247,8 @@ const WalrusWalletRoot = ({
       <ActionDrawer
         isConnected={isConnected}
         icon={icon || DEFAULT_ICON}
-        onLogout={() => {
-          try {
-            void walletRef.current?.features['standard:disconnect'].disconnect();
-          } finally {
-            dappKitDisconnect();
-            onEvent({ variant: 'success', message: 'Logged out' });
-          }
-        }}
+        onEvent={onEvent}
+        onLogout={onLogout}
       />
       {children}
     </WalrusWalletContext.Provider>

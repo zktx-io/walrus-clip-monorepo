@@ -14,19 +14,39 @@ import { motion } from 'framer-motion';
 import { LogOut, QrCode } from 'lucide-react';
 
 import { useWalletState } from '../recoil';
+import type { NotiVariant } from '../utils/walletTypes';
 
 export const ActionDrawer = ({
   icon,
   isConnected,
+  onEvent,
   onLogout,
 }: {
   icon: string;
   isConnected: boolean;
-  onLogout: () => void;
+  onEvent: (data: { variant: NotiVariant; message: string }) => void;
+  onLogout?: () => void | Promise<void>;
 }) => {
   const { mode, wallet } = useWalletState();
   const [open, setOpen] = useState(false);
   const [openAddress, setOpenAddress] = useState(false);
+
+  const handleLogout = async () => {
+    setOpen(false);
+    try {
+      if (onLogout) {
+        await onLogout();
+      } else {
+        await wallet?.features['standard:disconnect'].disconnect();
+      }
+      onEvent({ variant: 'success', message: 'Logged out' });
+    } catch (error) {
+      onEvent({
+        variant: 'error',
+        message: `Logout failed: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
+  };
 
   return (
     <>
@@ -72,8 +92,7 @@ export const ActionDrawer = ({
                 <button
                   className="drawer-icon-button"
                   onClick={() => {
-                    setOpen(false);
-                    onLogout();
+                    void handleLogout();
                   }}
                   aria-label="Logout"
                 >

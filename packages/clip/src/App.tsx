@@ -1,8 +1,7 @@
-import { useState } from 'react';
-
-import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
+import { createDAppKit, DAppKitProvider, useCurrentNetwork } from '@mysten/dapp-kit-react';
 import {
-  createWalrusWalletDappKitNetworks,
+  createWalrusWalletSuiClient,
+  WALRUS_WALLET_SUPPORTED_NETWORKS,
   WalrusWallet,
 } from '@zktx.io/walrus-wallet';
 import { WalrusSignerScan } from '@zktx.io/walrus-connect/signer-app';
@@ -10,7 +9,6 @@ import { enqueueSnackbar } from 'notistack';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import './App.css';
-import '@mysten/dapp-kit/dist/index.css';
 import '@zktx.io/walrus-wallet/index.css';
 
 import { Auth } from './pages/Auth';
@@ -32,61 +30,66 @@ const router = createBrowserRouter([
 const ENOKI_KEY = import.meta.env.VITE_APP_ENOKI_KEY;
 const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
 const CLIENT_ID = import.meta.env.VITE_APP_CLIENT_ID;
-const SUI_NETWORKS = createWalrusWalletDappKitNetworks();
 
-function App() {
-  const [activeNetwork, setActiveNetwork] = useState<
-    'testnet' | 'mainnet' | 'devnet'
-  >(NETWORK);
-  const onWalletEvent = (notification: {
-    variant: 'success' | 'warning' | 'info' | 'error';
-    message: string;
-  }) => {
-    enqueueSnackbar(notification.message, {
-      variant: notification.variant,
-      style: {
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-      },
-    });
-  };
+const dAppKit = createDAppKit({
+  networks: [...WALRUS_WALLET_SUPPORTED_NETWORKS],
+  createClient: createWalrusWalletSuiClient,
+  defaultNetwork: NETWORK,
+  slushWalletConfig: null,
+  autoConnect: true,
+});
 
-  const callbackNonce = (nonce: string) => {
-    if (nonce && CLIENT_ID) {
-      window.location.replace(getProviderUrl(nonce, CLIENT_ID));
-    }
-  };
+const onWalletEvent = (notification: {
+  variant: 'success' | 'warning' | 'info' | 'error';
+  message: string;
+}) => {
+  enqueueSnackbar(notification.message, {
+    variant: notification.variant,
+    style: {
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    },
+  });
+};
+
+const callbackNonce = (nonce: string) => {
+  if (nonce && CLIENT_ID) {
+    window.location.replace(getProviderUrl(nonce, CLIENT_ID));
+  }
+};
+
+function AppShell() {
+  const currentNetwork = useCurrentNetwork();
 
   return (
-    <SuiClientProvider
-      networks={SUI_NETWORKS}
-      defaultNetwork={activeNetwork as 'mainnet' | 'testnet' | 'devnet'}
-      onNetworkChange={(network) => {
-        setActiveNetwork(network);
+    <WalrusWallet
+      network={currentNetwork}
+      sponsoredUrl={SPONSORED_URL}
+      zklogin={{
+        enokey: ENOKI_KEY!,
+        callbackNonce: callbackNonce,
       }}
+      onEvent={onWalletEvent}
+      onLogout={() => dAppKit.disconnectWallet()}
     >
-      <WalletProvider autoConnect>
-        <WalrusWallet
-          network={activeNetwork}
-          sponsoredUrl={SPONSORED_URL}
-          zklogin={{
-            enokey: ENOKI_KEY!,
-            callbackNonce: callbackNonce,
-          }}
-          onEvent={onWalletEvent}
-        >
-          <WalrusSignerScan
-            mode="light"
-            icon="/logo-walrus.png"
-            network={activeNetwork}
-            onEvent={onWalletEvent}
-          >
-            <RouterProvider router={router} />
-          </WalrusSignerScan>
-        </WalrusWallet>
-      </WalletProvider>
-    </SuiClientProvider>
+      <WalrusSignerScan
+        mode="light"
+        icon="/logo-walrus.png"
+        network={currentNetwork}
+        onEvent={onWalletEvent}
+      >
+        <RouterProvider router={router} />
+      </WalrusSignerScan>
+    </WalrusWallet>
+  );
+}
+
+function App() {
+  return (
+    <DAppKitProvider dAppKit={dAppKit}>
+      <AppShell />
+    </DAppKitProvider>
   );
 }
 

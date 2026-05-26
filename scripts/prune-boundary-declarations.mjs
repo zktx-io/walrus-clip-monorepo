@@ -26,7 +26,7 @@ const allowlists = {
     'index.d.ts',
     'runtime/walletErrors.d.ts',
     'utils/coinHelpers.d.ts',
-    'utils/dappKitNetworks.d.ts',
+    'utils/publicSuiClient.d.ts',
     'utils/walletTypes.d.ts',
   ]),
 };

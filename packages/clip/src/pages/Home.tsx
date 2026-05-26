@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 
 import {
-  ConnectButton,
   useCurrentAccount,
   useCurrentWallet,
-  useDisconnectWallet,
-  useSignPersonalMessage,
-  useSignTransaction,
-} from '@mysten/dapp-kit';
+  useDAppKit,
+  useWalletConnection,
+} from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { Ed25519PublicKey } from '@mysten/sui/keypairs/ed25519';
 import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
 import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
@@ -21,11 +20,10 @@ import {
 import { WALLET_NAME } from '@zktx.io/walrus-wallet';
 
 export const Home = () => {
-  const { connectionStatus, currentWallet } = useCurrentWallet();
+  const currentWallet = useCurrentWallet();
+  const { isConnected } = useWalletConnection();
   const account = useCurrentAccount();
-  const { mutate: disconnect } = useDisconnectWallet();
-  const { mutate: signPersonalMessage } = useSignPersonalMessage();
-  const { mutate: signTransaction } = useSignTransaction();
+  const dAppKit = useDAppKit();
   const { scan } = useWalrusSignerScan();
   const [isClip, setIsClip] = useState(false);
 
@@ -57,51 +55,11 @@ export const Home = () => {
         reviewTransaction: async (review) =>
           window.confirm(formatSignTransactionReview(review)),
 
-        signPersonalMessage: async (bytes: Uint8Array) => {
-          return new Promise((resolve, reject) => {
-            signPersonalMessage(
-              {
-                message: bytes,
-              },
-              {
-                onSuccess: (result) => {
-                  resolve(result);
-                },
-                onError: (error) => {
-                  reject(error);
-                },
-              },
-            );
-          });
-        },
+        signPersonalMessage: async (bytes) =>
+          await dAppKit.signPersonalMessage({ message: bytes }),
 
-        signTransaction: async (transaction: unknown) => {
-          return new Promise((resolve, reject) => {
-            (async () => {
-              try {
-                const tx =
-                  typeof transaction === 'string'
-                    ? transaction
-                    : await (transaction as { toJSON: () => Promise<string> }).toJSON();
-                signTransaction(
-                  {
-                    transaction: tx,
-                  },
-                  {
-                    onSuccess: (result) => {
-                      resolve(result);
-                    },
-                    onError: (error) => {
-                      reject(error);
-                    },
-                  },
-                );
-              } catch (error) {
-                reject(error);
-              }
-            })();
-          });
-        },
+        signTransaction: async (transaction) =>
+          await dAppKit.signTransaction({ transaction }),
       });
     }
   };
@@ -116,7 +74,7 @@ export const Home = () => {
       <h1 className="text-3xl font-bold">Walrus Clip</h1>
       <h2 className="text-xl text-gray-600">Home</h2>
       <div className="w-full max-w-md p-4 rounded-lg shadow-md mt-4">
-        {connectionStatus === 'connected' && account ? (
+        {isConnected && account ? (
           <div className="flex flex-col items-center">
             <h3 className="text-xl font-bold text-green-600">Connected</h3>
             <div className="w-full text-center">
@@ -139,7 +97,7 @@ export const Home = () => {
               <div className="flex gap-2 w-full">
                 <button
                   className="w-full bg-red-500 text-white py-2 px-2 rounded-lg cursor-pointer"
-                  onClick={() => disconnect()}
+                  onClick={() => dAppKit.disconnectWallet()}
                 >
                   Disconnect
                 </button>

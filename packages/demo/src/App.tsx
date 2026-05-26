@@ -1,8 +1,7 @@
-import { useState } from 'react';
-
-import { SuiClientProvider, WalletProvider } from '@mysten/dapp-kit';
+import { createDAppKit, DAppKitProvider, useCurrentNetwork } from '@mysten/dapp-kit-react';
 import {
-  createWalrusWalletDappKitNetworks,
+  createWalrusWalletSuiClient,
+  WALRUS_WALLET_SUPPORTED_NETWORKS,
   WalrusWallet,
 } from '@zktx.io/walrus-wallet';
 import { enqueueSnackbar } from 'notistack';
@@ -10,47 +9,55 @@ import { enqueueSnackbar } from 'notistack';
 import { ICON, NETWORK } from './utils/config';
 import './App.css';
 
-import '@mysten/dapp-kit/dist/index.css';
 import '@zktx.io/walrus-wallet/index.css';
 import { Kiosk } from './components/Kiosk';
 
 const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
-const SUI_NETWORKS = createWalrusWalletDappKitNetworks();
 
-function App() {
-  const [activeNetwork, setActiveNetwork] = useState<
-    'testnet' | 'mainnet' | 'devnet'
-  >(NETWORK);
+const dAppKit = createDAppKit({
+  networks: [...WALRUS_WALLET_SUPPORTED_NETWORKS],
+  createClient: createWalrusWalletSuiClient,
+  defaultNetwork: NETWORK,
+  slushWalletConfig: null,
+  autoConnect: true,
+});
+
+const onWalletEvent = (notification: {
+  variant: 'success' | 'warning' | 'info' | 'error';
+  message: string;
+}) => {
+  enqueueSnackbar(notification.message, {
+    variant: notification.variant,
+    style: {
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    },
+  });
+};
+
+function AppShell() {
+  const currentNetwork = useCurrentNetwork();
 
   return (
-    <SuiClientProvider
-      networks={SUI_NETWORKS}
-      defaultNetwork={activeNetwork}
-      onNetworkChange={(network) => {
-        setActiveNetwork(network);
-      }}
+    <WalrusWallet
+      mode="light"
+      icon={ICON}
+      network={currentNetwork}
+      sponsoredUrl={SPONSORED_URL}
+      onEvent={onWalletEvent}
+      onLogout={() => dAppKit.disconnectWallet()}
     >
-      <WalletProvider autoConnect>
-        <WalrusWallet
-          mode="light"
-          icon={ICON}
-          network={activeNetwork}
-          sponsoredUrl={SPONSORED_URL}
-          onEvent={(notification) => {
-            enqueueSnackbar(notification.message, {
-              variant: notification.variant,
-              style: {
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              },
-            });
-          }}
-        >
-          <Kiosk network={activeNetwork} />
-        </WalrusWallet>
-      </WalletProvider>
-    </SuiClientProvider>
+      <Kiosk network={currentNetwork} />
+    </WalrusWallet>
+  );
+}
+
+function App() {
+  return (
+    <DAppKitProvider dAppKit={dAppKit}>
+      <AppShell />
+    </DAppKitProvider>
   );
 }
 

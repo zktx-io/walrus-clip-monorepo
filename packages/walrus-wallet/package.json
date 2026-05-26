@@ -47,11 +47,10 @@
     "dist/types/index.d.ts",
     "dist/types/runtime/walletErrors.d.ts",
     "dist/types/utils/coinHelpers.d.ts",
-    "dist/types/utils/dappKitNetworks.d.ts",
+    "dist/types/utils/publicSuiClient.d.ts",
     "dist/types/utils/walletTypes.d.ts"
   ],
   "peerDependencies": {
-    "@mysten/dapp-kit": "0.18.0",
     "@mysten/sui": "2.17.0",
     "@mysten/wallet-standard": "0.20.3",
     "jose": "6.1.0",
