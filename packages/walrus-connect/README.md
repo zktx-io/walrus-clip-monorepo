@@ -1,50 +1,67 @@
 # @zktx.io/walrus-connect
 
-Walrus Connect owns the QR/WebRTC air-gapped signing route used by Walrus Clip.
-It is not the dApp integration boundary. dApps should select `Walrus Clip`
-through Wallet Standard and call Wallet Standard features.
+`@zktx.io/walrus-connect` contains the public pieces of the Walrus Clip
+QR/WebRTC route and the reference signer-app scan surface.
 
-## Owned Responsibilities
+This is **not** the main dApp integration package. Most dApps should install
+and integrate `@zktx.io/walrus-wallet`, then use normal Wallet Standard APIs.
 
-- QR display and scanner UI used by the Clip signing route.
-- PeerJS/WebRTC session lifecycle and relay fallback.
-- Versioned protocol message encoding/decoding.
-- Login and sign session validation.
-- Structured transport, timeout, cancel, and cleanup outcomes.
+## What This Package Exposes
 
-## Not Owned Here
+- Passive QR display helpers.
+- Transaction review formatting helpers.
+- `@zktx.io/walrus-connect/signer-app`, used by the reference Clip signer app
+  to scan a QR code and answer login/sign requests.
+- Shared CSS for the exposed UI.
+
+## What This Package Does Not Expose
 
 - Wallet Standard registration.
 - Wallet account storage.
-- Local signing, zkLogin proof generation, or sponsored transaction helpers.
-- dApp transaction construction or product flows.
-- NFT, checkout, kiosk, or advanced asset UX.
+- dApp-facing QR signing route APIs.
+- QR modal launchers for dApps.
+- Local signing, zkLogin, or sponsored transaction helpers.
 
-`@zktx.io/walrus-wallet` is the supported dApp-facing package for Wallet
-Standard registration/runtime.
+The low-level wallet route is intentionally not published as a public subpath.
+It is consumed internally by `@zktx.io/walrus-wallet`.
+
+## Install
+
+```sh
+npm install @zktx.io/walrus-connect
+```
+
+Peer dependencies are pinned intentionally:
+
+- `@mysten/sui@2.17.0`
+- `@mysten/wallet-standard@0.20.3`
+- `react@19.2.6`
+- `react-dom@19.2.6`
+
+## Signer App Surface
+
+```tsx
+import { WalrusSignerScan } from '@zktx.io/walrus-connect/signer-app';
+import '@zktx.io/walrus-connect/index.css';
+```
+
+The signer app is expected to provide the user's selected Sui account and
+signing methods. It should review requests locally before signing.
 
 ## ICE / Relay Configuration
 
-The WebRTC route ships with public STUN servers and a test public TURN relay
-fallback so local demos can connect in more NAT configurations. Public relay
-availability, quota, and latency are outside this package's control.
-The bundled test relay is not a production SLA or security boundary.
+The route includes public STUN servers and a test public TURN fallback so local
+demos can work in more network environments. That fallback is not a production
+service guarantee.
 
-Production deployments should pass `iceConfigUrl` from the app shell. The URL
+Production apps should provide an `iceConfigUrl` from the app shell. The URL
 must serve `{url}/ice-conf.json` with an `iceServers` array and optional
-`iceTransportPolicy`. When provided, that app-owned ICE config is used before
-the bundled default and is embedded in QR peer IDs so both peers use the same
-relay configuration.
+`iceTransportPolicy`. The QR route embeds that config in peer IDs so both sides
+attempt the same relay settings.
 
-## Export Policy
+## Current Limitations
 
-- Root package exports are limited to passive display and transaction-review
-  helpers. They do not expose QR signing hooks or modal launchers.
-- `@zktx.io/walrus-connect/signer-app` is for the reference Clip signer app. It
-  exposes scan-only signer-app APIs and must not expose wallet-route modal
-  launchers.
-
-There is no public `wallet-route` package subpath. Wallet-route code is consumed
-through a private workspace package that is bundled into `@zktx.io/walrus-wallet`.
-A dApp-facing integration should depend on `@zktx.io/walrus-wallet` and use
-Wallet Standard features.
+- WebRTC connectivity still depends on browser and network conditions.
+- Public relay fallback availability is outside this package's control.
+- This package does not promise a stable low-level protocol API.
+- DApps should not depend on route internals; use `@zktx.io/walrus-wallet`.
