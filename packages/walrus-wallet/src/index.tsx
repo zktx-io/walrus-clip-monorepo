@@ -1,32 +1,20 @@
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useRef,
+  useState,
+  type ReactNode,
 } from 'react';
 
-import { useDisconnectWallet } from '@mysten/dapp-kit';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
-import { Signer } from '@mysten/sui/cryptography';
-import { Transaction } from '@mysten/sui/transactions';
-import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import { genAddressSeed } from '@mysten/sui/zklogin';
 import { registerWallet } from '@mysten/wallet-standard';
-import {
-  ClipSigner,
-  createSponsoredTransaction,
-  executeSponsoredTransaction,
-  NETWORK,
-  NotiVariant,
-  useWalrusScan,
-  WalrusScan,
-} from '@zktx.io/walrus-connect';
+import { useWalrusScan, WalrusScan } from './internal/walrusConnectRoute';
 import { decodeJwt } from 'jose';
-import { RecoilRoot } from 'recoil';
 
 import { ActionDrawer } from './components/ActionDrawer';
-import { useWalletState } from './recoil';
+import { useWalletState, WalletStateProvider } from './state/walletState';
 import { createProof } from './utils/createProof';
 import { DEFAULT_ICON, DEFAULT_NAME } from './utils/default';
 import {
@@ -39,36 +27,37 @@ import { WalletStandard } from './utils/walletStandard';
 import '@zktx.io/walrus-connect/index.css';
 import './index.css';
 
+type NETWORK = 'mainnet' | 'testnet' | 'devnet';
+type NotiVariant = 'success' | 'warning' | 'info' | 'error';
+
+export const WALRUS_WALLET_SUPPORTED_NETWORKS = [
+  'mainnet',
+  'testnet',
+  'devnet',
+] as const;
+export { createWalrusWalletSuiClient } from './utils/publicSuiClient';
+export {
+  formatWalrusCoinAmount,
+  getWalrusCoinBalances,
+  getWalrusCoins,
+  type WalrusCoinBalance,
+} from './utils/coinHelpers';
+export {
+  WalrusWalletAccountMismatchError,
+  WalrusWalletChainMismatchError,
+  WalrusWalletError,
+  WalrusWalletFeatureUnavailableError,
+  WalrusWalletLoginRouteError,
+  WalrusWalletQrRouteError,
+  WalrusWalletTransactionExecutionError,
+  WalrusWalletTransactionUncertainError,
+  type WalrusWalletErrorCode,
+  type WalrusWalletErrorDetails,
+} from './runtime/walletErrors';
+
 interface IWalrusWalletContext {
   updateJwt: (jwt: string) => Promise<boolean>;
   walrusWalletStatus: () => 'connected' | 'disconnected';
-  scan: (signer: ClipSigner) => Promise<void>;
-  openSignTxModal: (
-    title: string,
-    description: string,
-    data: {
-      transaction: {
-        toJSON: () => Promise<string>;
-      };
-      sponsoredUrl?: string;
-    },
-  ) => Promise<{
-    bytes: string;
-    signature: string;
-    digest: string;
-    effects: string;
-  }>;
-  signAndExecuteSponsoredTransaction: (input: {
-    transaction: {
-      toJSON: () => Promise<string>;
-    };
-    network: NETWORK;
-  }) => Promise<{
-    digest: string;
-    bytes: string;
-    signature: string;
-    effects: string;
-  }>;
 }
 
 interface IWalrusWalletProps {
@@ -84,7 +73,8 @@ interface IWalrusWalletProps {
     epochOffset?: number;
   };
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  children: React.ReactNode;
+  onLogout?: () => void | Promise<void>;
+  children: ReactNode;
 }
 
 const WalrusWalletContext = createContext<IWalrusWalletContext | undefined>(
@@ -100,9 +90,10 @@ const WalrusWalletRoot = ({
   sponsoredUrl,
   zklogin,
   onEvent,
+  onLogout,
   children,
 }: IWalrusWalletProps) => {
-  const initialized = useRef<boolean>(false);
+  const walletRef = useRef<WalletStandard | undefined>(undefined);
   const inflightMapRef = useRef<
     Map<string, { promise: Promise<boolean>; timestamp: number }>
   >(new Map());
@@ -110,10 +101,9 @@ const WalrusWalletRoot = ({
     // eslint-disable-next-line no-restricted-syntax
     null,
   );
-  const { openSignTxModal, scan } = useWalrusScan();
-  const { mutate: dappKitDisconnect } = useDisconnectWallet();
-  const { wallet, setWallet, setMode } = useWalletState();
-  const [isConnected, setIsConnected] = React.useState<boolean>(false);
+  const { openSignTxModal } = useWalrusScan();
+  const { setWallet, setMode } = useWalletState();
+  const [isConnected, setIsConnected] = useState<boolean>(false);
 
   const updateJwt = useCallback(
     async (jwt: string): Promise<boolean> => {
@@ -194,114 +184,46 @@ const WalrusWalletRoot = ({
     [zklogin, isConnected],
   );
 
-  const signAndExecuteSponsoredTransaction = async (
-    wallet: WalletStandard,
-    url: string,
-    input: {
-      transaction: {
-        toJSON: () => Promise<string>;
-      };
-      network: NETWORK;
-    },
-  ): Promise<{
-    digest: string;
-    bytes: string;
-    signature: string;
-    effects: string;
-  }> => {
-    const account = getAccountData();
-    const txb = Transaction.from(await input.transaction.toJSON());
-    if (!!account && sponsoredUrl) {
-      if (!!wallet.signer) {
-        if (account.network === input.network) {
-          const client = new SuiClient({
-            url: getFullnodeUrl(account.network),
-          });
-          const txBytes = await txb.build({
-            client,
-            onlyTransactionKind: true,
-          });
-          const { bytes: sponsoredTxBuytes, digest } =
-            await createSponsoredTransaction(
-              url,
-              account.network,
-              account.address,
-              txBytes,
-            );
-          const { signature } = await wallet.signer.signTransaction(
-            fromBase64(sponsoredTxBuytes),
-          );
-          await executeSponsoredTransaction(url, digest, signature);
-
-          try {
-            const { rawEffects } = await client.waitForTransaction({
-              digest,
-              options: {
-                showRawEffects: true,
-              },
-              timeout: 30000,
-            });
-            return {
-              digest,
-              bytes: toBase64(txBytes),
-              signature,
-              effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
-            };
-          } catch (error) {
-            if (error instanceof Error) {
-              throw new Error(
-                `Transaction submitted but failed to confirm: ${error.message}. Digest: ${digest}`,
-              );
-            }
-            throw error;
-          }
-        }
-      } else {
-        const { digest, bytes, signature, effects } = await openSignTxModal(
-          'Sign Transaction',
-          'Please scan the QR code to sign.',
-          {
-            transaction: txb,
-            sponsoredUrl,
-          },
-        );
-        return {
-          digest,
-          bytes,
-          signature,
-          effects,
-        };
-      }
-      throw new Error('Chain error');
-    }
-    throw new Error("Can't sign and execute sponsored transaction");
-  };
-
   useEffect(() => {
-    if (!initialized.current) {
-      initialized.current = true;
-      const walletStandard = new WalletStandard(
-        name || DEFAULT_NAME,
-        icon || DEFAULT_ICON,
-        network,
-        sponsoredUrl || '',
-        mode || 'light',
-        iceConfigUrl,
-        onEvent,
-        setIsConnected,
-        openSignTxModal,
-        {
-          epochOffset: zklogin?.epochOffset,
-          callbackNonce: zklogin?.callbackNonce,
-        },
-      );
-      setWallet(walletStandard);
-      setMode(mode || 'light');
-      registerWallet(walletStandard);
+    const runtimeConfig = {
+      name: name || DEFAULT_NAME,
+      icon: icon || DEFAULT_ICON,
+      network,
+      sponsoredUrl: sponsoredUrl || '',
+      mode: mode || 'light',
+      iceConfigUrl,
+      onEvent,
+      setIsConnected,
+      openSignTxModal,
+      zklogin: {
+        epochOffset: zklogin?.epochOffset,
+        callbackNonce: zklogin?.callbackNonce,
+      },
+    };
 
-      const account = getAccountData();
-      setIsConnected(!!account);
+    if (!walletRef.current) {
+      const walletStandard = new WalletStandard(
+        runtimeConfig.name,
+        runtimeConfig.icon,
+        runtimeConfig.network,
+        runtimeConfig.sponsoredUrl,
+        runtimeConfig.mode,
+        runtimeConfig.iceConfigUrl,
+        runtimeConfig.onEvent,
+        runtimeConfig.setIsConnected,
+        runtimeConfig.openSignTxModal,
+        runtimeConfig.zklogin,
+      );
+      walletRef.current = walletStandard;
+      setWallet(walletStandard);
+      registerWallet(walletStandard);
+    } else {
+      walletRef.current.updateRuntime(runtimeConfig);
     }
+
+    setMode(runtimeConfig.mode);
+    const account = getAccountData();
+    setIsConnected(!!account && account.network === runtimeConfig.network);
   }, [
     name,
     icon,
@@ -321,29 +243,13 @@ const WalrusWalletRoot = ({
       value={{
         updateJwt,
         walrusWalletStatus: () => (isConnected ? 'connected' : 'disconnected'),
-        scan,
-        openSignTxModal,
-        signAndExecuteSponsoredTransaction:
-          sponsoredUrl && wallet
-            ? (input) =>
-                signAndExecuteSponsoredTransaction(wallet, sponsoredUrl, input)
-            : () => {
-                throw new Error('Sponsored transaction not configured');
-              },
       }}
     >
       <ActionDrawer
         isConnected={isConnected}
         icon={icon || DEFAULT_ICON}
-        onLogout={() => {
-          try {
-            wallet?.logout();
-          } finally {
-            dappKitDisconnect();
-            onEvent({ variant: 'success', message: 'Logged out' });
-          }
-        }}
         onEvent={onEvent}
+        onLogout={onLogout}
       />
       {children}
     </WalrusWalletContext.Provider>
@@ -358,7 +264,7 @@ export const WalrusWallet = ({
   ...others
 }: IWalrusWalletProps) => {
   return (
-    <RecoilRoot>
+    <WalletStateProvider>
       <WalrusScan
         mode={others.mode || 'light'}
         icon={icon || DEFAULT_ICON}
@@ -374,7 +280,7 @@ export const WalrusWallet = ({
           {children}
         </WalrusWalletRoot>
       </WalrusScan>
-    </RecoilRoot>
+    </WalletStateProvider>
   );
 };
 

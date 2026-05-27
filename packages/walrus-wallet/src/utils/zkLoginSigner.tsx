@@ -1,6 +1,3 @@
-import React from 'react';
-
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import {
   PublicKey,
   SignatureScheme,
@@ -13,26 +10,14 @@ import {
   getZkLoginSignature,
   toZkLoginPublicIdentifier,
 } from '@mysten/sui/zklogin';
-import { NETWORK } from '@zktx.io/walrus-connect';
-import ReactDOM from 'react-dom/client';
+import type { NETWORK } from './walletTypes';
+import { createRoot } from 'react-dom/client';
 
 import { IZkLogin } from './types';
+import { getWalrusWalletCurrentEpoch } from './suiClient';
 import { decryptText } from './utils';
+import { cleanupWalletModalRoot } from './modalRoot';
 import { PwConfirm } from '../components/PwConfirm';
-
-export const cleanup = (container: HTMLDivElement, root: ReactDOM.Root) => {
-  // Use requestAnimationFrame to ensure React finishes its work before cleanup
-  requestAnimationFrame(() => {
-    try {
-      root.unmount();
-    } catch {}
-    try {
-      if (document.body.contains(container)) {
-        document.body.removeChild(container);
-      }
-    } catch {}
-  });
-};
 
 export class ZkLoginSigner extends Signer {
   #network: NETWORK;
@@ -61,12 +46,12 @@ export class ZkLoginSigner extends Signer {
     return new Promise((resolve, reject) => {
       const container = document.createElement('div');
       document.body.appendChild(container);
-      const root = ReactDOM.createRoot(container);
+      const root = createRoot(container);
       root.render(
         <PwConfirm
           mode={this.#mode}
           onClose={() => {
-            cleanup(container, root);
+            cleanupWalletModalRoot(container, root);
             reject(new Error('rejected'));
           }}
           onConfirm={async (password: string) => {
@@ -79,7 +64,7 @@ export class ZkLoginSigner extends Signer {
                 salt,
               );
               if (!!privateKey) {
-                cleanup(container, root);
+                cleanupWalletModalRoot(container, root);
                 resolve(privateKey);
               } else {
                 throw new Error('Invalid password.');
@@ -97,8 +82,7 @@ export class ZkLoginSigner extends Signer {
     bytes: Uint8Array,
     type: 'sign' | 'signTransaction' | 'signPersonalMessage',
   ): Promise<SignatureWithBytes> {
-    const client = new SuiClient({ url: getFullnodeUrl(this.#network) });
-    const { epoch } = await client.getLatestSuiSystemState();
+    const epoch = await getWalrusWalletCurrentEpoch(this.#network);
     if (Number(epoch) > this.#zkLogin.expiration) {
       throw new Error('zkLogin session expired. Please reconnect.');
     }
@@ -137,6 +121,7 @@ export class ZkLoginSigner extends Signer {
     return toZkLoginPublicIdentifier(
       BigInt(this.#zkLogin.proofInfo.addressSeed),
       this.#zkLogin.proofInfo.iss,
+      { legacyAddress: false },
     );
   }
 

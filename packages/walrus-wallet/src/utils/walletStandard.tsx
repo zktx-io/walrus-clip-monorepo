@@ -1,48 +1,29 @@
 import {
-  CoinMetadata,
-  CoinStruct,
-  getFullnodeUrl,
-  SuiClient,
-  SuiObjectData,
-} from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
-import { toBase64 } from '@mysten/sui/utils';
-import {
-  ReadonlyWalletAccount,
-  StandardConnectFeature,
   StandardConnectMethod,
-  StandardDisconnectFeature,
   StandardDisconnectMethod,
-  StandardEventsFeature,
   StandardEventsListeners,
   StandardEventsOnMethod,
   SUI_CHAINS,
-  SuiFeatures,
   SuiSignAndExecuteTransactionMethod,
-  SuiSignAndExecuteTransactionOutput,
   SuiSignPersonalMessageMethod,
   SuiSignTransactionMethod,
   Wallet,
+  type ReadonlyWalletAccount,
 } from '@mysten/wallet-standard';
-import {
-  ClipSigner,
-  NETWORK,
-  NotiVariant,
-  QRLogin,
-} from '@zktx.io/walrus-connect';
+import type { NETWORK, NotiVariant } from '../utils/walletTypes';
 import mitt, { type Emitter } from 'mitt';
-import ReactDOM from 'react-dom/client';
 
-import { createNonce } from './createNonce';
 import {
-  disconnect,
-  getAccountData,
-  setAccountData,
-  setZkLoginData,
-} from './localStorage';
-import { IAccount } from './types';
-import { cleanup, ZkLoginSigner } from './zkLoginSigner';
-import { PwCreate } from '../components/PwCreate';
+  signAndExecuteWalletTransaction,
+  signWalletPersonalMessage,
+  signWalletTransaction,
+} from '../runtime/signingRuntime';
+import { WalletSession } from '../runtime/walletSession';
+import {
+  createWalrusWalletFeatures,
+  type WalrusWalletFeatures,
+} from '../runtime/walletCapabilities';
+import { type WalletQrSignModal } from '../runtime/signingRoutes';
 
 type WalletEventsMap = {
   [E in keyof StandardEventsListeners]: Parameters<
@@ -50,17 +31,21 @@ type WalletEventsMap = {
   >[0];
 };
 
-const TIME_OUT = 300;
-
-export interface FloatCoinBalance {
-  coinType: string;
+type WalletStandardRuntimeConfig = {
   name: string;
-  symbol: string;
-  decimals: number;
-  fBalance: string;
-  balance: string;
-  lockedBalance: Record<string, { balance: string; fBalance: string }>;
-}
+  icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
+  network: NETWORK;
+  sponsoredUrl: string;
+  mode: 'dark' | 'light';
+  iceConfigUrl: string | undefined;
+  onEvent: (data: { variant: NotiVariant; message: string }) => void;
+  setIsConnected: (isConnected: boolean) => void;
+  openSignTxModal: WalletQrSignModal;
+  zklogin?: {
+    callbackNonce?: (nonce: string) => void;
+    epochOffset?: number;
+  };
+};
 
 export class WalletStandard implements Wallet {
   readonly #events: Emitter<WalletEventsMap>;
@@ -68,35 +53,13 @@ export class WalletStandard implements Wallet {
   readonly #version = '1.0.0' as const;
 
   #accounts: ReadonlyWalletAccount[] = [];
-
+  #session: WalletSession;
   #name: string;
   #icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
 
   #network: NETWORK;
-  #iceConfigUrl?: string;
-  #zkLoginNonceCallback?: (nonce: string) => void;
-  #epochOffset?: number;
-  #onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  #setIsConnected: (isConnected: boolean) => void;
   #sponsoredUrl: string | undefined;
-  #openSignTxModal: (
-    title: string,
-    description: string,
-    data: {
-      transaction: {
-        toJSON: () => Promise<string>;
-      };
-      sponsoredUrl?: string;
-    },
-  ) => Promise<SuiSignAndExecuteTransactionOutput>;
-
-  #account: IAccount | undefined;
-  #signer: ZkLoginSigner | undefined;
-  #clipSigner: ClipSigner | undefined;
-
-  #mode: 'dark' | 'light';
-
-  #coinMetadataCache: { [coinType: string]: CoinMetadata } = {};
+  #openSignTxModal: WalletQrSignModal;
 
   get version() {
     return this.#version;
@@ -118,22 +81,6 @@ export class WalletStandard implements Wallet {
     return this.#accounts;
   }
 
-  get signer() {
-    return this.#signer;
-  }
-
-  get clipSigner() {
-    return this.#clipSigner;
-  }
-
-  get coinMetadata() {
-    return this.#coinMetadataCache;
-  }
-
-  get address() {
-    return this.#account?.address;
-  }
-
   constructor(
     name: string,
     icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`,
@@ -143,16 +90,7 @@ export class WalletStandard implements Wallet {
     iceConfigUrl: string | undefined,
     onEvent: (data: { variant: NotiVariant; message: string }) => void,
     setIsConnected: (isConnected: boolean) => void,
-    openSignTxModal: (
-      title: string,
-      description: string,
-      data: {
-        transaction: {
-          toJSON: () => Promise<string>;
-        };
-        sponsoredUrl?: string;
-      },
-    ) => Promise<SuiSignAndExecuteTransactionOutput>,
+    openSignTxModal: WalletQrSignModal,
     zklogin?: {
       callbackNonce?: (nonce: string) => void;
       epochOffset?: number;
@@ -163,98 +101,56 @@ export class WalletStandard implements Wallet {
     this.#icon = icon;
     this.#network = network;
     this.#sponsoredUrl = sponsoredUrl === '' ? undefined : sponsoredUrl;
-    this.#mode = mode;
-    this.#iceConfigUrl = iceConfigUrl;
-    this.#onEvent = onEvent;
-    this.#setIsConnected = setIsConnected;
-    this.#epochOffset = zklogin?.epochOffset;
     this.#openSignTxModal = openSignTxModal;
-    this.#zkLoginNonceCallback = zklogin?.callbackNonce;
-  }
-
-  get features(): StandardConnectFeature &
-    StandardDisconnectFeature &
-    StandardEventsFeature &
-    SuiFeatures {
-    return {
-      'standard:connect': {
-        version: '1.0.0',
-        connect: this.#connect,
-      },
-      'standard:events': {
-        version: '1.0.0',
-        on: this.#on,
-      },
-      'standard:disconnect': {
-        version: '1.0.0',
-        disconnect: this.#disconnect,
-      },
-      'sui:signTransaction': {
-        version: '2.0.0',
-        signTransaction: this.#signTransaction,
-      },
-      'sui:signAndExecuteTransaction': {
-        version: '2.0.0',
-        signAndExecuteTransaction: this.#signAndExecuteTransaction,
-      },
-      'sui:signPersonalMessage': {
-        version: '1.1.0',
-        signPersonalMessage: this.#signPersonalMessage,
-      },
-    };
-  }
-
-  #openZkLoginModal(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const container = document.createElement('div');
-      document.body.appendChild(container);
-      const root = ReactDOM.createRoot(container);
-      root.render(
-        <PwCreate
-          mode={this.#mode}
-          onClose={() => {
-            cleanup(container, root);
-            reject(new Error('rejected'));
-          }}
-          onConfirm={async (password: string) => {
-            const { nonce, data } = await createNonce(
-              password,
-              this.#network,
-              this.#epochOffset,
-            );
-            setZkLoginData({ network: this.#network, zkLogin: data });
-            cleanup(container, root);
-            resolve(nonce);
-          }}
-          onEvent={this.#onEvent}
-        />,
-      );
+    this.#session = new WalletSession({
+      icon,
+      network,
+      mode,
+      iceConfigUrl,
+      onEvent,
+      setIsConnected,
+      onAccountsChanged: this.#onAccountsChanged,
+      zklogin,
     });
   }
 
-  #openQrLoginModal(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const container = document.createElement('div');
-      document.body.appendChild(container);
-      const root = ReactDOM.createRoot(container);
-      root.render(
-        <QRLogin
-          mode={this.#mode}
-          icon={this.#icon}
-          network={this.#network}
-          iceConfigUrl={this.#iceConfigUrl}
-          onEvent={this.#onEvent}
-          onClose={(result) => {
-            cleanup(container, root);
-            if (!!result) {
-              setAccountData(result);
-              resolve();
-            } else {
-              reject(new Error('rejected'));
-            }
-          }}
-        />,
-      );
+  updateRuntime({
+    name,
+    icon,
+    network,
+    sponsoredUrl,
+    mode,
+    iceConfigUrl,
+    onEvent,
+    setIsConnected,
+    openSignTxModal,
+    zklogin,
+  }: WalletStandardRuntimeConfig) {
+    this.#name = name;
+    this.#icon = icon;
+    this.#network = network;
+    this.#sponsoredUrl = sponsoredUrl === '' ? undefined : sponsoredUrl;
+    this.#openSignTxModal = openSignTxModal;
+    this.#session.updateRuntime({
+      icon,
+      network,
+      mode,
+      iceConfigUrl,
+      onEvent,
+      setIsConnected,
+      onAccountsChanged: this.#onAccountsChanged,
+      zklogin,
+    });
+  }
+
+  get features(): WalrusWalletFeatures {
+    return createWalrusWalletFeatures({
+      connect: this.#connect,
+      disconnect: this.#disconnect,
+      on: this.#on,
+      signAndExecuteTransaction: this.#signAndExecuteTransaction,
+      signTransaction: this.#signTransaction,
+      signPersonalMessage: this.#signPersonalMessage,
     });
   }
 
@@ -263,379 +159,30 @@ export class WalletStandard implements Wallet {
     return () => this.#events.off(event, listener);
   };
 
-  #connected = async () => {
-    if (this.#account) {
-      this.#setIsConnected(true);
-      const account = new ReadonlyWalletAccount({
-        address: this.#account.address,
-        publicKey: this.#signer
-          ? this.#signer.getPublicKey().toSuiBytes()
-          : new Uint8Array(),
-        chains: [`sui:${this.#network}`],
-        features: [
-          'sui:signTransaction',
-          'sui:signAndExecuteTransaction',
-          'sui:signPersonalMessage',
-        ],
-      });
-      this.#accounts = [account];
-      this.#clipSigner = this.#signer
-        ? {
-            getAddress: () => account.address,
-            getPublicKey: () => this.#signer!.getPublicKey(),
-            signTransaction: (transaction: Transaction) =>
-              this.#signTransaction({
-                transaction,
-                account,
-                chain: `sui:${this.#network}`,
-              }),
-            signPersonalMessage: (message: Uint8Array) =>
-              this.#signPersonalMessage({
-                message,
-                account: this.#accounts[0],
-              }),
-          }
-        : undefined;
-    } else {
-      this.#setIsConnected(false);
-      this.#accounts = [];
-      this.#clipSigner = undefined;
-    }
+  #onAccountsChanged = (accounts: readonly ReadonlyWalletAccount[]) => {
+    this.#accounts = [...accounts];
     this.#events.emit('change', { accounts: this.accounts });
-    await new Promise((resolve) => setTimeout(resolve, 5));
   };
 
-  #connect: StandardConnectMethod = async (input) => {
-    this.#account = getAccountData();
-    this.#signer = undefined;
-    if (!this.#account) {
-      if (this.#zkLoginNonceCallback) {
-        const nonce = await this.#openZkLoginModal();
-        this.#zkLoginNonceCallback(nonce);
-      } else {
-        await this.#openQrLoginModal();
-        this.#account = getAccountData();
-      }
-    } else if (this.#account.zkLogin) {
-      this.#signer = new ZkLoginSigner(
-        this.#network,
-        this.#account.zkLogin,
-        this.#account.address,
-        this.#mode,
-      );
-    }
-    if (this.#account && this.#account.network !== this.#network) {
-      this.#onEvent({
-        variant: 'error',
-        message: `Network mismatch: stored=${this.#account.network}, wallet=${this.#network}`,
-      });
-      this.#disconnect();
-      return { accounts: this.accounts };
-    }
-    await this.#connected();
-    return { accounts: this.accounts };
-  };
+  #connect: StandardConnectMethod = async () => this.#session.connect();
 
-  #disconnect: StandardDisconnectMethod = (): Promise<void> => {
-    disconnect();
-    this.#accounts = [];
-    this.#account = undefined;
-    this.#signer = undefined;
-    this.#clipSigner = undefined;
-    this.#events.emit('change', { accounts: [] });
-    this.#setIsConnected(false);
-    return Promise.resolve();
-  };
+  #disconnect: StandardDisconnectMethod = () => this.#session.disconnect();
 
-  logout = () => {
-    this.#disconnect();
-  };
+  #createSigningRuntimeConfig = () => ({
+    network: this.#network,
+    sponsoredUrl: this.#sponsoredUrl,
+    signer: this.#session.signer,
+    activeAccount: this.#session.activeWalletAccount,
+    openSignTxModal: this.#openSignTxModal,
+  });
 
-  public signAndExecuteTransaction = async (
-    transaction: Transaction,
-  ): Promise<SuiSignAndExecuteTransactionOutput> => {
-    return this.#signAndExecuteTransaction({
-      transaction,
-      chain: `sui:${this.#network}`,
-      account: this.#accounts[0],
-    });
-  };
+  #signTransaction: SuiSignTransactionMethod = async (input) =>
+    signWalletTransaction(this.#createSigningRuntimeConfig(), input);
 
-  #signTransaction: SuiSignTransactionMethod = async ({
-    transaction,
-    chain,
-  }) => {
-    if (chain === `sui:${this.#network}`) {
-      if (this.#signer) {
-        const client = new SuiClient({
-          url: getFullnodeUrl(this.#network),
-        });
-        const txJson = await transaction.toJSON();
-        const tx = Transaction.from(txJson);
-        tx.setSenderIfNotSet(this.#signer.toSuiAddress());
-        const txBytes = await tx.build({
-          client,
-        });
-        const { bytes, signature } =
-          await this.#signer.signTransaction(txBytes);
-        return {
-          bytes,
-          signature,
-        };
-      } else {
-        const tx = await transaction.toJSON();
-        const txResult = await this.#openSignTxModal(
-          'Sign Transaction',
-          'Please scan the QR code to sign.',
-          {
-            transaction: Transaction.from(tx),
-            sponsoredUrl: this.#sponsoredUrl,
-          },
-        );
-        return {
-          bytes: txResult.bytes,
-          signature: txResult.signature,
-        };
-      }
-    }
-    throw new Error('chain error');
-  };
+  #signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async (
+    input,
+  ) => signAndExecuteWalletTransaction(this.#createSigningRuntimeConfig(), input);
 
-  #signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async ({
-    transaction,
-    chain,
-  }) => {
-    if (chain === `sui:${this.#network}`) {
-      if (this.#signer) {
-        const client = new SuiClient({
-          url: getFullnodeUrl(this.#network),
-        });
-        const txJson = await transaction.toJSON();
-        const tx = Transaction.from(txJson);
-        tx.setSenderIfNotSet(this.#signer.toSuiAddress());
-        const txBytes = await tx.build({
-          client,
-        });
-        const { bytes, signature } =
-          await this.#signer.signTransaction(txBytes);
-
-        let digest: string;
-        try {
-          const result = await client.executeTransactionBlock({
-            transactionBlock: bytes,
-            signature: signature,
-          });
-          if (result.errors && result.errors.length > 0) {
-            throw new Error(result.errors.join(', '));
-          }
-          digest = result.digest;
-        } catch (error) {
-          if (error instanceof Error) {
-            throw new Error(`Failed to execute transaction: ${error.message}`);
-          }
-          throw error;
-        }
-
-        try {
-          const { rawEffects } = await client.waitForTransaction({
-            digest,
-            options: {
-              showRawEffects: true,
-            },
-            timeout: 30000,
-          });
-          return {
-            digest,
-            bytes,
-            signature,
-            effects: rawEffects ? toBase64(new Uint8Array(rawEffects)) : '',
-          };
-        } catch (error) {
-          if (error instanceof Error) {
-            throw new Error(
-              `Transaction submitted but failed to confirm: ${error.message}. Digest: ${digest}`,
-            );
-          }
-          throw error;
-        }
-      } else {
-        const tx = await transaction.toJSON();
-        const txResult = await this.#openSignTxModal(
-          'Sign and Execute',
-          'Please scan the QR code to sign.',
-          {
-            transaction: Transaction.from(tx),
-            sponsoredUrl: this.#sponsoredUrl,
-          },
-        );
-        return {
-          digest: txResult.digest,
-          bytes: txResult.bytes,
-          signature: txResult.signature,
-          effects: txResult.effects,
-        };
-      }
-    }
-    throw new Error('chain error');
-  };
-
-  #signPersonalMessage: SuiSignPersonalMessageMethod = async ({ message }) => {
-    if (this.#signer) {
-      const { signature } = await this.#signer.signPersonalMessage(message);
-      return {
-        bytes: toBase64(message),
-        signature,
-      };
-    }
-    throw new Error(
-      'signPersonalMessage is unavailable in QR-only mode (no local signer).',
-    );
-  };
-
-  public getAllBalances = async (): Promise<FloatCoinBalance[] | undefined> => {
-    if (this.#account) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(this.#network),
-      });
-
-      const allBalances = await client.getAllBalances({
-        owner: this.#account.address,
-      });
-
-      const balances: FloatCoinBalance[] = [];
-
-      const formatBalance = (value: string, dec: number) => {
-        const amount = BigInt(value);
-        const s = amount.toString().padStart(dec + 1, '0');
-        const i = s.slice(0, -dec) || '0';
-        const f = s.slice(-dec).replace(/0+$/, '');
-        return f ? `${i}.${f}` : i;
-      };
-
-      for (const balance of allBalances) {
-        const { coinType, totalBalance, lockedBalance } = balance;
-
-        if (coinType !== '0x2::sui::SUI' && parseInt(totalBalance) === 0)
-          continue;
-
-        if (!this.#coinMetadataCache[coinType]) {
-          try {
-            const metadata = await client.getCoinMetadata({ coinType });
-            if (metadata) {
-              this.#coinMetadataCache[coinType] = metadata;
-            }
-          } catch (error) {
-            continue;
-          }
-        }
-
-        const metadata = this.#coinMetadataCache[coinType];
-        const decimals = metadata.decimals || 0;
-        const fBalance = formatBalance(totalBalance, decimals);
-
-        const lBalance: Record<string, { balance: string; fBalance: string }> =
-          {};
-        Object.keys(lockedBalance).forEach((key) => {
-          lBalance[key] = {
-            balance: lockedBalance[key],
-            fBalance: formatBalance(lockedBalance[key], decimals),
-          };
-        });
-
-        balances.push({
-          coinType,
-          name: metadata.name,
-          symbol: metadata.symbol,
-          decimals,
-          fBalance,
-          balance: totalBalance,
-          lockedBalance: lBalance,
-        });
-      }
-
-      return balances.sort((a, b) =>
-        a.coinType === '0x2::sui::SUI'
-          ? -1
-          : b.coinType === '0x2::sui::SUI'
-            ? 1
-            : 0,
-      );
-    }
-
-    return undefined;
-  };
-
-  public getCoins = async (coinType: string): Promise<CoinStruct[]> => {
-    if (this.#account && coinType) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(this.#network),
-      });
-      const coins = await client.getCoins({
-        owner: this.#account.address,
-        coinType,
-      });
-      return coins.data;
-    }
-    return [];
-  };
-
-  public getOwnedObjects = async (): Promise<SuiObjectData[]> => {
-    if (this.#account) {
-      const client = new SuiClient({
-        url: getFullnodeUrl(this.#network),
-      });
-      const allObjects: SuiObjectData[] = [];
-      let hasNextPage = true;
-      let nextCursor: string | null | undefined = undefined;
-
-      while (hasNextPage) {
-        const response = await client.getOwnedObjects({
-          owner: this.#account.address,
-          filter: {
-            MatchNone: [
-              { StructType: '0x2::coin::Coin' },
-              { StructType: '0x2::coin::TreasuryCap' },
-            ],
-          },
-          options: {
-            showType: true,
-            showDisplay: true,
-          },
-          cursor: nextCursor,
-          limit: 50,
-        });
-        allObjects.push(
-          ...response.data
-            .filter(
-              (item) =>
-                !!item.data && !!item.data.display && !!item.data.display.data,
-            )
-            .map((item) => item.data!),
-        );
-        nextCursor = response.nextCursor;
-        hasNextPage = response.hasNextPage;
-      }
-      return [...allObjects];
-    }
-    return [];
-  };
-
-  public getObjects = async (ids: string[]): Promise<SuiObjectData[]> => {
-    const client = new SuiClient({
-      url: getFullnodeUrl(this.#network),
-    });
-    const response = await client.multiGetObjects({
-      ids,
-      options: {
-        showType: true,
-        showDisplay: true,
-      },
-    });
-    return response
-      .filter(
-        (item) =>
-          !!item.data && !!item.data.display && !!item.data.display.data,
-      )
-      .map((item) => item.data!);
-  };
+  #signPersonalMessage: SuiSignPersonalMessageMethod = async (input) =>
+    signWalletPersonalMessage(this.#createSigningRuntimeConfig(), input);
 }

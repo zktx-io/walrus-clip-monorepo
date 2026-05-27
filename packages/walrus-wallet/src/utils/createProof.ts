@@ -4,7 +4,7 @@ import {
   getExtendedEphemeralPublicKey,
   jwtToAddress,
 } from '@mysten/sui/zklogin';
-import { NETWORK } from '@zktx.io/walrus-connect';
+import type { NETWORK } from './walletTypes';
 
 import { getEnokiSalt } from './getEnokiSalt';
 import { ENOKI_URL, IZkLogin } from './types';
@@ -75,7 +75,7 @@ export const createProof = async (
       };
     }
 
-    const address = jwtToAddress(jwt, BigInt(enoki.salt));
+    const address = jwtToAddress(jwt, BigInt(enoki.salt), false);
     const res = await fetch(getProverUrl(network), {
       method: 'POST',
       headers: {

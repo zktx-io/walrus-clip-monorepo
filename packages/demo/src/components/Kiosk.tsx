@@ -1,7 +1,8 @@
 import { useState } from 'react';
 
+import { useCurrentAccount, useCurrentWallet, useDAppKit } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 import { Transaction } from '@mysten/sui/transactions';
-import { useWalrusScan } from '@zktx.io/walrus-connect';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface Item {
@@ -18,10 +19,15 @@ const menuItems: Item[] = [
   { id: 4, name: 'Coke (Medium)', price: 2000, image: '/items/mac-4.jpeg' },
 ];
 
-const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
+type Network = 'mainnet' | 'testnet' | 'devnet';
 
-export const Kiosk = () => {
-  const { openSignTxModal } = useWalrusScan();
+const explorerUrl = (network: Network, digest: string) =>
+  `https://suiscan.xyz/${network}/tx/${digest}`;
+
+export const Kiosk = ({ network }: { network: Network }) => {
+  const account = useCurrentAccount();
+  const currentWallet = useCurrentWallet();
+  const dAppKit = useDAppKit();
 
   const [cart, setCart] = useState<Item[]>([]);
   const [orderedItems, setOrderedItems] = useState<Item[]>([]);
@@ -44,6 +50,10 @@ export const Kiosk = () => {
     setOrderedItems([]);
     setTxDigest(null);
     try {
+      if (!account || !currentWallet) {
+        throw new Error('Connect a Wallet Standard wallet before checkout.');
+      }
+
       const transaction = new Transaction();
       transaction.moveCall({
         target:
@@ -55,16 +65,14 @@ export const Kiosk = () => {
         ],
       });
 
-      const { digest } = await openSignTxModal(
-        'Pay',
-        'Please scan the QR code to pay.',
-        {
-          transaction,
-          sponsoredUrl: SPONSORED_URL,
-        },
-      );
+      const result = await dAppKit.signAndExecuteTransaction({ transaction });
+      if (result.$kind !== 'Transaction') {
+        throw new Error(
+          `Transaction failed: ${result.FailedTransaction.status.error ?? 'unknown error'}`,
+        );
+      }
 
-      setTxDigest(digest);
+      setTxDigest(result.Transaction.digest);
       setOrderedItems(cart);
       setIsModalOpen(true);
       setCart([]);
@@ -76,6 +84,11 @@ export const Kiosk = () => {
   return (
     <div className="flex flex-col items-center p-4">
       <h1 className="text-2xl font-bold mb-4">McDonald's Kiosk</h1>
+      {!account && (
+        <div className="mb-4">
+          <ConnectButton />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
         <div className="grid grid-cols-1 gap-6">
@@ -138,7 +151,7 @@ export const Kiosk = () => {
             </span>
           </p>
           <button
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || !account}
             className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-white hover:text-black transition-all duration-300 disabled:bg-gray-300 cursor-pointer"
             onClick={onShowPay}
           >
@@ -166,8 +179,21 @@ export const Kiosk = () => {
               <h2 className="text-xl font-bold text-black mb-4">
                 Payment Successful!
               </h2>
-              <p className="text-black">Transaction ID:</p>
-              <p className="text-sm break-all text-gray-600 mb-4">{txDigest}</p>
+              <p className="text-black">
+                Transaction ID on{' '}
+                <span className="font-mono text-gray-700">{network}</span>:
+              </p>
+              <p className="text-sm break-all text-gray-600 mb-2">{txDigest}</p>
+              {txDigest && (
+                <a
+                  className="text-sm text-blue-600 underline mb-4 inline-block"
+                  href={explorerUrl(network, txDigest)}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  View on explorer
+                </a>
+              )}
               <h3 className="text-lg font-semibold text-black mb-2">
                 Your Order
               </h3>

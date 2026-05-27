@@ -1,11 +1,11 @@
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { decodeSuiPrivateKey } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { toBase64 } from '@mysten/sui/utils';
 import { generateNonce, generateRandomness } from '@mysten/sui/zklogin';
-import { NETWORK } from '@zktx.io/walrus-connect';
+import type { NETWORK } from './walletTypes';
 
 import { IZkLogin } from './types';
+import { getWalrusWalletCurrentEpoch } from './suiClient';
 import { encryptText } from './utils';
 
 export const createNonce = async (
@@ -17,8 +17,7 @@ export const createNonce = async (
   data: IZkLogin;
 }> => {
   try {
-    const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
-    const { epoch } = await suiClient.getLatestSuiSystemState();
+    const epoch = await getWalrusWalletCurrentEpoch(network);
     const expiration =
       Number(epoch) + (epochOffset ? Math.min(30, epochOffset) : 30);
     const ephemeralKeyPair = new Ed25519Keypair();

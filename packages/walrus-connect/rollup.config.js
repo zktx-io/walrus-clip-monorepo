@@ -1,27 +1,29 @@
 import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
 import terser from '@rollup/plugin-terser';
-import typescript from '@rollup/plugin-typescript';
 import peerDepsExternal from 'rollup-plugin-peer-deps-external';
 import postcss from 'rollup-plugin-postcss';
 
 export default {
-  input: 'src/index.tsx',
+  input: {
+    index: '.rollup/walrus-connect/src/index.js',
+    'signer-app': '.rollup/walrus-connect/src/signer-app.js',
+  },
   output: [
     {
-      file: 'dist/index.cjs.js',
-      format: 'cjs',
-      exports: 'named',
-    },
-    {
-      file: 'dist/index.esm.js',
+      dir: 'dist',
       format: 'esm',
+      entryFileNames: '[name].esm.js',
     },
   ],
   plugins: [
     peerDepsExternal(),
 
-    resolve({ browser: true, preferBuiltins: false }),
+    resolve({
+      browser: true,
+      preferBuiltins: false,
+      extensions: ['.mjs', '.js', '.json', '.node', '.ts', '.tsx'],
+    }),
 
     commonjs({ include: /node_modules/ }),
 
@@ -31,10 +33,6 @@ export default {
       minimize: true,
       modules: false,
       inject: false,
-    }),
-
-    typescript({
-      tsconfig: './tsconfig.json',
     }),
 
     terser(),
