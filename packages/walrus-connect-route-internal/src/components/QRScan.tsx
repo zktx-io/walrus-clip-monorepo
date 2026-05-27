@@ -35,6 +35,7 @@ export const QRScan = ({
   const [error, setError] = useState<string | undefined>(undefined);
   const scanHandledRef = useRef(false);
   const connectionCleanupRef = useRef<(() => void) | undefined>(undefined);
+  const closedRef = useRef(false);
 
   useEffect(() => {
     if (!open) {
@@ -43,6 +44,7 @@ export const QRScan = ({
       return;
     }
     scanHandledRef.current = false;
+    closedRef.current = false;
     setError(undefined);
     connectionCleanupRef.current?.();
     connectionCleanupRef.current = undefined;
@@ -58,6 +60,8 @@ export const QRScan = ({
 
   const handleClose = useCallback(
     (error?: string) => {
+      if (closedRef.current) return;
+      closedRef.current = true;
       connectionCleanupRef.current?.();
       connectionCleanupRef.current = undefined;
       if (error) {
@@ -73,7 +77,7 @@ export const QRScan = ({
 
   const handleScan = useCallback(
     (result: IDetectedBarcode[]) => {
-      if (scanHandledRef.current) return;
+      if (closedRef.current || scanHandledRef.current) return;
 
       const first = result?.[0];
       if (!first) return;
@@ -93,10 +97,13 @@ export const QRScan = ({
         setError('Connecting...');
 
         const onConnected = () => {
+          if (closedRef.current) return;
+          closedRef.current = true;
           connectionCleanupRef.current = undefined;
           onClose(false);
         };
         const onConnectionFailure = (message: string) => {
+          if (closedRef.current) return;
           connectionCleanupRef.current = undefined;
           scanHandledRef.current = false;
           setError(message);
