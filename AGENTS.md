@@ -4,7 +4,7 @@ This file is the root operating contract for coding agents working in this repos
 
 ## Purpose
 
-Walrus Clip is a TypeScript/React kit that registers a Sui Wallet Standard wallet named Walrus Clip for dApps. Its purpose is to let dApps use normal Wallet Standard connect/sign APIs while Walrus Clip routes the request to either a local signer or QR/WebRTC air-gapped signing.
+Walrus Clip is a TypeScript/React kit that registers a Sui Wallet Standard wallet named Walrus Clip for dApps. Its purpose is to let dApps use normal Wallet Standard connect/sign APIs while Walrus Clip routes login and sign-and-execute requests to QR/WebRTC air-gapped signing.
 
 dApp developers should integrate Walrus Clip through the supported Wallet Standard registration surface. Users should see and select Walrus Clip as a wallet. QR/WebRTC is an internal signing route, not a dApp-facing protocol.
 
@@ -29,10 +29,9 @@ These boundaries are product constraints, not implementation details:
 
 - Do not add private-key custody, seed phrase handling, or autonomous transaction execution.
 - Do not treat AI output, external proposals, QR payloads, or WebRTC messages as executable authority without local validation.
-- Do not log or expose JWTs, OAuth tokens, private keys, encrypted key material, proof material, signatures before user approval, or URL fragment secrets.
-- Do not silently choose a Sui network, token, route, sponsor, or transaction sender for the user.
+- Do not log or expose private keys, signatures before user approval, or URL fragment secrets.
+- Do not silently choose a Sui network, token, route, or transaction sender for the user.
 - Do not present testnet, faucet, demo-only, or fake-liquidity flows as production product functionality.
-- Do not treat sponsored transaction creation as proof that a transaction is safe, affordable, final, or ready for user authorization.
 - Do not pass transaction bytes received from another app, MCP client, AI client, or QR/WebRTC peer directly to signing without rebuilding or validating the intended action locally.
 - Do not make dApps depend on QR/WebRTC internals. dApps should interact with Walrus Clip through Wallet Standard APIs.
 - Do not move dApp-specific product flows, checkout flows, NFT dashboards, kiosk flows, or advanced asset UX into the kit core.
@@ -128,7 +127,7 @@ For non-trivial findings, include:
 ## Evidence And Decision Standard
 
 - Do not proceed from memory, guesses, or unchecked assumptions.
-- Before changing Sui SDK, dApp Kit, Wallet Standard, React, WebRTC, zkLogin, transaction, or signing behavior, verify the relevant facts in the current repo and in the appropriate source of truth.
+- Before changing Sui SDK, dApp Kit, Wallet Standard, React, WebRTC, transaction, or signing behavior, verify the relevant facts in the current repo and in the appropriate source of truth.
 - Use `.WORK/ts-sdks` for Sui SDK facts during modernization work. Prefer local source inspection over memory.
 - If package behavior is version-sensitive, inspect the installed package, lockfile, `.WORK/ts-sdks`, or official docs before deciding.
 - Clearly separate verified facts, assumptions, and recommendations in plans and reviews.
@@ -241,30 +240,28 @@ Owns the internal QR/WebRTC air-gapped signing route:
 - Login/sign session validation.
 - Transport errors, timeouts, cleanup, and relay fallback.
 
-Avoid adding Wallet Standard registration, wallet account storage, zkLogin proof generation, dApp transaction creation, dApp product UX, or app-level routing here.
+Avoid adding Wallet Standard registration, wallet account storage, dApp transaction creation, dApp product UX, or app-level routing here.
 
 ### `packages/walrus-wallet`
 
 Owns Wallet Standard registration and wallet runtime behavior:
 
-- Wallet Standard wallet registration for Walrus Clip.
-- Routing Wallet Standard requests to local signing or QR/WebRTC air-gapped signing.
-- zkLogin account creation, proof handling, and signer logic.
-- Sui client integration through a centralized client boundary.
-- Minimal account, connection, signing, and basic `Coin<T>` helper surfaces.
+- Wallet Standard wallet registration for Walrus Clip advertising only `standard:connect`, `standard:disconnect`, `standard:events`, and `sui:signAndExecuteTransaction`.
+- Routing Wallet Standard `sui:signAndExecuteTransaction` requests to the QR/WebRTC air-gapped signing route. There is no local signer, zkLogin proof, password modal, or sponsored helper inside this package.
+- Sui client integration through a centralized client boundary that constructs only `SuiJsonRpcClient` for the public client helper and the read-only coin helpers.
+- Minimal account, connection, sign-and-execute, and basic `Coin<T>` helper surfaces.
 
-Do not create new direct Sui client construction (`SuiJsonRpcClient`, `SuiGraphQLClient`, future `SuiGrpcClient`, or legacy `SuiClient`) or fullnode URL helper (`getJsonRpcFullnodeUrl`, legacy `getFullnodeUrl`) call sites. Add or update a client adapter at the wallet or private-route boundary instead. Do not add dApp-specific checkout, NFT dashboard, kiosk, or advanced asset UX here.
+Do not create new direct Sui client construction (`SuiJsonRpcClient`, `SuiGraphQLClient`, future `SuiGrpcClient`, or legacy `SuiClient`) or fullnode URL helper (`getJsonRpcFullnodeUrl`, legacy `getFullnodeUrl`) call sites. Add or update a client adapter at the wallet or private-route boundary instead. Do not add dApp-specific checkout, NFT dashboard, kiosk, advanced asset UX, or any local signing path here.
 
 ### `packages/clip`
 
 Owns the reference Walrus Clip app shell:
 
-- OAuth callback handling.
 - dApp Kit / Wallet Standard provider wiring for the reference app.
 - Wallet provider wiring.
-- Minimal user-facing connect, login, scan, and sign flows.
+- Minimal user-facing connect and scan flows.
 
-Do not move SDK/library responsibilities, QR protocol logic, or wallet core logic into this app.
+Do not move SDK/library responsibilities, QR protocol logic, wallet core logic, OAuth callbacks, or local signer code into this app.
 
 ### `packages/demo`
 
@@ -278,17 +275,16 @@ Keep demo logic thin. Shared behavior belongs in `walrus-connect` or `walrus-wal
 ## Sui SDK Rules
 
 - `@mysten/sui@1.x`, `SuiClient`, `getFullnodeUrl`, and the `@mysten/sui/client` legacy JSON-RPC subpath are removed from source and blocked by `scripts/verify-boundary.mjs` as forbidden tokens outside owner files. Do not reintroduce them.
-- Owner-boundary Sui client runtime transport is on `@mysten/sui@2.17.0` `SuiGrpcClient` (`@mysten/sui/grpc` subpath) for wallet build/execute/wait/epoch and QR route build/digest/execute/wait/signature-verification paths; baseUrl uses the SDK-documented `https://fullnode.<network>.sui.io:443`. `SuiJsonRpcClient` + `getJsonRpcFullnodeUrl` remain inside the same owner files only for the public wallet client helper, the wallet read-only coin helpers, and the QR/private dry-run review helper. Do not reintroduce JSON-RPC transport for the runtime execute/wait/epoch paths or relocate the retained JSON-RPC helpers outside the owner files.
+- Owner-boundary Sui client runtime transport is on `@mysten/sui@2.17.0` `SuiGrpcClient` (`@mysten/sui/grpc` subpath) for the QR sign route's build/digest/execute/wait/signature-verification paths; baseUrl uses the SDK-documented `https://fullnode.<network>.sui.io:443`. `SuiJsonRpcClient` + `getJsonRpcFullnodeUrl` remain inside the owner files only for the public wallet client helper, the wallet read-only coin helpers, and the QR/private dry-run review helper. The wallet runtime no longer constructs `SuiGrpcClient` because every signing flow goes through the QR sign host runner. Do not reintroduce JSON-RPC transport for the runtime execute/wait paths or relocate the retained JSON-RPC helpers outside the owner files.
 - When official docs, `.WORK/ts-sdks`, and installed dependencies disagree, state the discrepancy and follow the source that matches the current task. For active migration work, prefer the target SDK source in `.WORK/ts-sdks`.
 - Centralize Sui client creation and network configuration.
 - Do not introduce new scattered fullnode URL construction.
 - Keep transaction bytes, signatures, digests, and effects handling explicit.
-- For zkLogin changes, verify current SDK semantics before changing address, nonce, proof, or public identifier logic.
 - Pin Sui, wallet, dApp Kit, React, and protocol-sensitive dependencies to explicit versions during modernization work. Commit lockfile changes with dependency changes.
 
 ## Numeric And Transaction Safety
 
-- Treat token balances, gas, decimals, raw transaction amounts, sponsor limits, slippage, and effects as safety-critical data.
+- Treat token balances, gas, decimals, raw transaction amounts, slippage, and effects as safety-critical data.
 - Keep raw token amounts as integer strings or `BigInt` values.
 - Do not use floating point `number` arithmetic for signable quantities or balance checks.
 - Do not infer token decimals from symbols or UI convention. Use SDK metadata or verified onchain metadata.
@@ -303,7 +299,7 @@ Keep demo logic thin. Shared behavior belongs in `walrus-connect` or `walrus-wal
 - Ensure every PeerJS session has cleanup for success, error, timeout, and unmount.
 - Prevent duplicate scanner events from opening multiple sessions.
 - Prefer structured protocol errors over free-form strings.
-- Do not log secrets, JWTs, private keys, OAuth tokens, or full proof material.
+- Do not log secrets, private keys, or QR/WebRTC peer credentials.
 
 ## Coding Style
 

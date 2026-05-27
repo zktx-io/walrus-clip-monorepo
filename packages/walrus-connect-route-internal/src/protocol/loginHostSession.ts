@@ -25,10 +25,16 @@ import { ACK_TIMEOUT_MS, CLOSE_FALLBACK_TIMEOUT_MS } from '../utils/signProtocol
 import { createWalrusConnectGrpcClient } from '../utils/suiClient';
 
 export type LoginHostOutcome =
-  | { type: 'connected'; address: string; network: NETWORK }
+  | {
+      type: 'connected';
+      address: string;
+      publicKey: string;
+      network: NETWORK;
+    }
   | {
       type: 'result_delivery_failed';
       address: string;
+      publicKey: string;
       network: NETWORK;
       reason: string;
     }
@@ -36,10 +42,16 @@ export type LoginHostOutcome =
 
 export type QRLoginOutcome = LoginHostOutcome;
 
+type LoginHostResult = {
+  address: string;
+  publicKey: string;
+  network: NETWORK;
+};
+
 type LoginHostState =
   | { type: 'awaitingProof' }
   | { type: 'verifyingProof' }
-  | { type: 'awaitingResultAck'; result: { address: string; network: NETWORK } }
+  | { type: 'awaitingResultAck'; result: LoginHostResult }
   | { type: 'terminal'; outcome: LoginHostOutcome };
 
 export type LoginHostSessionDeps = {
@@ -77,9 +89,13 @@ export const formatLoginHostOutcome = loginHostOutcomeMessage;
 
 export const loginHostOutcomeToResult = (
   outcome: LoginHostOutcome,
-): { address: string; network: NETWORK } | undefined =>
+): LoginHostResult | undefined =>
   outcome.type === 'connected'
-    ? { address: outcome.address, network: outcome.network }
+    ? {
+        address: outcome.address,
+        publicKey: outcome.publicKey,
+        network: outcome.network,
+      }
     : undefined;
 
 export class LoginHostOutcomeError extends Error {
@@ -227,7 +243,7 @@ export const startLoginHostSession = ({
       return;
     }
 
-    const result = { address, network };
+    const result: LoginHostResult = { address, publicKey, network };
     state = { type: 'awaitingResultAck', result };
     await authority.sendAndWaitForAck(session, {
       type: 'login.result',
@@ -242,7 +258,7 @@ export const startLoginHostSession = ({
     });
 
     onEvent({ variant: 'success', message: 'Verification success' });
-    setTerminal({ type: 'connected', address, network });
+    setTerminal({ type: 'connected', address, publicKey, network });
   };
 
   const handleMessage = async (message: ProtocolEnvelope) => {

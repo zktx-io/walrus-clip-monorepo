@@ -277,6 +277,7 @@ test('login host resolves connected only after login result acknowledgement', as
   assert.deepEqual(outcomes[0], {
     type: 'connected',
     address,
+    publicKey: 'public-key-1',
     network,
   });
 });
@@ -313,6 +314,7 @@ test('login host preserves accepted result when acknowledgement delivery fails',
   assert.deepEqual(outcomes[0], {
     type: 'result_delivery_failed',
     address,
+    publicKey: 'public-key-1',
     network,
     reason: 'Timed out waiting for login.result.ack',
   });
@@ -380,6 +382,7 @@ test('login host dispose preserves accepted result while awaiting acknowledgemen
   assert.deepEqual(outcomes[0], {
     type: 'result_delivery_failed',
     address,
+    publicKey: 'public-key-1',
     network,
     reason: 'Login session disposed',
   });
@@ -589,6 +592,7 @@ test('login host preserves accepted result when result ACK is invalid', async ()
   assert.deepEqual(outcomes[0], {
     type: 'result_delivery_failed',
     address,
+    publicKey: 'public-key-1',
     network,
     reason: 'internal_error: Invalid login protocol message',
   });
@@ -638,6 +642,7 @@ test('login host preserves accepted result when scanner sends terminal before AC
   assert.deepEqual(outcomes[0], {
     type: 'result_delivery_failed',
     address,
+    publicKey: 'public-key-1',
     network,
     reason: 'verification_failed: scanner rejected result',
   });
@@ -648,6 +653,7 @@ test('login public boundary helper does not collapse partial outcome', () => {
   const outcome = {
     type: 'result_delivery_failed' as const,
     address,
+    publicKey: 'public-key-1',
     network,
     reason: 'Connection closed before login acknowledgement.',
   };

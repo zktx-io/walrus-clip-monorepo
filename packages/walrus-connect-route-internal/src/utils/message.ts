@@ -35,7 +35,6 @@ export type ProtocolErrorCode =
   | 'transaction_rejected'
   | 'transaction_validation_failed'
   | 'transaction_failed'
-  | 'sponsor_failed'
   | 'internal_error';
 
 export type ProtocolErrorDetails = Record<
@@ -66,7 +65,6 @@ export type SignAddressPayload = {
 
 export type SignTransactionPayload = {
   bytes: string;
-  expectedDigest?: string;
 };
 
 export type SignResponsePayload = {
@@ -183,7 +181,6 @@ const PROTOCOL_ERROR_CODES = new Set<ProtocolErrorCode>([
   'transaction_rejected',
   'transaction_validation_failed',
   'transaction_failed',
-  'sponsor_failed',
   'internal_error',
 ]);
 
@@ -261,10 +258,8 @@ const payloadValidators: {
     isNonEmptyString(payload.address),
   'sign.transaction': (payload): payload is SignTransactionPayload =>
     isRecord(payload) &&
-    hasOnlyKeys(payload, ['bytes', 'expectedDigest']) &&
-    isNonEmptyString(payload.bytes) &&
-    (payload.expectedDigest === undefined ||
-      isNonEmptyString(payload.expectedDigest)),
+    hasOnlyKeys(payload, ['bytes']) &&
+    isNonEmptyString(payload.bytes),
   'sign.response': (payload): payload is SignResponsePayload =>
     isRecord(payload) &&
     hasOnlyKeys(payload, ['signature']) &&

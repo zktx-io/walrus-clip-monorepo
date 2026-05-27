@@ -1,6 +1,6 @@
 {
   "name": "@zktx.io/walrus-connect",
-  "description": "Experience Sui Wallet Standard with zkLogin, customizable with your DApp's unique name and icon.",
+  "description": "Walrus Connect QR/WebRTC route helpers and the reference Walrus Clip signer surface used by @zktx.io/walrus-wallet.",
   "keywords": [
     "sui",
     "wallet",
@@ -8,7 +8,7 @@
     "qr",
     "scan"
   ],
-  "version": "0.3.11",
+  "version": "0.4.0",
   "type": "module",
   "module": "dist/index.esm.js",
   "types": "dist/types/index.d.ts",

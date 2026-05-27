@@ -1,4 +1,3 @@
-import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64 } from '@mysten/sui/utils';
 import { verifyTransactionSignature } from '@mysten/sui/verify';
 
@@ -16,11 +15,7 @@ import {
   type PendingSignTransaction,
   type SignProtocolPhase,
 } from '../utils/signProtocol';
-import {
-  createWalrusConnectGrpcClient,
-  getWalrusConnectTransactionDigest,
-  type WalrusConnectGrpcClient,
-} from '../utils/suiClient';
+import { createWalrusConnectGrpcClient } from '../utils/suiClient';
 
 export const protocolCodec = {
   createMessage: createProtocolMessage,
@@ -54,9 +49,6 @@ export const getErrorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
 const errorCodeForPhase = (phase: SignProtocolPhase): ProtocolErrorCode => {
-  if (phase === 'sponsor_create' || phase === 'sponsor_execute') {
-    return 'sponsor_failed';
-  }
   if (
     phase === 'execute' ||
     phase === 'submitted' ||
@@ -117,27 +109,4 @@ export const verifyPendingTransactionSignature = async ({
       client,
     },
   );
-};
-
-export const validateExpectedDigest = async (
-  tx: Transaction,
-  client: WalrusConnectGrpcClient,
-  expectedDigest?: string,
-) => {
-  if (!expectedDigest) return;
-
-  const computedDigest = await getWalrusConnectTransactionDigest({
-    client,
-    transaction: tx,
-  });
-  if (computedDigest !== expectedDigest) {
-    throw new ProtocolMessageError(
-      createSignProtocolErrorPayload({
-        code: 'transaction_validation_failed',
-        message: 'Host-provided transaction digest does not match transaction bytes',
-        phase: 'validate_digest',
-        digest: expectedDigest,
-      }),
-    );
-  }
 };

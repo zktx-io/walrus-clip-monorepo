@@ -15,7 +15,8 @@ through Wallet Standard and call Wallet Standard features.
 ## Not Owned Here
 
 - Wallet Standard registration.
-- Wallet account storage or zkLogin proof generation.
+- Wallet account storage.
+- Local signing, zkLogin proof generation, or sponsored transaction helpers.
 - dApp transaction construction or product flows.
 - NFT, checkout, kiosk, or advanced asset UX.
 

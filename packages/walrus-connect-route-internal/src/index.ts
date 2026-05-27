@@ -4,10 +4,6 @@ export { loginHostOutcomeToResult } from './protocol/loginHostSession';
 export type { LoginHostOutcome } from './protocol/loginHostSession';
 export { signHostOutcomeToResult } from './protocol/signHostRunner';
 export type { QRSignOutcome } from './protocol/signHostRunner';
-export {
-  createSponsoredTransaction,
-  executeSponsoredTransaction,
-} from './utils/sponsoredTransaction';
 export { WalrusScan, useWalrusScan } from './components/WalrusScan';
 export {
   FormControl,

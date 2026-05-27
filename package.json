@@ -1,13 +1,13 @@
 {
   "name": "walrus-clip-monorepo",
-  "description": "Experience Sui Wallet Standard with zkLogin, customizable with your DApp's unique name and icon.",
+  "description": "Walrus Clip air-gapped Sui Wallet Standard adapter monorepo.",
   "keywords": [
     "sui",
-    "zklogin",
     "walrus",
     "wallet",
     "wallet standard",
-    "customizable"
+    "qr",
+    "air-gapped"
   ],
   "author": "daoauth",
   "license": "ISC",

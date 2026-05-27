@@ -37,7 +37,7 @@ export const createWalletModalContainer = ({
   const portalContainer = document.createElement('div');
   styleTopLayerHost(topLayerHost);
   // Wallet connect can be launched from dApp Kit's native dialog; use the
-  // browser top layer so QR/zkLogin prompts are not hidden behind that dialog.
+  // browser top layer so the QR prompt is not hidden behind that dialog.
   topLayerHost.addEventListener('cancel', (event) => event.preventDefault());
   topLayerHost.appendChild(container);
   topLayerHost.appendChild(portalContainer);

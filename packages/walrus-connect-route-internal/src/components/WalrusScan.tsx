@@ -25,7 +25,6 @@ interface IWalrusScanContext {
       transaction: {
         toJSON: () => Promise<string>;
       };
-      sponsoredUrl?: string;
     },
   ) => Promise<QRSignOutcome>;
 }
@@ -88,7 +87,6 @@ export const WalrusScan = ({
         transaction: {
           toJSON: () => Promise<string>;
         };
-        sponsoredUrl?: string;
       },
     ): Promise<QRSignOutcome> => {
       return new Promise((resolve) => {
@@ -101,7 +99,6 @@ export const WalrusScan = ({
             data={{
               network: network,
               transaction: data.transaction,
-              sponsoredUrl: data.sponsoredUrl,
             }}
             icon={icon}
             option={{

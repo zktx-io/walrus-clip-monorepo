@@ -18,7 +18,6 @@ export type SignProtocolPhase =
   | 'connect'
   | 'address'
   | 'build'
-  | 'sponsor_create'
   | 'transaction_proposal'
   | 'validate_sender'
   | 'validate_digest'
@@ -27,7 +26,6 @@ export type SignProtocolPhase =
   | 'sign'
   | 'sign_response'
   | 'signature_verify'
-  | 'sponsor_execute'
   | 'execute'
   | 'submitted'
   | 'finality';
@@ -35,7 +33,6 @@ export type SignProtocolPhase =
 export type PendingSignTransaction = {
   bytes: string;
   rawBytes?: Uint8Array;
-  expectedDigest?: string;
   signerAddress: string;
 };
 
@@ -54,7 +51,6 @@ export type SignProtocolValidationError = {
     | 'message_expired'
     | 'transaction_validation_failed'
     | 'transaction_failed'
-    | 'sponsor_failed'
   >;
   message: string;
   phase?: SignProtocolPhase;
@@ -118,44 +114,26 @@ export const validateProtocolMessageFresh = (
   return { ok: true };
 };
 
-export const getExpectedSubmittedDigest = async ({
-  tx,
-  client,
-  expectedDigest,
-  getTransactionDigest,
-}: {
-  tx: Transaction;
-  client: WalrusConnectGrpcClient;
-  expectedDigest?: string;
-  getTransactionDigest: WalrusConnectTransactionDigestReader;
-}) =>
-  expectedDigest ??
-  getTransactionDigest({ client, transaction: tx });
-
 export const validateSubmittedDigest = async ({
   tx,
   client,
-  expectedDigest,
   submittedDigest,
   getTransactionDigest,
 }: {
   tx: Transaction;
   client: WalrusConnectGrpcClient;
-  expectedDigest?: string;
   submittedDigest: string;
   getTransactionDigest: WalrusConnectTransactionDigestReader;
 }): Promise<
   | { ok: true; digest: string }
   | { ok: false; error: SignProtocolValidationError }
 > => {
-  const resolvedExpectedDigest = await getExpectedSubmittedDigest({
-    tx,
+  const computedDigest = await getTransactionDigest({
     client,
-    expectedDigest,
-    getTransactionDigest,
+    transaction: tx,
   });
 
-  if (submittedDigest !== resolvedExpectedDigest) {
+  if (submittedDigest !== computedDigest) {
     return {
       ok: false,
       error: {
@@ -167,7 +145,7 @@ export const validateSubmittedDigest = async ({
     };
   }
 
-  return { ok: true, digest: resolvedExpectedDigest };
+  return { ok: true, digest: computedDigest };
 };
 
 export const validateFinalizedDigest = ({

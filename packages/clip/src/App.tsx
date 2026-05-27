@@ -6,30 +6,13 @@ import {
 } from '@zktx.io/walrus-wallet';
 import { WalrusSignerScan } from '@zktx.io/walrus-connect/signer-app';
 import { enqueueSnackbar } from 'notistack';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
 import './App.css';
 import '@zktx.io/walrus-wallet/index.css';
 
-import { Auth } from './pages/Auth';
 import { Home } from './pages/Home';
 import { NETWORK } from './utils/config';
-import { getProviderUrl } from './utils/getProviderUrl';
 
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Home />,
-  },
-  {
-    path: '/auth',
-    element: <Auth />,
-  },
-]);
-
-const ENOKI_KEY = import.meta.env.VITE_APP_ENOKI_KEY;
-const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
-const CLIENT_ID = import.meta.env.VITE_APP_CLIENT_ID;
 const ICE_CONFIG_URL = import.meta.env.VITE_APP_ICE_CONFIG_URL;
 
 const dAppKit = createDAppKit({
@@ -54,12 +37,6 @@ const onWalletEvent = (notification: {
   });
 };
 
-const callbackNonce = (nonce: string) => {
-  if (nonce && CLIENT_ID) {
-    window.location.replace(getProviderUrl(nonce, CLIENT_ID));
-  }
-};
-
 function AppShell() {
   const currentNetwork = useCurrentNetwork();
 
@@ -67,11 +44,6 @@ function AppShell() {
     <WalrusWallet
       network={currentNetwork}
       iceConfigUrl={ICE_CONFIG_URL}
-      sponsoredUrl={SPONSORED_URL}
-      zklogin={{
-        enokey: ENOKI_KEY!,
-        callbackNonce: callbackNonce,
-      }}
       onEvent={onWalletEvent}
       onLogout={() => dAppKit.disconnectWallet()}
     >
@@ -82,7 +54,7 @@ function AppShell() {
         iceConfigUrl={ICE_CONFIG_URL}
         onEvent={onWalletEvent}
       >
-        <RouterProvider router={router} />
+        <Home />
       </WalrusSignerScan>
     </WalrusWallet>
   );

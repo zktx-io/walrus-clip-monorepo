@@ -2,13 +2,13 @@ import {
   ReadonlyWalletAccount,
   type StandardConnectOutput,
 } from '@mysten/wallet-standard';
+import { fromBase64 } from '@mysten/sui/utils';
 import type { NETWORK, NotiVariant } from '../utils/walletTypes';
 
-import { openQrLoginModal, openZkLoginModal } from './loginRoutes';
-import { createWalrusAccountFeatureNames } from './walletCapabilities';
+import { openQrLoginModal } from './loginRoutes';
+import { WALRUS_ACCOUNT_FEATURE_NAMES } from './walletCapabilities';
 import { disconnect, getAccountData } from '../utils/localStorage';
-import type { IAccount } from '../utils/types';
-import { ZkLoginSigner } from '../utils/zkLoginSigner';
+import type { IAccount } from '../utils/localStorage';
 
 type WalletSessionConfig = {
   icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
@@ -18,16 +18,11 @@ type WalletSessionConfig = {
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   setIsConnected: (isConnected: boolean) => void;
   onAccountsChanged: (accounts: readonly ReadonlyWalletAccount[]) => void;
-  zklogin?: {
-    callbackNonce?: (nonce: string) => void;
-    epochOffset?: number;
-  };
 };
 
 export class WalletSession {
   #accounts: ReadonlyWalletAccount[] = [];
   #account: IAccount | undefined;
-  #signer: ZkLoginSigner | undefined;
   #config: WalletSessionConfig;
 
   constructor(config: WalletSessionConfig) {
@@ -36,10 +31,6 @@ export class WalletSession {
 
   get accounts() {
     return this.#accounts;
-  }
-
-  get signer() {
-    return this.#signer;
   }
 
   get activeWalletAccount() {
@@ -55,34 +46,16 @@ export class WalletSession {
 
   connect = async (): Promise<StandardConnectOutput> => {
     this.#account = getAccountData();
-    this.#signer = undefined;
 
     if (!this.#account) {
-      if (this.#config.zklogin?.callbackNonce) {
-        const nonce = await openZkLoginModal({
-          mode: this.#config.mode,
-          network: this.#config.network,
-          epochOffset: this.#config.zklogin.epochOffset,
-          onEvent: this.#config.onEvent,
-        });
-        this.#config.zklogin.callbackNonce(nonce);
-      } else {
-        await openQrLoginModal({
-          mode: this.#config.mode,
-          icon: this.#config.icon,
-          network: this.#config.network,
-          iceConfigUrl: this.#config.iceConfigUrl,
-          onEvent: this.#config.onEvent,
-        });
-        this.#account = getAccountData();
-      }
-    } else if (this.#account.zkLogin) {
-      this.#signer = new ZkLoginSigner(
-        this.#config.network,
-        this.#account.zkLogin,
-        this.#account.address,
-        this.#config.mode,
-      );
+      await openQrLoginModal({
+        mode: this.#config.mode,
+        icon: this.#config.icon,
+        network: this.#config.network,
+        iceConfigUrl: this.#config.iceConfigUrl,
+        onEvent: this.#config.onEvent,
+      });
+      this.#account = getAccountData();
     }
 
     if (this.#handleNetworkMismatch()) {
@@ -97,7 +70,6 @@ export class WalletSession {
     disconnect();
     this.#accounts = [];
     this.#account = undefined;
-    this.#signer = undefined;
     this.#config.onAccountsChanged([]);
     this.#config.setIsConnected(false);
   };
@@ -119,11 +91,9 @@ export class WalletSession {
       this.#config.setIsConnected(true);
       const account = new ReadonlyWalletAccount({
         address: this.#account.address,
-        publicKey: this.#signer
-          ? this.#signer.getPublicKey().toSuiBytes()
-          : new Uint8Array(),
+        publicKey: fromBase64(this.#account.publicKey),
         chains: [`sui:${this.#config.network}`],
-        features: createWalrusAccountFeatureNames(!!this.#signer),
+        features: WALRUS_ACCOUNT_FEATURE_NAMES,
       });
       this.#accounts = [account];
     } else {

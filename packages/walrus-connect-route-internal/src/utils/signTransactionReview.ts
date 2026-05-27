@@ -799,13 +799,11 @@ export const createSignTransactionReview = async ({
   tx,
   client,
   bytes,
-  digest,
   network,
 }: {
   tx: Transaction;
   client: WalrusConnectReviewClient;
   bytes: string;
-  digest?: string;
   network: NETWORK;
 }): Promise<
   | { ok: true; review: SignTransactionReview }
@@ -864,7 +862,6 @@ export const createSignTransactionReview = async ({
     review: {
       network,
       sender: data.sender,
-      digest,
       sponsored: sponsorship.sponsored,
       gas: {
         owner: stringifyValue(data.gasData.owner),
@@ -936,7 +933,6 @@ export const formatSignTransactionReview = (
     `Network: ${review.network}`,
     `Sender: ${review.sender}`,
     `Sponsored: ${review.sponsored ? 'yes' : 'no'}`,
-    ...(review.digest ? [`Host-provided digest: ${review.digest}`] : []),
     '',
     ...formatSection('Gas', gasLines),
     '',
