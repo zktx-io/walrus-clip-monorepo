@@ -13,6 +13,7 @@ import '@zktx.io/walrus-wallet/index.css';
 import { Kiosk } from './components/Kiosk';
 
 const SPONSORED_URL = import.meta.env.VITE_APP_SPONSORED_URL;
+const ICE_CONFIG_URL = import.meta.env.VITE_APP_ICE_CONFIG_URL;
 
 const dAppKit = createDAppKit({
   networks: [...WALRUS_WALLET_SUPPORTED_NETWORKS],
@@ -44,6 +45,7 @@ function AppShell() {
       mode="light"
       icon={ICON}
       network={currentNetwork}
+      iceConfigUrl={ICE_CONFIG_URL}
       sponsoredUrl={SPONSORED_URL}
       onEvent={onWalletEvent}
       onLogout={() => dAppKit.disconnectWallet()}

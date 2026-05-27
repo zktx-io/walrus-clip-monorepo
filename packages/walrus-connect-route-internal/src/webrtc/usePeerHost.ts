@@ -28,9 +28,12 @@ export function usePeerHost(params: {
         }
         peer = p;
         p.on('connection', onConnection);
-        p.on('error', (err) =>
-          onEvent({ variant: 'error', message: `Peer error: ${err.message}` }),
-        );
+        p.on('error', (err) => {
+          onEvent({
+            variant: 'error',
+            message: `Peer error: ${err.message}`,
+          });
+        });
       } catch (err) {
         if (!cancelled) {
           onEvent({

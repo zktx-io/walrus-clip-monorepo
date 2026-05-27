@@ -64,6 +64,7 @@ export const WalrusScan = ({
               mode={mode || 'light'}
               signer={signer}
               network={network}
+              iceConfigUrl={iceConfigUrl}
               onEvent={onEvent}
               onClose={() => {
                 cleanupQrModalRoot(container, root);
@@ -76,7 +77,7 @@ export const WalrusScan = ({
         }
       });
     },
-    [isScannerEnabled, mode, network, onEvent],
+    [iceConfigUrl, isScannerEnabled, mode, network, onEvent],
   );
 
   const openSignTxModal = useCallback(
@@ -132,7 +133,7 @@ export const WalrusScan = ({
         } else {
           setIsScannerEnabled(false);
         }
-      } catch (error) {
+      } catch {
         setIsScannerEnabled(false);
       }
     };

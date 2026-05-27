@@ -84,11 +84,20 @@ export const Kiosk = ({ network }: { network: Network }) => {
   return (
     <div className="flex flex-col items-center p-4">
       <h1 className="text-2xl font-bold mb-4">McDonald's Kiosk</h1>
-      {!account && (
-        <div className="mb-4">
+      <div className="mb-4">
+        {account ? (
+          <button
+            className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded cursor-pointer"
+            onClick={() => {
+              void dAppKit.disconnectWallet();
+            }}
+          >
+            Disconnect
+          </button>
+        ) : (
           <ConnectButton />
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
         <div className="grid grid-cols-1 gap-6">

@@ -24,6 +24,7 @@ export const QRScan = ({
   network,
   onEvent,
   onClose,
+  iceConfigUrl,
 }: {
   mode: 'dark' | 'light';
   open: boolean;
@@ -31,6 +32,7 @@ export const QRScan = ({
   network: NETWORK;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onClose: (isBack: boolean) => void;
+  iceConfigUrl?: string;
 }) => {
   const [error, setError] = useState<string | undefined>(undefined);
   const scanHandledRef = useRef(false);
@@ -93,6 +95,8 @@ export const QRScan = ({
           return;
         }
 
+        const connectionIceConfigUrl = parsedPeerId.iceConfigUrl ?? iceConfigUrl;
+
         scanHandledRef.current = true;
         setError('Connecting...');
 
@@ -115,7 +119,7 @@ export const QRScan = ({
               signer,
               destId: first.rawValue,
               onEvent,
-              iceConfigUrl: parsedPeerId.iceConfigUrl,
+              iceConfigUrl: connectionIceConfigUrl,
               onConnected,
               onConnectionFailure,
             });
@@ -128,7 +132,7 @@ export const QRScan = ({
               network,
               destId: first.rawValue,
               onEvent,
-              iceConfigUrl: parsedPeerId.iceConfigUrl,
+              iceConfigUrl: connectionIceConfigUrl,
               onConnected,
               onConnectionFailure,
             });
@@ -138,7 +142,7 @@ export const QRScan = ({
         }
       }
     },
-    [network, onEvent, onClose, signer],
+    [iceConfigUrl, network, onEvent, onClose, signer],
   );
 
   return (

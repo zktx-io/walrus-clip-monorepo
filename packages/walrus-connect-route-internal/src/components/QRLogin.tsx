@@ -42,6 +42,7 @@ export const QRLogin = ({
   onClose,
   onEvent,
   iceConfigUrl,
+  portalContainer,
 }: {
   mode: 'dark' | 'light';
   network: NETWORK;
@@ -50,6 +51,7 @@ export const QRLogin = ({
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   /** Optional: when provided, embed this URL into the QR and load ICE from `{url}/ice-conf.json` */
   iceConfigUrl?: string;
+  portalContainer?: HTMLElement;
 }) => {
   const [open, setOpen] = useState<boolean>(true);
   const [sessionId] = useState<string>(() => generateRandomId());
@@ -240,7 +242,7 @@ export const QRLogin = ({
 
   return (
     <DlgRoot open={open}>
-      <DlgPortal>
+      <DlgPortal container={portalContainer}>
         <DlgOverlay mode={mode} style={{ zIndex: 2147483645 }} />
         <DlgContentQR
           mode={mode}

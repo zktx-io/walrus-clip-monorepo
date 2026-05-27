@@ -57,6 +57,12 @@ runtime delegates to its `sui:signAndExecuteTransaction` feature.
 
 - `WalrusWallet`: provider that registers the Wallet Standard wallet and hosts
   the internal signing route UI. Accepts an optional
+  `iceConfigUrl?: string` prop for app-owned WebRTC ICE/TURN configuration.
+  The URL must serve `{url}/ice-conf.json`. When omitted, the internal route
+  uses the bundled public STUN plus test public TURN fallback. Production apps
+  should provide their own short-lived TURN credential service through this
+  prop.
+  Also accepts an optional
   `onLogout?: () => void | Promise<void>` prop with **override semantics**:
   when set, the action drawer's logout button awaits `onLogout()` and does
   not call the wallet's own `standard:disconnect`; when unset, the drawer

@@ -25,6 +25,7 @@ const WalrusSignerScanContext = createContext<
 export const WalrusSignerScan = ({
   mode,
   network,
+  iceConfigUrl,
   onEvent,
   children,
 }: {
@@ -50,6 +51,7 @@ export const WalrusSignerScan = ({
               mode={mode || 'light'}
               signer={signer}
               network={network}
+              iceConfigUrl={iceConfigUrl}
               onEvent={onEvent}
               onClose={() => {
                 cleanupQrModalRoot(container, root);
@@ -62,7 +64,7 @@ export const WalrusSignerScan = ({
         }
       });
     },
-    [isScannerEnabled, mode, network, onEvent],
+    [iceConfigUrl, isScannerEnabled, mode, network, onEvent],
   );
 
   useEffect(() => {
@@ -73,7 +75,7 @@ export const WalrusSignerScan = ({
           (device) => device.kind === 'videoinput',
         );
         setIsScannerEnabled(videoInputDevices.length > 0);
-      } catch (error) {
+      } catch {
         setIsScannerEnabled(false);
       }
     };

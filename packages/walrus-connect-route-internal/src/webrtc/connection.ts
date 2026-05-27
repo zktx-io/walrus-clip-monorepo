@@ -14,18 +14,46 @@ export const DEFAULT_ICE_CONF: IceConf = {
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun.services.mozilla.com' },
     { urls: 'stun:stun.stunprotocol.org' },
+    // Test-only public relay fallback. Production apps should pass
+    // app-owned short-lived TURN credentials through iceConfigUrl.
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+        'turns:openrelay.metered.ca:443',
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
   iceTransportPolicy: 'all',
 };
+
+function safeErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function hasTurnServer(conf: IceConf): boolean {
+  return (
+    conf.iceServers?.some((server) => {
+      const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+      return urls.some(
+        (url) => typeof url === 'string' && /^turns?:/i.test(url.trim()),
+      );
+    }) ?? false
+  );
+}
 
 /** Fetch {url}/ice-conf.json and return parsed ICE config. */
 export async function loadIceConfig(
   url: string,
   timeoutMs = 5000,
 ): Promise<IceConf | undefined> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), timeoutMs);
+    timeout = setTimeout(() => ctl.abort(), timeoutMs);
     const res = await fetch(`${url.replace(/\/+$/, '')}/ice-conf.json`, {
       method: 'GET',
       mode: 'cors',
@@ -33,7 +61,6 @@ export async function loadIceConfig(
       signal: ctl.signal,
       headers: { Accept: 'application/json' },
     });
-    clearTimeout(t);
     if (!res.ok) return undefined;
 
     const json = await res.json();
@@ -48,6 +75,8 @@ export async function loadIceConfig(
     return conf;
   } catch {
     return undefined;
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 }
 
@@ -55,14 +84,31 @@ export function toPeerOptions(conf: IceConf) {
   return { config: conf } as const;
 }
 
+async function resolveIceConfig({
+  iceConfigUrl,
+  loadConfig,
+}: {
+  iceConfigUrl?: string;
+  loadConfig: typeof loadIceConfig;
+}): Promise<IceConf> {
+  if (!iceConfigUrl) return DEFAULT_ICE_CONF;
+
+  const loaded = await loadConfig(iceConfigUrl);
+  return loaded ?? DEFAULT_ICE_CONF;
+}
+
 export async function createPeerWithIce(opts: {
   id: string;
   iceConfigUrl?: string;
+  iceConfig?: IceConf;
   relayOnly?: boolean;
 }) {
-  const base = opts.iceConfigUrl
-    ? ((await loadIceConfig(opts.iceConfigUrl)) ?? DEFAULT_ICE_CONF)
-    : DEFAULT_ICE_CONF;
+  const base =
+    opts.iceConfig ??
+    (await resolveIceConfig({
+      iceConfigUrl: opts.iceConfigUrl,
+      loadConfig: loadIceConfig,
+    }));
 
   const conf = opts.relayOnly
     ? { ...base, iceTransportPolicy: 'relay' as const }
@@ -89,8 +135,44 @@ export type RelayConnectionHandle = {
 type RelayPeer = {
   connect: (destId: string) => DataConnection;
   destroy: () => void;
-  on: (event: 'error', handler: (error: Error) => void) => void;
+  on: {
+    (event: 'open', handler: (id: string) => void): void;
+    (event: 'error', handler: (error: Error) => void): void;
+  };
 };
+
+function waitForPeerOpen({
+  peer,
+  timeoutMs,
+  label,
+}: {
+  peer: RelayPeer;
+  timeoutMs: number;
+  label: 'direct' | 'relay';
+}): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`${label} PeerJS open timed out.`));
+    }, timeoutMs);
+
+    peer.on('open', () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve();
+    });
+
+    peer.on('error', (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
+  });
+}
 
 export function connectWithRelayFallback(opts: {
   destIdHyphen: string;
@@ -101,9 +183,12 @@ export function connectWithRelayFallback(opts: {
   onFailure?: (message: string) => void;
   deps?: {
     createPeerWithIce?: typeof createPeerWithIce;
+    loadIceConfig?: typeof loadIceConfig;
   };
 }): RelayConnectionHandle {
   const createPeer = opts.deps?.createPeerWithIce ?? createPeerWithIce;
+  const loadConfig = opts.deps?.loadIceConfig ?? loadIceConfig;
+  let baseIceConfigPromise: Promise<IceConf> | undefined;
   let p1: RelayPeer | undefined;
   let p2: RelayPeer | undefined;
   let c1: DataConnection | undefined;
@@ -119,6 +204,14 @@ export function connectWithRelayFallback(opts: {
     if (failureReported || isConnected) return;
     failureReported = true;
     opts.onFailure?.(message);
+  };
+
+  const getBaseIceConfig = () => {
+    baseIceConfigPromise ??= resolveIceConfig({
+      iceConfigUrl: opts.iceConfigUrl,
+      loadConfig,
+    });
+    return baseIceConfigPromise;
   };
 
   const cleanup = () => {
@@ -156,18 +249,34 @@ export function connectWithRelayFallback(opts: {
       p1?.destroy();
     } catch {}
 
-    opts.onEvent({
-      variant: 'warning',
-      message:
-        reason === 'timeout'
-          ? 'Direct P2P failed. Retrying via TURN relay…'
-          : 'Direct P2P error. Retrying via TURN relay…',
-    });
-
     try {
+      const baseIceConfig = await getBaseIceConfig();
+      if (!hasTurnServer(baseIceConfig)) {
+        const message =
+          reason === 'timeout'
+            ? 'Direct P2P failed and no TURN relay is configured.'
+            : 'Direct P2P error and no TURN relay is configured.';
+        opts.onEvent({
+          variant: 'error',
+          message,
+        });
+        reportFailure(message);
+        cleanup();
+        return;
+      }
+
+      opts.onEvent({
+        variant: 'warning',
+        message:
+          reason === 'timeout'
+            ? 'Direct P2P failed. Retrying via TURN relay…'
+            : 'Direct P2P error. Retrying via TURN relay…',
+      });
+
       const relayPeer = await createPeer({
         id: generateRandomId(),
         iceConfigUrl: opts.iceConfigUrl,
+        iceConfig: baseIceConfig,
         relayOnly: true,
       });
       if (cleanedUp) {
@@ -177,7 +286,13 @@ export function connectWithRelayFallback(opts: {
         return;
       }
       p2 = relayPeer;
-      c2 = p2.connect(opts.destIdHyphen);
+      await waitForPeerOpen({
+        peer: relayPeer,
+        timeoutMs: opts.openTimeoutMs,
+        label: 'relay',
+      });
+      if (cleanedUp) return;
+      c2 = relayPeer.connect(opts.destIdHyphen);
 
       clear2 = withOpenTimeout(c2, opts.openTimeoutMs, () => {
         if (isConnected) return;
@@ -209,9 +324,9 @@ export function connectWithRelayFallback(opts: {
         cleanup();
       });
 
-      p2.on('error', (err) => {
+      relayPeer.on('error', (err) => {
         if (cleanedUp) return;
-        const message = `Peer error: ${err.message}`;
+        const message = `Peer error: ${safeErrorMessage(err)}`;
         opts.onEvent({
           variant: 'error',
           message,
@@ -238,6 +353,7 @@ export function connectWithRelayFallback(opts: {
       const directPeer = await createPeer({
         id: generateRandomId(),
         iceConfigUrl: opts.iceConfigUrl,
+        iceConfig: await getBaseIceConfig(),
       });
       if (cleanedUp) {
         try {
@@ -246,7 +362,19 @@ export function connectWithRelayFallback(opts: {
         return;
       }
       p1 = directPeer;
-      c1 = p1.connect(opts.destIdHyphen);
+      try {
+        await waitForPeerOpen({
+          peer: directPeer,
+          timeoutMs: opts.openTimeoutMs,
+          label: 'direct',
+        });
+      } catch {
+        if (cleanedUp) return;
+        await startRelayAttempt('error');
+        return;
+      }
+      if (cleanedUp) return;
+      c1 = directPeer.connect(opts.destIdHyphen);
 
       clear1 = withOpenTimeout(c1, opts.openTimeoutMs, () =>
         startRelayAttempt('timeout'),
@@ -266,13 +394,15 @@ export function connectWithRelayFallback(opts: {
         opts.onOpen(c1);
       });
 
-      c1.on('error', () => startRelayAttempt('error'));
+      c1.on('error', () => {
+        startRelayAttempt('error');
+      });
 
-      p1.on('error', (err) => {
+      directPeer.on('error', (err) => {
         if (cleanedUp) return;
         opts.onEvent({
           variant: 'error',
-          message: `Peer error: ${err.message}`,
+          message: `Peer error: ${safeErrorMessage(err)}`,
         });
         startRelayAttempt('error');
       });

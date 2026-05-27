@@ -20,11 +20,13 @@ export const PwCreate = ({
   onClose,
   onConfirm,
   onEvent,
+  portalContainer,
 }: {
   mode: 'dark' | 'light';
   onClose: () => void;
   onConfirm: (password: string) => Promise<void>;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
+  portalContainer?: HTMLElement;
 }) => {
   const [open, setOpen] = useState(true);
   const [password, setPassword] = useState('');
@@ -41,7 +43,7 @@ export const PwCreate = ({
 
   return (
     <DlgRoot open={open}>
-      <DlgPortal>
+      <DlgPortal container={portalContainer}>
         <DlgOverlay
           mode={mode}
           className="dlg-topmost"
