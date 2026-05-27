@@ -77,6 +77,16 @@ test('camera error formatter keeps useful permission and device messages', () =>
     formatCameraErrorMessage({ message: 'Custom camera failure' }),
     'Custom camera failure',
   );
+  assert.equal(
+    formatCameraErrorMessage({
+      error: { name: 'NotAllowedError', message: 'Permission denied' },
+    }),
+    'Camera permission was denied.',
+  );
+  assert.equal(
+    formatCameraErrorMessage({ code: 'camera_failed', detail: 'unknown' }),
+    '{"code":"camera_failed","detail":"unknown"}',
+  );
 });
 
 test('scanner camera constraints prefer rear camera first', () => {

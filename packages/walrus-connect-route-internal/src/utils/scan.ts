@@ -68,9 +68,21 @@ export const getFallbackCameraConstraints = async (
   return { facingMode: { ideal: 'environment' } };
 };
 
+const stringifyCameraErrorObject = (
+  value: Record<string, unknown>,
+): string | undefined => {
+  try {
+    const json = JSON.stringify(value);
+    return json && json !== '{}' ? json : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export const formatCameraErrorMessage = (error: unknown): string => {
   if (error && typeof error === 'object') {
-    const { name, message } = error as { name?: unknown; message?: unknown };
+    const record = error as Record<string, unknown>;
+    const { name, message } = record;
     if (name === 'NotAllowedError' || name === 'SecurityError') {
       return 'Camera permission was denied.';
     }
@@ -86,6 +98,13 @@ export const formatCameraErrorMessage = (error: unknown): string => {
     if (typeof name === 'string' && name.length > 0) {
       return name;
     }
+    for (const nestedKey of ['error', 'cause'] as const) {
+      if (record[nestedKey] && record[nestedKey] !== error) {
+        return formatCameraErrorMessage(record[nestedKey]);
+      }
+    }
+    const json = stringifyCameraErrorObject(record);
+    if (json) return json;
   }
 
   if (typeof error === 'string' && error.length > 0) return error;
