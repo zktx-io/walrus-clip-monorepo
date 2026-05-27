@@ -1,9 +1,11 @@
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useRef,
+  useState,
+  type ReactNode,
 } from 'react';
 
 import { genAddressSeed } from '@mysten/sui/zklogin';
@@ -72,7 +74,7 @@ interface IWalrusWalletProps {
   };
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onLogout?: () => void | Promise<void>;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 const WalrusWalletContext = createContext<IWalrusWalletContext | undefined>(
@@ -101,7 +103,7 @@ const WalrusWalletRoot = ({
   );
   const { openSignTxModal } = useWalrusScan();
   const { setWallet, setMode } = useWalletState();
-  const [isConnected, setIsConnected] = React.useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
 
   const updateJwt = useCallback(
     async (jwt: string): Promise<boolean> => {

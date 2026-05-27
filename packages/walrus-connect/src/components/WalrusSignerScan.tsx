@@ -1,4 +1,4 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 
 import {
   WalrusSignerScan as InternalWalrusSignerScan,
@@ -12,7 +12,7 @@ export type WalrusSignerScanProps = {
   network: NETWORK;
   iceConfigUrl?: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export type WalrusSignerScanContext = {

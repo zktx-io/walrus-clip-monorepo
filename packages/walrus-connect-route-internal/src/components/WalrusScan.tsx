@@ -1,9 +1,10 @@
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useState,
+  type ReactNode,
 } from 'react';
 
 import { createRoot } from 'react-dom/client';
@@ -46,7 +47,7 @@ export const WalrusScan = ({
   network: NETWORK;
   iceConfigUrl?: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => {
   const [isScannerEnabled, setIsScannerEnabled] = useState<boolean>(false);
 
