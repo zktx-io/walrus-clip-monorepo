@@ -25,7 +25,6 @@ interface IWalrusScanContext {
       transaction: {
         toJSON: () => Promise<string>;
       };
-      sponsoredUrl?: string;
     },
   ) => Promise<QRSignOutcome>;
 }
@@ -64,6 +63,7 @@ export const WalrusScan = ({
               mode={mode || 'light'}
               signer={signer}
               network={network}
+              iceConfigUrl={iceConfigUrl}
               onEvent={onEvent}
               onClose={() => {
                 cleanupQrModalRoot(container, root);
@@ -76,7 +76,7 @@ export const WalrusScan = ({
         }
       });
     },
-    [isScannerEnabled, mode, network, onEvent],
+    [iceConfigUrl, isScannerEnabled, mode, network, onEvent],
   );
 
   const openSignTxModal = useCallback(
@@ -87,7 +87,6 @@ export const WalrusScan = ({
         transaction: {
           toJSON: () => Promise<string>;
         };
-        sponsoredUrl?: string;
       },
     ): Promise<QRSignOutcome> => {
       return new Promise((resolve) => {
@@ -100,7 +99,6 @@ export const WalrusScan = ({
             data={{
               network: network,
               transaction: data.transaction,
-              sponsoredUrl: data.sponsoredUrl,
             }}
             icon={icon}
             option={{
@@ -132,7 +130,7 @@ export const WalrusScan = ({
         } else {
           setIsScannerEnabled(false);
         }
-      } catch (error) {
+      } catch {
         setIsScannerEnabled(false);
       }
     };

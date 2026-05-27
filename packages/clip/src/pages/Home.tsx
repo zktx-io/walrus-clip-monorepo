@@ -12,7 +12,6 @@ import { PasskeyPublicKey } from '@mysten/sui/keypairs/passkey';
 import { Secp256k1PublicKey } from '@mysten/sui/keypairs/secp256k1';
 import { Secp256r1PublicKey } from '@mysten/sui/keypairs/secp256r1';
 import { MultiSigPublicKey } from '@mysten/sui/multisig';
-import { ZkLoginPublicIdentifier } from '@mysten/sui/zklogin';
 import {
   formatSignTransactionReview,
   useWalrusSignerScan,
@@ -42,8 +41,6 @@ export const Home = () => {
               return new Secp256r1PublicKey(account.publicKey.slice(1));
             case 0x03:
               return new MultiSigPublicKey(account.publicKey.slice(1));
-            case 0x05:
-              return new ZkLoginPublicIdentifier(account.publicKey.slice(1));
             case 0x06:
               return new PasskeyPublicKey(account.publicKey.slice(1));
             default:

@@ -276,11 +276,6 @@ const createDeps = ({
     build: async () => new Uint8Array([1, 2, 3]),
   }),
   encodeBytes: (bytes) => Array.from(bytes).join(','),
-  createSponsoredTransaction: async () => ({
-    bytes: 'sponsored-bytes',
-    digest: 'sponsored-digest',
-  }),
-  executeSponsoredTransaction: async () => {},
   verifyPendingTransactionSignature: async () => {},
 });
 
@@ -334,61 +329,6 @@ test('preserves submitted digest when delivery fails after non-sponsored executi
     bytes: '1,2,3',
     signature: 'signature-1',
     digest: 'digest-executed',
-    reason: 'Connection closed before protocol delivery completed.',
-  });
-});
-
-test('preserves sponsored digest when delivery fails after sponsor execution', async () => {
-  const transport = new FakeTransport((raw, currentTransport) => {
-    const message = parseProtocolMessage(raw, {
-      expectedSessionId: sessionId,
-      expectedNetwork: network,
-    });
-    if (message.type === 'sign.submitted') {
-      currentTransport.emitClose();
-    }
-  });
-  const outcomes: unknown[] = [];
-
-  startSignHostRunner({
-    sessionId,
-    network,
-    transport,
-    transaction: { toJSON: async () => '{}' },
-    sponsoredUrl: 'https://sponsor.example',
-    onEvent: () => {},
-    onFinish: (outcome) => outcomes.push(outcome),
-    deps: createDeps(),
-    timeouts: { ackMs: 5, signResponseMs: 100, finalityMs: 100 },
-  });
-
-  emitHostInbound({
-    transport,
-    sequence: 1,
-    type: 'sign.address',
-    payload: { address: signerAddress },
-  });
-  await waitFor(
-    () =>
-      transport.sent.some(
-        (raw) => parseSent(raw, 'sign.transaction').type === 'sign.transaction',
-      ),
-    'sponsored sign.transaction',
-  );
-
-  emitHostInbound({
-    transport,
-    sequence: 2,
-    type: 'sign.response',
-    payload: { signature: 'signature-1' },
-  });
-  await waitFor(() => outcomes.length === 1, 'sponsored delivery outcome');
-
-  assert.deepEqual(outcomes[0], {
-    type: 'submitted_delivery_failed',
-    bytes: 'sponsored-bytes',
-    signature: 'signature-1',
-    digest: 'sponsored-digest',
     reason: 'Connection closed before protocol delivery completed.',
   });
 });

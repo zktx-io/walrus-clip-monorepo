@@ -15,8 +15,6 @@ export {
   QRAddress,
   QRLogin,
   WalrusScan,
-  createSponsoredTransaction,
-  executeSponsoredTransaction,
   loginHostOutcomeToResult,
   signHostOutcomeToResult,
   useWalrusScan,

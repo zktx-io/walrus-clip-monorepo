@@ -67,7 +67,6 @@ export type SignTransactionReviewEvent = {
 export type SignTransactionReview = {
   network: NETWORK;
   sender: string;
-  digest?: string;
   sponsored: boolean;
   gas: SignTransactionReviewGas;
   inputs: SignTransactionReviewInput[];

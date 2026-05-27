@@ -126,7 +126,6 @@ const payloadFor = <TType extends ProtocolMessageType>(
     case 'sign.transaction':
       return {
         bytes: 'bytes-1',
-        expectedDigest: 'digest-submitted',
       } as ProtocolEnvelope<TType>['payload'];
     case 'sign.response':
       return { signature: 'signature-1' } as ProtocolEnvelope<TType>['payload'];
@@ -221,7 +220,6 @@ const createHappyDeps = (): Partial<SignScannerRunnerDeps> => ({
   encodeBytes: () => 'effects-1',
   createTransactionFromBytes: () => ({}) as never,
   getTransactionSenderValidationError: () => undefined,
-  validateExpectedDigest: async () => {},
   createSignTransactionReview: async () => ({
     ok: true,
     review: {
@@ -358,7 +356,6 @@ test('structured finality terminal from host closes scanner without timeout fall
     decodeBytes: () => new Uint8Array([1, 2, 3]),
     createTransactionFromBytes: () => ({}) as never,
     getTransactionSenderValidationError: () => undefined,
-    validateExpectedDigest: async () => {},
     createSignTransactionReview: async () => ({
       ok: true,
       review: {
@@ -415,7 +412,6 @@ test('structured finality terminal from host closes scanner without timeout fall
       type: 'sign.transaction',
       payload: {
         bytes: 'bytes-1',
-        expectedDigest: 'digest-submitted',
       },
     }),
   );
@@ -497,7 +493,6 @@ test('accepts synchronous submitted message during sign response delivery', asyn
     decodeBytes: () => new Uint8Array([1, 2, 3]),
     createTransactionFromBytes: () => ({}) as never,
     getTransactionSenderValidationError: () => undefined,
-    validateExpectedDigest: async () => {},
     createSignTransactionReview: async () => ({
       ok: true,
       review: {
@@ -554,7 +549,6 @@ test('accepts synchronous submitted message during sign response delivery', asyn
       type: 'sign.transaction',
       payload: {
         bytes: 'bytes-1',
-        expectedDigest: 'digest-submitted',
       },
     }),
   );
@@ -580,7 +574,6 @@ test('scanner preserves host execute unknown structured terminal', async () => {
     decodeBytes: () => new Uint8Array([1, 2, 3]),
     createTransactionFromBytes: () => ({}) as never,
     getTransactionSenderValidationError: () => undefined,
-    validateExpectedDigest: async () => {},
     createSignTransactionReview: async () => ({
       ok: true,
       review: {
@@ -637,7 +630,6 @@ test('scanner preserves host execute unknown structured terminal', async () => {
       type: 'sign.transaction',
       payload: {
         bytes: 'bytes-1',
-        expectedDigest: 'digest-submitted',
       },
     }),
   );

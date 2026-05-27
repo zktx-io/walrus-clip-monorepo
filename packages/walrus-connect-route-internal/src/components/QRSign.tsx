@@ -37,7 +37,7 @@ import { buildPeerId } from '../webrtc/qr-id';
  */
 export const QRSign = ({
   mode,
-  data: { network, transaction, sponsoredUrl },
+  data: { network, transaction },
   icon,
   option,
   onEvent,
@@ -47,7 +47,6 @@ export const QRSign = ({
   data: {
     network: NETWORK;
     transaction: { toJSON: () => Promise<string> };
-    sponsoredUrl?: string;
   };
   icon: string;
   option: { title?: string; description?: string; iceConfigUrl?: string };
@@ -207,7 +206,6 @@ export const QRSign = ({
             network,
             transport: createPeerDataConnectionTransport(connection),
             transaction,
-            sponsoredUrl,
             onEvent,
             onFinish: (outcome) => {
               onEvent({
@@ -250,7 +248,6 @@ export const QRSign = ({
     option?.iceConfigUrl,
     peerIdHyphen,
     sessionId,
-    sponsoredUrl,
     transaction,
   ]);
 

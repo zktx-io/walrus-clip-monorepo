@@ -5,11 +5,12 @@ import {
 import type { LoginHostOutcome } from '../internal/walrusConnectRoute';
 import { createRoot } from 'react-dom/client';
 
-import { PwCreate } from '../components/PwCreate';
-import { createNonce } from '../utils/createNonce';
-import { setAccountData, setZkLoginData } from '../utils/localStorage';
+import { setAccountData } from '../utils/localStorage';
 import type { NETWORK, NotiVariant } from '../utils/walletTypes';
-import { cleanupWalletModalRoot } from '../utils/modalRoot';
+import {
+  cleanupWalletModalRoot,
+  createWalletModalContainer,
+} from '../utils/modalRoot';
 import { WalrusWalletLoginRouteError } from './walletErrors';
 
 const loginRouteErrorFromOutcome = (outcome: LoginHostOutcome) =>
@@ -21,43 +22,6 @@ const loginRouteErrorFromOutcome = (outcome: LoginHostOutcome) =>
     address: 'address' in outcome ? outcome.address : undefined,
     network: 'network' in outcome ? outcome.network : undefined,
     accountPersisted: outcome.type === 'connected',
-  });
-
-export const openZkLoginModal = ({
-  mode,
-  network,
-  epochOffset,
-  onEvent,
-}: {
-  mode: 'dark' | 'light';
-  network: NETWORK;
-  epochOffset?: number;
-  onEvent: (data: { variant: NotiVariant; message: string }) => void;
-}): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-    root.render(
-      <PwCreate
-        mode={mode}
-        onClose={() => {
-          cleanupWalletModalRoot(container, root);
-          reject(new Error('rejected'));
-        }}
-        onConfirm={async (password: string) => {
-          const { nonce, data } = await createNonce(
-            password,
-            network,
-            epochOffset,
-          );
-          setZkLoginData({ network, zkLogin: data });
-          cleanupWalletModalRoot(container, root);
-          resolve(nonce);
-        }}
-        onEvent={onEvent}
-      />,
-    );
   });
 
 export const openQrLoginModal = ({
@@ -74,8 +38,8 @@ export const openQrLoginModal = ({
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
 }): Promise<void> =>
   new Promise((resolve, reject) => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
+    const { container, portalContainer, topLayerHost } =
+      createWalletModalContainer({ topLayer: true });
     const root = createRoot(container);
     root.render(
       <QRLogin
@@ -83,9 +47,10 @@ export const openQrLoginModal = ({
         icon={icon}
         network={network}
         iceConfigUrl={iceConfigUrl}
+        portalContainer={portalContainer}
         onEvent={onEvent}
         onClose={(outcome: LoginHostOutcome) => {
-          cleanupWalletModalRoot(container, root);
+          cleanupWalletModalRoot(container, root, topLayerHost);
           const result = loginHostOutcomeToResult(outcome);
           if (result) {
             setAccountData(result);

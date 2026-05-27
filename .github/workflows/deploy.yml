@@ -47,71 +47,17 @@ jobs:
   build_deploy_clip:
     # Frontend deployment for Clip (when '-clip' IS in the tag)
     if: contains(github.event.release.tag_name, '-clip') == true
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout only packages/clip
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            packages/clip
-          sparse-checkout-cone-mode: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install dependencies in packages/clip directory and Build
-        env:
-          VITE_APP_CLIENT_ID: ${{ secrets.VITE_APP_CLIENT_ID }}
-          VITE_APP_ENOKI_KEY: ${{ secrets.VITE_APP_ENOKI_KEY }}
-          VITE_APP_SPONSORED_URL: ${{ secrets.VITE_APP_SPONSORED_URL }}
-        run: |
-          cd ./packages/clip
-          npm install
-          npm run build
-          cp -r ./dist ../../dist
-          cp ./site.config.json ../../site.config.json
-
-      - name: Deploy to Walrus Sites
-        uses: zktx-io/walrus-sites-provenance@v0.5.5
-        env:
-          GIT_SIGNER_PIN: ${{ secrets.GIT_SIGNER_PIN }}
-          ED25519_PRIVATE_KEY: ${{ secrets.ED25519_PRIVATE_KEY }}
+    uses: zktx-io/walrus-sites-provenance/.github/workflows/deploy_with_slsa3.yml@ca8d8b691bef986d443c6c485bd119afd19b1dcd # v0.6.2
+    with:
+      working-directory: './packages/clip'
+    secrets:
+      GIT_SIGNER_PIN: ${{ secrets.GIT_SIGNER_PIN }}
 
   build_deploy_demo:
     # Frontend deployment for Demo (when '-demo' IS in the tag)
     if: contains(github.event.release.tag_name, '-demo') == true
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout only packages/demo
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            packages/demo
-          sparse-checkout-cone-mode: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install dependencies in packages/demo directory and Build
-        env:
-          VITE_APP_CLIENT_ID: ${{ secrets.VITE_APP_CLIENT_ID }}
-          VITE_APP_ENOKI_KEY: ${{ secrets.VITE_APP_ENOKI_KEY }}
-          VITE_APP_SPONSORED_URL: ${{ secrets.VITE_APP_SPONSORED_URL }}
-        run: |
-          cd ./packages/demo
-          npm install
-          npm run build
-          cp -r ./dist ../../dist
-          cp ./site.config.json ../../site.config.json
-
-      - name: Deploy to Walrus Sites
-        uses: zktx-io/walrus-sites-provenance@v0.5.5
-        env:
-          GIT_SIGNER_PIN: ${{ secrets.GIT_SIGNER_PIN }}
-          ED25519_PRIVATE_KEY: ${{ secrets.ED25519_PRIVATE_KEY }}
+    uses: zktx-io/walrus-sites-provenance/.github/workflows/deploy_with_slsa3.yml@ca8d8b691bef986d443c6c485bd119afd19b1dcd # v0.6.2
+    with:
+      working-directory: './packages/demo'
+    secrets:
+      GIT_SIGNER_PIN: ${{ secrets.GIT_SIGNER_PIN }}

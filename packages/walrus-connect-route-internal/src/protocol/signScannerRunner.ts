@@ -13,7 +13,6 @@ import {
   protocolCodec,
   protocolErrorFromUnknown,
   throwProtocolValidationError,
-  validateExpectedDigest,
 } from './signRuntime';
 import { ProtocolSession, type ProtocolTransport } from './session';
 import type { ClipSigner, NETWORK, NotiVariant } from '../types';
@@ -56,7 +55,6 @@ import {
 type SignedScannerTransaction = {
   tx: Transaction;
   bytes: string;
-  expectedDigest?: string;
   submittedDigest?: string;
 };
 
@@ -66,7 +64,6 @@ export type SignScannerRunnerDeps = {
   decodeBytes: (bytes: string) => Uint8Array;
   encodeBytes: (bytes: Uint8Array) => string;
   createTransactionFromBytes: (bytes: Uint8Array) => Transaction;
-  validateExpectedDigest: typeof validateExpectedDigest;
   validateSubmittedDigest: typeof validateSubmittedDigest;
   validateFinalizedDigest: typeof validateFinalizedDigest;
   getTransactionDigest: typeof getWalrusConnectTransactionDigest;
@@ -89,7 +86,6 @@ const defaultDeps: SignScannerRunnerDeps = {
   decodeBytes: fromBase64,
   encodeBytes: toBase64,
   createTransactionFromBytes: (bytes) => Transaction.from(bytes),
-  validateExpectedDigest,
   validateSubmittedDigest,
   validateFinalizedDigest,
   getTransactionDigest: getWalrusConnectTransactionDigest,
@@ -315,7 +311,6 @@ export const startSignScannerRunner = ({
       deps.validateSubmittedDigest({
         tx: pendingTransaction.tx,
         client,
-        expectedDigest: pendingTransaction.expectedDigest,
         submittedDigest: message.payload.digest,
         getTransactionDigest: deps.getTransactionDigest,
       }),
@@ -441,7 +436,7 @@ export const startSignScannerRunner = ({
       chain: { type: 'no_submit' },
       delivery: { type: 'open' },
     };
-    const { bytes, expectedDigest } = message.payload;
+    const { bytes } = message.payload;
     const tx = deps.createTransactionFromBytes(deps.decodeBytes(bytes));
     authority.assertCancellable();
 
@@ -453,17 +448,11 @@ export const startSignScannerRunner = ({
       throwProtocolValidationError(senderError, 'validate_sender');
     }
 
-    await authority.cancellable(() =>
-      deps.validateExpectedDigest(tx, client, expectedDigest),
-    );
-    if (isTerminal() || !session?.isActive()) return;
-
     const reviewResult = await authority.cancellable(() =>
       deps.createSignTransactionReview({
         tx,
         client: reviewClient,
         bytes,
-        digest: expectedDigest,
         network,
       }),
     );
@@ -485,7 +474,6 @@ export const startSignScannerRunner = ({
     signedTransaction = {
       tx,
       bytes,
-      expectedDigest,
     };
     state = {
       type: 'reviewing_transaction',

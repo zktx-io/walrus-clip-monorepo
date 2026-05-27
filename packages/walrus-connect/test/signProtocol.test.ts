@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 
 import { createProtocolMessage, parseProtocolMessage } from '../../walrus-connect-route-internal/src/utils/message.ts';
@@ -11,6 +10,7 @@ import {
   validateProtocolMessageFresh,
   validateSubmittedDigest,
 } from '../../walrus-connect-route-internal/src/utils/signProtocol.ts';
+import type { WalrusConnectGrpcClient } from '../../walrus-connect-route-internal/src/utils/suiClient.ts';
 
 test('rejects sign response without a pending transaction', () => {
   assert.deepEqual(requirePendingSignTransaction(undefined), {
@@ -50,13 +50,13 @@ test('rechecks protocol freshness before signing', () => {
   });
 });
 
-test('rejects submitted digest mismatch', async () => {
+test('rejects submitted digest mismatch against scanner-computed digest', async () => {
   assert.deepEqual(
     await validateSubmittedDigest({
       tx: new Transaction(),
-      client: {} as SuiJsonRpcClient,
-      expectedDigest: 'expected-digest',
+      client: {} as WalrusConnectGrpcClient,
       submittedDigest: 'other-digest',
+      getTransactionDigest: async () => 'computed-digest',
     }),
     {
       ok: false,
@@ -67,6 +67,18 @@ test('rejects submitted digest mismatch', async () => {
         digest: 'other-digest',
       },
     },
+  );
+});
+
+test('accepts submitted digest matching the scanner-computed digest', async () => {
+  assert.deepEqual(
+    await validateSubmittedDigest({
+      tx: new Transaction(),
+      client: {} as WalrusConnectGrpcClient,
+      submittedDigest: 'computed-digest',
+      getTransactionDigest: async () => 'computed-digest',
+    }),
+    { ok: true, digest: 'computed-digest' },
   );
 });
 

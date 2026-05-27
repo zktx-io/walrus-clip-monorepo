@@ -35,10 +35,6 @@ import {
   type ProtocolEnvelope,
   type ProtocolErrorPayload,
 } from '../utils/message';
-import {
-  createSponsoredTransaction,
-  executeSponsoredTransaction,
-} from '../utils/sponsoredTransaction';
 import { normalizeSignTransactionAddress } from '../utils/signTransactionReview';
 import {
   ACK_TIMEOUT_MS,
@@ -70,18 +66,13 @@ type SignHostClient = WalrusConnectGrpcClient;
 
 type SignHostTransaction = {
   setSenderIfNotSet: (address: string) => void;
-  build: (input: {
-    client: SignHostClient;
-    onlyTransactionKind?: boolean;
-  }) => Promise<Uint8Array>;
+  build: (input: { client: SignHostClient }) => Promise<Uint8Array>;
 };
 
 export type SignHostRunnerDeps = {
   createClient: (network: NETWORK) => SignHostClient;
   createTransactionFromJson: (json: string) => SignHostTransaction;
   encodeBytes: (bytes: Uint8Array) => string;
-  createSponsoredTransaction: typeof createSponsoredTransaction;
-  executeSponsoredTransaction: typeof executeSponsoredTransaction;
   verifyPendingTransactionSignature: typeof verifyPendingTransactionSignature;
 };
 
@@ -96,7 +87,6 @@ export type StartSignHostRunnerParams = {
   network: NETWORK;
   transport: ProtocolTransport;
   transaction: { toJSON: () => Promise<string> };
-  sponsoredUrl?: string;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onFinish: (outcome: QRSignOutcome) => void;
   deps?: Partial<SignHostRunnerDeps>;
@@ -107,8 +97,6 @@ const defaultDeps: SignHostRunnerDeps = {
   createClient: createWalrusConnectGrpcClient,
   createTransactionFromJson: (json) => Transaction.from(json),
   encodeBytes: toBase64,
-  createSponsoredTransaction,
-  executeSponsoredTransaction,
   verifyPendingTransactionSignature,
 };
 
@@ -188,7 +176,6 @@ export const startSignHostRunner = ({
   network,
   transport,
   transaction,
-  sponsoredUrl,
   onEvent,
   onFinish,
   deps: partialDeps,
@@ -570,54 +557,12 @@ export const startSignHostRunner = ({
       delivery: { type: 'open' },
       publicSettlement: { type: 'unresolved' },
     };
-    onEvent({
-      variant: 'info',
-      message:
-        sponsoredUrl !== undefined
-          ? 'Creating sponsored transaction...'
-          : 'Creating transaction...',
-    });
+    onEvent({ variant: 'info', message: 'Creating transaction...' });
 
     const txJson = await authority.cancellable(() => transaction.toJSON());
     const txb = deps.createTransactionFromJson(txJson);
     authority.assertCancellable();
     txb.setSenderIfNotSet(signerAddress);
-
-    if (sponsoredUrl !== undefined) {
-      const txBytes = await authority.cancellable(() =>
-        buildWalrusConnectTransaction({
-          client,
-          transaction: txb,
-          onlyTransactionKind: true,
-        }),
-      );
-      const { bytes, digest } = await authority.externalPreSubmit(() =>
-        deps.createSponsoredTransaction(
-          sponsoredUrl,
-          network,
-          signerAddress,
-          txBytes,
-        ),
-      );
-      const pending = {
-        bytes,
-        expectedDigest: digest,
-        signerAddress,
-      };
-      state = {
-        type: 'awaiting_signature',
-        pending,
-        chain: { type: 'no_submit' },
-        delivery: { type: 'open' },
-        publicSettlement: { type: 'unresolved' },
-      };
-      startSignResponseTimeout();
-      authority.send(session, 'sign.transaction', {
-        bytes,
-        expectedDigest: digest,
-      });
-      return;
-    }
 
     const txBytes = await authority.cancellable(() =>
       buildWalrusConnectTransaction({ client, transaction: txb }),
@@ -670,13 +615,7 @@ export const startSignHostRunner = ({
       delivery: { type: 'open' },
       publicSettlement: { type: 'unresolved' },
     };
-    onEvent({
-      variant: 'info',
-      message:
-        sponsoredUrl !== undefined
-          ? 'Executing sponsored transaction...'
-          : 'Executing transaction...',
-    });
+    onEvent({ variant: 'info', message: 'Executing transaction...' });
     await authority.cancellable(() =>
       deps.verifyPendingTransactionSignature({
         pendingTransaction: pending,
@@ -698,48 +637,11 @@ export const startSignHostRunner = ({
       publicSettlement: { type: 'unresolved' },
     };
 
-    if (sponsoredUrl !== undefined) {
-      if (!pending.expectedDigest) {
-        throw new ProtocolMessageError(
-          createSignProtocolErrorPayload({
-            code: 'invalid_payload',
-            message: 'Sponsored sign response has no pending digest',
-            phase: 'sponsor_execute',
-          }),
-        );
-      }
-      const expectedDigest = pending.expectedDigest;
-      try {
-        await authority.irreversibleExecute(() =>
-          deps.executeSponsoredTransaction(
-            sponsoredUrl,
-            expectedDigest,
-            signature,
-          ),
-        );
-      } catch (error) {
-        await settleExecuteUnknown({
-          pending,
-          signature,
-          digest: expectedDigest,
-          phase: 'sponsor_execute',
-          error,
-        });
-        return;
-      }
-      await completeSubmittedTransaction({
-        pending,
-        signature,
-        digest: expectedDigest,
-      });
-      return;
-    }
-
     if (!pending.rawBytes) {
       throw new ProtocolMessageError(
         createSignProtocolErrorPayload({
           code: 'invalid_payload',
-          message: 'Non-sponsored sign response has no raw transaction bytes',
+          message: 'Sign response has no raw transaction bytes',
           phase: 'execute',
         }),
       );

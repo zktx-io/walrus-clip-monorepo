@@ -5,19 +5,13 @@ import {
   StandardEventsOnMethod,
   SUI_CHAINS,
   SuiSignAndExecuteTransactionMethod,
-  SuiSignPersonalMessageMethod,
-  SuiSignTransactionMethod,
   Wallet,
   type ReadonlyWalletAccount,
 } from '@mysten/wallet-standard';
 import type { NETWORK, NotiVariant } from '../utils/walletTypes';
 import mitt, { type Emitter } from 'mitt';
 
-import {
-  signAndExecuteWalletTransaction,
-  signWalletPersonalMessage,
-  signWalletTransaction,
-} from '../runtime/signingRuntime';
+import { signAndExecuteWalletTransaction } from '../runtime/signingRuntime';
 import { WalletSession } from '../runtime/walletSession';
 import {
   createWalrusWalletFeatures,
@@ -35,16 +29,11 @@ type WalletStandardRuntimeConfig = {
   name: string;
   icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
   network: NETWORK;
-  sponsoredUrl: string;
   mode: 'dark' | 'light';
   iceConfigUrl: string | undefined;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   setIsConnected: (isConnected: boolean) => void;
   openSignTxModal: WalletQrSignModal;
-  zklogin?: {
-    callbackNonce?: (nonce: string) => void;
-    epochOffset?: number;
-  };
 };
 
 export class WalletStandard implements Wallet {
@@ -58,7 +47,6 @@ export class WalletStandard implements Wallet {
   #icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`;
 
   #network: NETWORK;
-  #sponsoredUrl: string | undefined;
   #openSignTxModal: WalletQrSignModal;
 
   get version() {
@@ -85,22 +73,16 @@ export class WalletStandard implements Wallet {
     name: string,
     icon: `data:image/${'svg+xml' | 'webp' | 'png' | 'gif'};base64,${string}`,
     network: NETWORK,
-    sponsoredUrl: string,
     mode: 'dark' | 'light',
     iceConfigUrl: string | undefined,
     onEvent: (data: { variant: NotiVariant; message: string }) => void,
     setIsConnected: (isConnected: boolean) => void,
     openSignTxModal: WalletQrSignModal,
-    zklogin?: {
-      callbackNonce?: (nonce: string) => void;
-      epochOffset?: number;
-    },
   ) {
     this.#events = mitt();
     this.#name = name;
     this.#icon = icon;
     this.#network = network;
-    this.#sponsoredUrl = sponsoredUrl === '' ? undefined : sponsoredUrl;
     this.#openSignTxModal = openSignTxModal;
     this.#session = new WalletSession({
       icon,
@@ -110,7 +92,6 @@ export class WalletStandard implements Wallet {
       onEvent,
       setIsConnected,
       onAccountsChanged: this.#onAccountsChanged,
-      zklogin,
     });
   }
 
@@ -118,18 +99,15 @@ export class WalletStandard implements Wallet {
     name,
     icon,
     network,
-    sponsoredUrl,
     mode,
     iceConfigUrl,
     onEvent,
     setIsConnected,
     openSignTxModal,
-    zklogin,
   }: WalletStandardRuntimeConfig) {
     this.#name = name;
     this.#icon = icon;
     this.#network = network;
-    this.#sponsoredUrl = sponsoredUrl === '' ? undefined : sponsoredUrl;
     this.#openSignTxModal = openSignTxModal;
     this.#session.updateRuntime({
       icon,
@@ -139,7 +117,6 @@ export class WalletStandard implements Wallet {
       onEvent,
       setIsConnected,
       onAccountsChanged: this.#onAccountsChanged,
-      zklogin,
     });
   }
 
@@ -149,8 +126,6 @@ export class WalletStandard implements Wallet {
       disconnect: this.#disconnect,
       on: this.#on,
       signAndExecuteTransaction: this.#signAndExecuteTransaction,
-      signTransaction: this.#signTransaction,
-      signPersonalMessage: this.#signPersonalMessage,
     });
   }
 
@@ -168,21 +143,15 @@ export class WalletStandard implements Wallet {
 
   #disconnect: StandardDisconnectMethod = () => this.#session.disconnect();
 
-  #createSigningRuntimeConfig = () => ({
-    network: this.#network,
-    sponsoredUrl: this.#sponsoredUrl,
-    signer: this.#session.signer,
-    activeAccount: this.#session.activeWalletAccount,
-    openSignTxModal: this.#openSignTxModal,
-  });
-
-  #signTransaction: SuiSignTransactionMethod = async (input) =>
-    signWalletTransaction(this.#createSigningRuntimeConfig(), input);
-
   #signAndExecuteTransaction: SuiSignAndExecuteTransactionMethod = async (
     input,
-  ) => signAndExecuteWalletTransaction(this.#createSigningRuntimeConfig(), input);
-
-  #signPersonalMessage: SuiSignPersonalMessageMethod = async (input) =>
-    signWalletPersonalMessage(this.#createSigningRuntimeConfig(), input);
+  ) =>
+    signAndExecuteWalletTransaction(
+      {
+        network: this.#network,
+        activeAccount: this.#session.activeWalletAccount,
+        openSignTxModal: this.#openSignTxModal,
+      },
+      input,
+    );
 }

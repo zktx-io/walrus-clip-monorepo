@@ -145,7 +145,6 @@ test('creates review with concrete command and dry-run facts', async () => {
     tx: createReviewTransaction(ADDRESS_TWO),
     client: createClient(createDryRun()),
     bytes: 'request-bytes',
-    digest: 'sponsored-digest',
     network: 'testnet',
   });
 
@@ -154,7 +153,6 @@ test('creates review with concrete command and dry-run facts', async () => {
 
   const { review } = result;
   assert.equal(review.sender, ADDRESS_ONE);
-  assert.equal(review.digest, 'sponsored-digest');
   assert.equal(review.sponsored, true);
 
   const split = review.commands.find((command) => command.kind === 'SplitCoins');
@@ -190,7 +188,7 @@ test('creates review with concrete command and dry-run facts', async () => {
   assert.doesNotMatch(formatted, /commandCount/);
 });
 
-test('derives sponsorship from gas owner instead of host digest', async () => {
+test('derives sponsorship from gas owner relative to sender', async () => {
   const selfFunded = createReviewTransaction(ADDRESS_ONE);
   const sponsored = createReviewTransaction(ADDRESS_TWO);
 
@@ -209,18 +207,15 @@ test('derives sponsorship from gas owner instead of host digest', async () => {
     tx: selfFunded,
     client: createClient(createDryRun()),
     bytes: 'request-bytes',
-    digest: 'host-provided-digest',
     network: 'testnet',
   });
 
   assert.equal(result.ok, true);
   if (!result.ok) assert.fail(result.error.message);
 
-  assert.equal(result.review.digest, 'host-provided-digest');
   assert.equal(result.review.sponsored, false);
   const formatted = formatSignTransactionReview(result.review);
   assert.match(formatted, /Sponsored: no/);
-  assert.match(formatted, /Host-provided digest: host-provided-digest/);
 });
 
 test('turns user rejection into a structured validation error', async () => {
