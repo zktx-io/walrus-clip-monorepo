@@ -13,7 +13,7 @@ import { QRScan } from '../components/QRScan';
 import { ClipSigner, NETWORK, NotiVariant } from '../types';
 import type { QRSignOutcome } from '../protocol/signHostRunner';
 import { QRSign } from './QRSign';
-import { cleanup } from '../utils/cleanup';
+import { cleanupQrModalRoot } from '../utils/cleanup';
 import { settleNoCameraScan } from '../utils/scan';
 
 interface IWalrusScanContext {
@@ -66,7 +66,7 @@ export const WalrusScan = ({
               network={network}
               onEvent={onEvent}
               onClose={() => {
-                cleanup(container, root);
+                cleanupQrModalRoot(container, root);
                 resolve();
               }}
             />,
@@ -110,7 +110,7 @@ export const WalrusScan = ({
             }}
             onEvent={onEvent}
             onClose={(outcome) => {
-              cleanup(container, root);
+              cleanupQrModalRoot(container, root);
               resolve(outcome);
             }}
           />,

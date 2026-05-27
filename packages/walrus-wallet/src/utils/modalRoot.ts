@@ -1,9 +1,11 @@
 import type { Root } from 'react-dom/client';
 
-const TIME_OUT = 300;
-
-export const cleanupQrModalRoot = (container: HTMLDivElement, root: Root) => {
-  setTimeout(() => {
+export const cleanupWalletModalRoot = (
+  container: HTMLDivElement,
+  root: Root,
+) => {
+  // Use requestAnimationFrame to ensure React finishes its work before cleanup
+  requestAnimationFrame(() => {
     try {
       root.unmount();
     } catch {}
@@ -12,5 +14,5 @@ export const cleanupQrModalRoot = (container: HTMLDivElement, root: Root) => {
         document.body.removeChild(container);
       }
     } catch {}
-  }, TIME_OUT);
+  });
 };

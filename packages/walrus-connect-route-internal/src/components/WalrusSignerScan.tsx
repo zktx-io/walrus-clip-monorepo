@@ -11,7 +11,7 @@ import { createRoot } from 'react-dom/client';
 
 import { QRScan } from './QRScan';
 import { ClipSigner, NETWORK, NotiVariant } from '../types';
-import { cleanup } from '../utils/cleanup';
+import { cleanupQrModalRoot } from '../utils/cleanup';
 import { settleNoCameraScan } from '../utils/scan';
 
 interface IWalrusSignerScanContext {
@@ -52,7 +52,7 @@ export const WalrusSignerScan = ({
               network={network}
               onEvent={onEvent}
               onClose={() => {
-                cleanup(container, root);
+                cleanupQrModalRoot(container, root);
                 resolve();
               }}
             />,

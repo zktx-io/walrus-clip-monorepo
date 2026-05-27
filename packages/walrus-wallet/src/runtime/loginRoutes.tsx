@@ -9,7 +9,7 @@ import { PwCreate } from '../components/PwCreate';
 import { createNonce } from '../utils/createNonce';
 import { setAccountData, setZkLoginData } from '../utils/localStorage';
 import type { NETWORK, NotiVariant } from '../utils/walletTypes';
-import { cleanup } from '../utils/zkLoginSigner';
+import { cleanupWalletModalRoot } from '../utils/modalRoot';
 import { WalrusWalletLoginRouteError } from './walletErrors';
 
 const loginRouteErrorFromOutcome = (outcome: LoginHostOutcome) =>
@@ -42,7 +42,7 @@ export const openZkLoginModal = ({
       <PwCreate
         mode={mode}
         onClose={() => {
-          cleanup(container, root);
+          cleanupWalletModalRoot(container, root);
           reject(new Error('rejected'));
         }}
         onConfirm={async (password: string) => {
@@ -52,7 +52,7 @@ export const openZkLoginModal = ({
             epochOffset,
           );
           setZkLoginData({ network, zkLogin: data });
-          cleanup(container, root);
+          cleanupWalletModalRoot(container, root);
           resolve(nonce);
         }}
         onEvent={onEvent}
@@ -85,7 +85,7 @@ export const openQrLoginModal = ({
         iceConfigUrl={iceConfigUrl}
         onEvent={onEvent}
         onClose={(outcome: LoginHostOutcome) => {
-          cleanup(container, root);
+          cleanupWalletModalRoot(container, root);
           const result = loginHostOutcomeToResult(outcome);
           if (result) {
             setAccountData(result);

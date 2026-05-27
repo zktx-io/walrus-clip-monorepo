@@ -11,26 +11,13 @@ import {
   toZkLoginPublicIdentifier,
 } from '@mysten/sui/zklogin';
 import type { NETWORK } from './walletTypes';
-import { createRoot, type Root } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 
 import { IZkLogin } from './types';
 import { getWalrusWalletCurrentEpoch } from './suiClient';
 import { decryptText } from './utils';
+import { cleanupWalletModalRoot } from './modalRoot';
 import { PwConfirm } from '../components/PwConfirm';
-
-export const cleanup = (container: HTMLDivElement, root: Root) => {
-  // Use requestAnimationFrame to ensure React finishes its work before cleanup
-  requestAnimationFrame(() => {
-    try {
-      root.unmount();
-    } catch {}
-    try {
-      if (document.body.contains(container)) {
-        document.body.removeChild(container);
-      }
-    } catch {}
-  });
-};
 
 export class ZkLoginSigner extends Signer {
   #network: NETWORK;
@@ -64,7 +51,7 @@ export class ZkLoginSigner extends Signer {
         <PwConfirm
           mode={this.#mode}
           onClose={() => {
-            cleanup(container, root);
+            cleanupWalletModalRoot(container, root);
             reject(new Error('rejected'));
           }}
           onConfirm={async (password: string) => {
@@ -77,7 +64,7 @@ export class ZkLoginSigner extends Signer {
                 salt,
               );
               if (!!privateKey) {
-                cleanup(container, root);
+                cleanupWalletModalRoot(container, root);
                 resolve(privateKey);
               } else {
                 throw new Error('Invalid password.');
