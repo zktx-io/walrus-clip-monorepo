@@ -1,11 +1,5 @@
 import { bcs } from '@mysten/sui/bcs';
-import type {
-  BalanceChange,
-  DryRunTransactionBlockResponse,
-  SuiEvent,
-  SuiJsonRpcClient,
-  SuiObjectChange,
-} from '@mysten/sui/jsonRpc';
+import type { SuiGrpcClient } from '@mysten/sui/grpc';
 import { Transaction } from '@mysten/sui/transactions';
 import {
   fromBase64,
@@ -46,6 +40,48 @@ type DescribedArgument = {
 };
 
 type ReviewTransactionData = ReturnType<Transaction['getData']>;
+
+type SignTransactionReviewClient = SuiGrpcClient;
+
+type CoreBalanceChange = {
+  address: string;
+  coinType: string;
+  amount: string;
+};
+
+type CoreChangedObject = {
+  objectId: string;
+  inputState: string;
+  inputVersion: string | null;
+  inputDigest: string | null;
+  inputOwner: unknown;
+  outputState: string;
+  outputVersion: string | null;
+  outputDigest: string | null;
+  outputOwner: unknown;
+  idOperation: string;
+};
+
+type CoreEvent = {
+  packageId: string;
+  module: string;
+  sender: string;
+  eventType: string;
+  json: Record<string, unknown> | null;
+};
+
+type CoreReviewTransaction = {
+  balanceChanges?: CoreBalanceChange[];
+  effects?: {
+    status: { success: true; error: null } | { success: false; error: { message: string } };
+    changedObjects?: CoreChangedObject[];
+  };
+  events?: CoreEvent[];
+};
+
+type CoreReviewSimulation =
+  | { $kind: 'Transaction'; Transaction: CoreReviewTransaction }
+  | { $kind: 'FailedTransaction'; FailedTransaction: CoreReviewTransaction };
 
 const UNKNOWN = 'unknown';
 
@@ -594,28 +630,24 @@ const describeCommand = (
   };
 };
 
-const describeBalanceChange = (change: BalanceChange, index: number) => ({
+const describeBalanceChange = (change: CoreBalanceChange, index: number) => ({
   index,
-  owner: describeOwner(change.owner),
+  owner: change.address,
   coinType: change.coinType,
   amount: change.amount,
-  summary: `${change.amount} ${change.coinType} for ${describeOwner(
-    change.owner,
-  )}`,
+  summary: `${change.amount} ${change.coinType} for ${change.address}`,
 });
 
 const describeObjectChange = (
-  change: SuiObjectChange,
+  change: CoreChangedObject,
   index: number,
 ) => {
   const record = change as unknown as Record<string, unknown>;
-  const type = stringifyValue(record.type);
-  const objectId = stringifyValue(record.objectId ?? record.packageId);
-  const objectType = stringifyValue(record.objectType);
-  const summary =
-    type === 'published'
-      ? `Published package ${stringifyValue(record.packageId)}`
-      : `${type} ${objectId}${objectType !== UNKNOWN ? ` (${objectType})` : ''}`;
+  const type = `${stringifyValue(record.inputState)} -> ${stringifyValue(
+    record.outputState,
+  )}`;
+  const objectId = stringifyValue(record.objectId);
+  const summary = `${stringifyValue(record.idOperation)} ${objectId} (${type})`;
 
   return {
     index,
@@ -623,23 +655,23 @@ const describeObjectChange = (
     summary,
     details: [
       fact('Object id', record.objectId),
-      fact('Object type', record.objectType),
-      fact('Package id', record.packageId),
-      fact('Owner', describeOwner(record.owner)),
-      fact('Recipient', describeOwner(record.recipient)),
-      fact('Sender', record.sender),
-      fact('Version', record.version),
-      fact('Previous version', record.previousVersion),
-      fact('Digest', record.digest),
-      fact('Modules', record.modules),
+      fact('Input state', record.inputState),
+      fact('Input owner', describeOwner(record.inputOwner)),
+      fact('Input version', record.inputVersion),
+      fact('Input digest', record.inputDigest),
+      fact('Output state', record.outputState),
+      fact('Output owner', describeOwner(record.outputOwner)),
+      fact('Output version', record.outputVersion),
+      fact('Output digest', record.outputDigest),
+      fact('ID operation', record.idOperation),
     ],
   };
 };
 
-const describeEvent = (event: SuiEvent, index: number) => {
+const describeEvent = (event: CoreEvent, index: number) => {
   const record = event as unknown as Record<string, unknown>;
-  const eventType = stringifyValue(record.type);
-  const moduleName = stringifyValue(record.transactionModule);
+  const eventType = stringifyValue(record.eventType);
+  const moduleName = stringifyValue(record.module);
   const packageId = stringifyValue(record.packageId);
 
   return {
@@ -648,10 +680,9 @@ const describeEvent = (event: SuiEvent, index: number) => {
     summary: `${eventType} from ${packageId}::${moduleName}`,
     details: [
       fact('Package id', record.packageId),
-      fact('Module', record.transactionModule),
+      fact('Module', record.module),
       fact('Sender', record.sender),
-      fact('Event id', record.id),
-      fact('Parsed JSON', record.parsedJson),
+      fact('Parsed JSON', record.json),
     ],
   };
 };
@@ -800,7 +831,7 @@ export const createSignTransactionReview = async ({
   network,
 }: {
   tx: Transaction;
-  client: SuiJsonRpcClient;
+  client: SignTransactionReviewClient;
   bytes: string;
   network: NETWORK;
 }): Promise<
@@ -818,9 +849,17 @@ export const createSignTransactionReview = async ({
     };
   }
 
-  let dryRun: DryRunTransactionBlockResponse;
+  let simulation: CoreReviewSimulation;
   try {
-    dryRun = await client.dryRunTransactionBlock({ transactionBlock: bytes });
+    simulation = (await client.core.simulateTransaction({
+      transaction: fromBase64(bytes),
+      include: {
+        balanceChanges: true,
+        effects: true,
+        events: true,
+        objectTypes: true,
+      },
+    })) as CoreReviewSimulation;
   } catch {
     return {
       ok: false,
@@ -831,14 +870,18 @@ export const createSignTransactionReview = async ({
     };
   }
 
+  const dryRun =
+    simulation.$kind === 'Transaction'
+      ? simulation.Transaction
+      : simulation.FailedTransaction;
   const status = dryRun.effects?.status;
-  if (status?.status !== 'success') {
+  if (!status?.success) {
     return {
       ok: false,
       error: {
         code: 'transaction_validation_failed',
-        message: status?.error
-          ? `Transaction dry run failed: ${status.error}`
+        message: status?.error?.message
+          ? `Transaction dry run failed: ${status.error.message}`
           : 'Transaction dry run failed',
       },
     };
@@ -873,9 +916,11 @@ export const createSignTransactionReview = async ({
       commands,
       dryRun: {
         status: 'success',
-        balanceChanges: dryRun.balanceChanges.map(describeBalanceChange),
-        objectChanges: dryRun.objectChanges.map(describeObjectChange),
-        events: dryRun.events.map(describeEvent),
+        balanceChanges: (dryRun.balanceChanges ?? []).map(describeBalanceChange),
+        objectChanges: (dryRun.effects?.changedObjects ?? []).map(
+          describeObjectChange,
+        ),
+        events: (dryRun.events ?? []).map(describeEvent),
       },
       warnings,
     },

@@ -7,27 +7,27 @@ const jiti = createJiti(import.meta.url);
 
 const {
   createWalrusWalletSuiClient,
-  getWalrusWalletFullnodeUrl,
+  getWalrusWalletGrpcBaseUrl,
 } = await jiti.import<typeof import('../src/utils/suiClient.ts')>(
   '../src/utils/suiClient.ts',
 );
 
-test('wallet Sui client boundary owns the JSON-RPC fullnode URL per supported network', () => {
+test('wallet Sui client boundary owns the gRPC base URL per supported network', () => {
   assert.equal(
-    getWalrusWalletFullnodeUrl('mainnet'),
+    getWalrusWalletGrpcBaseUrl('mainnet'),
     'https://fullnode.mainnet.sui.io:443',
   );
   assert.equal(
-    getWalrusWalletFullnodeUrl('testnet'),
+    getWalrusWalletGrpcBaseUrl('testnet'),
     'https://fullnode.testnet.sui.io:443',
   );
   assert.equal(
-    getWalrusWalletFullnodeUrl('devnet'),
+    getWalrusWalletGrpcBaseUrl('devnet'),
     'https://fullnode.devnet.sui.io:443',
   );
 });
 
-test('createWalrusWalletSuiClient stays on JSON-RPC compatibility transport for dApp Kit and coin helpers', () => {
+test('createWalrusWalletSuiClient builds a gRPC transport client for dApp Kit and coin helpers', () => {
   const mainnetClient = createWalrusWalletSuiClient('mainnet');
   assert.equal(mainnetClient.network, 'mainnet');
 

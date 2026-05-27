@@ -4,7 +4,7 @@ This file is the root operating contract for coding agents working in this repos
 
 ## Purpose
 
-Walrus Clip is a TypeScript/React kit that registers a Sui Wallet Standard wallet named Walrus Clip for dApps. Its purpose is to let dApps use normal Wallet Standard connect/sign APIs while Walrus Clip routes login and sign-and-execute requests to QR/WebRTC air-gapped signing.
+Walrus Clip is a TypeScript/React kit that registers a Sui Wallet Standard wallet named Walrus Clip for dApps. Its purpose is to let dApps use normal Wallet Standard connect/sign APIs while Walrus Clip routes login, sign, personal-message sign, and sign-and-execute requests to QR/WebRTC air-gapped signing.
 
 dApp developers should integrate Walrus Clip through the supported Wallet Standard registration surface. Users should see and select Walrus Clip as a wallet. QR/WebRTC is an internal signing route, not a dApp-facing protocol.
 
@@ -14,7 +14,7 @@ This branch is for a breaking modernization. Do not preserve legacy compatibilit
 
 Targets:
 
-- Owner-boundary Sui client runtime construction is on SDK 2.x `SuiGrpcClient` (`@mysten/sui/grpc`) for build/execute/wait/epoch/signature-verification paths. The wallet/private-route owner files retain `SuiJsonRpcClient` (`@mysten/sui/jsonRpc`) inside the same owner boundary only for the public `createWalrusWalletSuiClient` consumed by dApp Kit `createClient`, the wallet read-only coin helpers, and the QR/private dry-run review helper (`createWalrusConnectReviewClient`). Legacy `SuiClient`/`getFullnodeUrl` runtime imports are blocked.
+- Owner-boundary Sui client construction is on SDK 2.x `SuiGrpcClient` (`@mysten/sui/grpc`) for app-shell client creation, wallet read-only coin helpers, QR review simulation, build/digest/execute/wait, and transaction/personal-message signature-verification paths. JSON-RPC transport (`@mysten/sui/jsonRpc`, `SuiJsonRpcClient`, `getJsonRpcFullnodeUrl`) is removed from source.
 - Replace legacy `@mysten/dapp-kit` with the modern dApp Kit packages.
 - Move toward React 19.
 - Remove Recoil if wallet state can be handled with a smaller local state layer.
@@ -246,12 +246,12 @@ Avoid adding Wallet Standard registration, wallet account storage, dApp transact
 
 Owns Wallet Standard registration and wallet runtime behavior:
 
-- Wallet Standard wallet registration for Walrus Clip advertising only `standard:connect`, `standard:disconnect`, `standard:events`, and `sui:signAndExecuteTransaction`.
-- Routing Wallet Standard `sui:signAndExecuteTransaction` requests to the QR/WebRTC air-gapped signing route. There is no local signer, zkLogin proof, password modal, or sponsored helper inside this package.
-- Sui client integration through a centralized client boundary that constructs only `SuiJsonRpcClient` for the public client helper and the read-only coin helpers.
-- Minimal account, connection, sign-and-execute, and basic `Coin<T>` helper surfaces.
+- Wallet Standard wallet registration for Walrus Clip advertising `standard:connect`, `standard:disconnect`, `standard:events`, `sui:signAndExecuteTransaction`, `sui:signTransaction`, and `sui:signPersonalMessage`.
+- Routing Wallet Standard `sui:signAndExecuteTransaction`, `sui:signTransaction`, and `sui:signPersonalMessage` requests to the QR/WebRTC air-gapped signing route. There is no local signer, zkLogin proof, password modal, or sponsored helper inside this package.
+- Sui client integration through a centralized client boundary that constructs `SuiGrpcClient` for the public client helper and the read-only coin helpers.
+- Minimal account, connection, QR-backed signing, and basic `Coin<T>` helper surfaces.
 
-Do not create new direct Sui client construction (`SuiJsonRpcClient`, `SuiGraphQLClient`, future `SuiGrpcClient`, or legacy `SuiClient`) or fullnode URL helper (`getJsonRpcFullnodeUrl`, legacy `getFullnodeUrl`) call sites. Add or update a client adapter at the wallet or private-route boundary instead. Do not add dApp-specific checkout, NFT dashboard, kiosk, advanced asset UX, or any local signing path here.
+Do not create new direct Sui client construction (`SuiJsonRpcClient`, `SuiGraphQLClient`, `SuiGrpcClient`, or legacy `SuiClient`) or fullnode URL helper (`getJsonRpcFullnodeUrl`, legacy `getFullnodeUrl`) call sites. Add or update a client adapter at the wallet or private-route boundary instead. Do not add dApp-specific checkout, NFT dashboard, kiosk, advanced asset UX, or any local signing path here.
 
 ### `packages/clip`
 
@@ -275,7 +275,7 @@ Keep demo logic thin. Shared behavior belongs in `walrus-connect` or `walrus-wal
 ## Sui SDK Rules
 
 - `@mysten/sui@1.x`, `SuiClient`, `getFullnodeUrl`, and the `@mysten/sui/client` legacy JSON-RPC subpath are removed from source and blocked by `scripts/verify-boundary.mjs` as forbidden tokens outside owner files. Do not reintroduce them.
-- Owner-boundary Sui client runtime transport is on `@mysten/sui@2.17.0` `SuiGrpcClient` (`@mysten/sui/grpc` subpath) for the QR sign route's build/digest/execute/wait/signature-verification paths; baseUrl uses the SDK-documented `https://fullnode.<network>.sui.io:443`. `SuiJsonRpcClient` + `getJsonRpcFullnodeUrl` remain inside the owner files only for the public wallet client helper, the wallet read-only coin helpers, and the QR/private dry-run review helper. The wallet runtime no longer constructs `SuiGrpcClient` because every signing flow goes through the QR sign host runner. Do not reintroduce JSON-RPC transport for the runtime execute/wait paths or relocate the retained JSON-RPC helpers outside the owner files.
+- Owner-boundary Sui client transport is on `@mysten/sui@2.17.0` `SuiGrpcClient` (`@mysten/sui/grpc` subpath) for the public wallet client helper, wallet read-only coin helpers, QR review simulation, QR sign route build/digest/execute/wait, and transaction/personal-message signature-verification paths; baseUrl uses the SDK-documented `https://fullnode.<network>.sui.io:443`. Do not reintroduce JSON-RPC transport or `@mysten/sui/jsonRpc` imports.
 - When official docs, `.WORK/ts-sdks`, and installed dependencies disagree, state the discrepancy and follow the source that matches the current task. For active migration work, prefer the target SDK source in `.WORK/ts-sdks`.
 - Centralize Sui client creation and network configuration.
 - Do not introduce new scattered fullnode URL construction.

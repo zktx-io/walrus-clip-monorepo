@@ -5,13 +5,19 @@ import {
   StandardEventsOnMethod,
   SUI_CHAINS,
   SuiSignAndExecuteTransactionMethod,
+  SuiSignPersonalMessageMethod,
+  SuiSignTransactionMethod,
   Wallet,
   type ReadonlyWalletAccount,
 } from '@mysten/wallet-standard';
 import type { NETWORK, NotiVariant } from '../utils/walletTypes';
 import mitt, { type Emitter } from 'mitt';
 
-import { signAndExecuteWalletTransaction } from '../runtime/signingRuntime';
+import {
+  signAndExecuteWalletTransaction,
+  signWalletPersonalMessage,
+  signWalletTransaction,
+} from '../runtime/signingRuntime';
 import { WalletSession } from '../runtime/walletSession';
 import {
   createWalrusWalletFeatures,
@@ -126,6 +132,8 @@ export class WalletStandard implements Wallet {
       disconnect: this.#disconnect,
       on: this.#on,
       signAndExecuteTransaction: this.#signAndExecuteTransaction,
+      signPersonalMessage: this.#signPersonalMessage,
+      signTransaction: this.#signTransaction,
     });
   }
 
@@ -147,6 +155,26 @@ export class WalletStandard implements Wallet {
     input,
   ) =>
     signAndExecuteWalletTransaction(
+      {
+        network: this.#network,
+        activeAccount: this.#session.activeWalletAccount,
+        openSignTxModal: this.#openSignTxModal,
+      },
+      input,
+    );
+
+  #signTransaction: SuiSignTransactionMethod = async (input) =>
+    signWalletTransaction(
+      {
+        network: this.#network,
+        activeAccount: this.#session.activeWalletAccount,
+        openSignTxModal: this.#openSignTxModal,
+      },
+      input,
+    );
+
+  #signPersonalMessage: SuiSignPersonalMessageMethod = async (input) =>
+    signWalletPersonalMessage(
       {
         network: this.#network,
         activeAccount: this.#session.activeWalletAccount,

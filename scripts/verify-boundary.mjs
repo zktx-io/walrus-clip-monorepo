@@ -250,15 +250,11 @@ const publicSuiTypeSurfaceAllowlist = new Map([
   ],
   [
     'packages/walrus-connect/dist/types/utils/signTransactionReview.d.ts',
-    new Set(['@mysten/sui/jsonRpc', '@mysten/sui/transactions']),
-  ],
-  [
-    'packages/walrus-wallet/dist/types/utils/coinHelpers.d.ts',
-    new Set(['@mysten/sui/jsonRpc']),
+    new Set(['@mysten/sui/grpc', '@mysten/sui/transactions']),
   ],
   [
     'packages/walrus-wallet/dist/types/utils/publicSuiClient.d.ts',
-    new Set(['@mysten/sui/jsonRpc']),
+    new Set(['@mysten/sui/grpc']),
   ],
 ]);
 const mystenPublicTypeSpecifierPattern =
@@ -331,12 +327,12 @@ const scanSuiTransactionBuildCalls = (file, text = readText(file)) => {
 const isAllowedLine = (line, allowedFiles) =>
   [...allowedFiles].some((file) => line.startsWith(`${file}:`));
 
-const isPublicReviewDryRunLine = (line) =>
+const isPublicReviewSimulationLine = (line) =>
   line.startsWith(`${publicReviewHelperFile}:`) &&
-  /\.dryRunTransactionBlock\s*\(/.test(line);
+  /\bclient\.core\.simulateTransaction\s*\(/.test(line);
 
 const isAllowedSuiTransactionBoundaryLine = (line, allowedFiles) =>
-  isAllowedLine(line, allowedFiles) || isPublicReviewDryRunLine(line);
+  isAllowedLine(line, allowedFiles) || isPublicReviewSimulationLine(line);
 
 const isAllowedPublicSuiTypeSurface = (file, specifier) =>
   publicSuiTypeSurfaceAllowlist.get(file)?.has(specifier) ?? false;
@@ -438,25 +434,25 @@ const checkVerifierNegativeControls = () => {
   );
 
   assert(
-    isPublicReviewDryRunLine(
-      `${publicReviewHelperFile}:825: dryRun = await client.dryRunTransactionBlock({ transactionBlock: bytes });`,
+    isPublicReviewSimulationLine(
+      `${publicReviewHelperFile}:825: simulation = await client.core.simulateTransaction({ transaction: bytes });`,
     ),
-    'public review helper exception must allow only the inventoried dry-run call',
+    'public review helper exception must allow only the inventoried Core simulation call',
   );
   assert(
-    !isPublicReviewDryRunLine(
+    !isPublicReviewSimulationLine(
       `${publicReviewHelperFile}:1: await client.executeTransactionBlock({ transactionBlock: bytes, signature });`,
     ),
     'public review helper exception must not allow execute/wait/build calls',
   );
   assert(
-    !isPublicReviewDryRunLine(
-      `${publicReviewHelperFile}:1: await client.simulateTransaction({ transaction });`,
+    !isPublicReviewSimulationLine(
+      `${publicReviewHelperFile}:1: await otherClient.simulateTransaction({ transaction });`,
     ),
-    'public review helper exception must not allow SDK 2.x simulate calls',
+    'public review helper exception must stay bound to the inventoried client core simulation shape',
   );
   assert(
-    !isPublicReviewDryRunLine(
+    !isPublicReviewSimulationLine(
       `${publicReviewHelperFile}:1: await transaction.getDigest({ client });`,
     ),
     'public review helper exception must not allow direct digest calls',
@@ -522,9 +518,9 @@ const checkVerifierNegativeControls = () => {
   const transportLegitimateSamples = [
     'User manual smoke against `SuiGrpcClient` transport is still deferred',
     'wallet read-only coin helpers continue to consume the public `createWalrusWalletSuiClient`',
-    'Core API (`listBalances`, `listCoins`, `getCoinMetadata`) remains a coin-helper-specific follow-up',
-    'Migrating the public `createWalrusWalletSuiClient` return type away from `SuiJsonRpcClient` would be a separate public-API change',
-    'QR/private dry-run review helper takes a dedicated `createWalrusConnectReviewClient(network) -> SuiJsonRpcClient`',
+    'Core API (`listBalances`, `listCoins`, `getCoinMetadata`) is the coin-helper path',
+    'The public `createWalrusWalletSuiClient` return type is `SuiGrpcClient`',
+    'QR/private review helper takes a dedicated `createWalrusConnectReviewClient(network) -> SuiGrpcClient`',
     'The owner-boundary runtime transport has already moved to `SuiGrpcClient`',
     'transport remains deferred to the user, so the overall architecture cycle',
   ];
@@ -851,12 +847,10 @@ const checkDocumentation = () => {
 
 // SOT documents must not re-claim that the wallet/QR runtime transport is
 // `SuiJsonRpcClient` or that the SDK 2.x Core/gRPC transport migration is
-// "still/later/deferred/follow-up". The active runtime transport is
-// `SuiGrpcClient`; `SuiJsonRpcClient` is retained inside the owner files only
-// for the public client helper, wallet coin helpers, and dry-run review.
-// Patterns are intentionally narrow so legitimate retain/follow-up wording
-// (coin-helper-specific follow-up, public helper return type follow-up,
-// dry-run review JSON-RPC, user manual smoke deferred) does not false-fire.
+// "still/later/deferred/follow-up". The active Sui transport is
+// `SuiGrpcClient` across wallet and QR owner boundaries. Patterns are
+// intentionally narrow so legitimate follow-up wording (user manual smoke
+// deferred, unrelated UI cleanup follow-ups) does not false-fire.
 const jsonRpcRuntimeVerbPattern = String.raw`(?:is|becomes|defaults\s+to|makes\s+use\s+of|runs\s+on|stays?|remains?|uses?)`;
 const deferredGrpcMigrationStatePattern = String.raw`(?:still|later|deferred|separate|pending|follow-?up(?:\s+commit)?|not\s+yet\s+(?:migrated|completed))`;
 const deferredGrpcMigrationPredicatePattern = String.raw`(?:(?:is|remains|stays?)\s+(?:a\s+)?${deferredGrpcMigrationStatePattern}|${deferredGrpcMigrationStatePattern})`;
@@ -974,7 +968,7 @@ const checkRuntimeTransportSotAlignment = () => {
 
   assert(
     matches.length === 0,
-    `SOT documents must not claim the wallet/QR runtime transport is SuiJsonRpcClient or that the gRPC transport migration is still/later/deferred/follow-up. The active runtime transport is SuiGrpcClient; JSON-RPC is retained only for the public client helper, coin helpers, and dry-run review:\n${matches.join('\n')}`,
+    `SOT documents must not claim the wallet/QR runtime transport is SuiJsonRpcClient or that the gRPC transport migration is still/later/deferred/follow-up. The active Sui transport is SuiGrpcClient across wallet and QR owner boundaries:\n${matches.join('\n')}`,
   );
 };
 
@@ -990,6 +984,12 @@ const checkSuiClientBoundarySource = () => {
     'packages/walrus-wallet/src/utils/suiClient.ts',
     'packages/walrus-connect-route-internal/src/utils/suiClient.ts',
   ]);
+  const jsonRpcMatches = scanFiles(files, /@mysten\/sui\/jsonRpc|SuiJsonRpcClient|getJsonRpcFullnodeUrl/);
+
+  assert(
+    jsonRpcMatches.length === 0,
+    `JSON-RPC transport and type imports must not remain in source after the no-JSON-RPC decision:\n${jsonRpcMatches.join('\n')}`,
+  );
 
   const directClientMatches = scanFiles(
     files,
@@ -1023,18 +1023,18 @@ const checkSuiTransactionExecutionBoundary = () => {
   )
     .concat(files.flatMap((file) => scanSuiTransactionBuildCalls(file)))
     .filter((line) => !isAllowedSuiTransactionBoundaryLine(line, allowedFiles));
-  const publicReviewDryRunMatches = scanFiles(
+  const publicReviewSimulationMatches = scanFiles(
     [publicReviewHelperFile],
     suiTransactionBoundaryPattern,
-  ).filter(isPublicReviewDryRunLine);
+  ).filter(isPublicReviewSimulationLine);
 
   assert(
     directExecutionMatches.length === 0,
-    `Sui transaction build/execute/wait/dry-run/simulate/digest calls must stay behind the owner boundary; the public review helper is the only inventoried temporary dry-run exception:\n${directExecutionMatches.join('\n')}`,
+    `Sui transaction build/execute/wait/simulate/digest calls must stay behind the owner boundary; the public review helper is the only inventoried Core simulation exception:\n${directExecutionMatches.join('\n')}`,
   );
   assert(
-    publicReviewDryRunMatches.length === 1,
-    `the public review helper dry-run exception must stay narrow and appear exactly once:\n${publicReviewDryRunMatches.join('\n')}`,
+    publicReviewSimulationMatches.length === 1,
+    `the public review helper Core simulation exception must stay narrow and appear exactly once:\n${publicReviewSimulationMatches.join('\n')}`,
   );
 };
 

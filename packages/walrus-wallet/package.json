@@ -9,7 +9,7 @@
     "qr",
     "air-gapped"
   ],
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "module": "dist/index.esm.js",
   "types": "dist/types/index.d.ts",
@@ -76,7 +76,7 @@
     "@radix-ui/react-use-size": "^1.1.1",
     "@radix-ui/react-visually-hidden": "^1.2.3",
     "@yudiel/react-qr-scanner": "^2.3.1",
-    "@zktx.io/walrus-connect": "0.4.1",
+    "@zktx.io/walrus-connect": "0.4.2",
     "framer-motion": "^12.23.14",
     "lucide-react": "^0.544.0",
     "mitt": "^3.0.1",

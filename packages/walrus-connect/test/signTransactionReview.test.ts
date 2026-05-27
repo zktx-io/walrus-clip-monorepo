@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type {
-  DryRunTransactionBlockResponse,
-  SuiJsonRpcClient,
-} from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
+import { toBase64 } from '@mysten/sui/utils';
 
 import {
   approveSignTransactionReview,
@@ -24,25 +21,32 @@ const FRAMEWORK_ADDRESS =
 const OBJECT_ID =
   '0x0000000000000000000000000000000000000000000000000000000000000005';
 
+type TestSimulationResult = Awaited<
+  ReturnType<
+    Parameters<typeof createSignTransactionReview>[0]['client']['core']['simulateTransaction']
+  >
+>;
+
 const createClient = (
-  dryRun:
-    | DryRunTransactionBlockResponse
-    | (() => Promise<DryRunTransactionBlockResponse>),
-): SuiJsonRpcClient =>
+  simulation: TestSimulationResult | (() => Promise<TestSimulationResult>),
+): Parameters<typeof createSignTransactionReview>[0]['client'] =>
   ({
-    dryRunTransactionBlock:
-      typeof dryRun === 'function' ? dryRun : async () => dryRun,
-  }) as unknown as SuiJsonRpcClient;
+    core: {
+      simulateTransaction:
+        typeof simulation === 'function' ? simulation : async () => simulation,
+    },
+  }) as unknown as Parameters<typeof createSignTransactionReview>[0]['client'];
 
 const createDryRun = (
   status: 'success' | 'failure' = 'success',
-): DryRunTransactionBlockResponse =>
-  ({
+): TestSimulationResult => {
+  const transaction = {
+    digest: 'simulation-digest',
     balanceChanges:
       status === 'success'
         ? [
             {
-              owner: { AddressOwner: ADDRESS_ONE },
+              address: ADDRESS_ONE,
               coinType: '0x2::sui::SUI',
               amount: '-100',
             },
@@ -51,38 +55,52 @@ const createDryRun = (
     effects: {
       status:
         status === 'success'
-          ? { status: 'success' }
-          : { status: 'failure', error: 'Insufficient gas' },
+          ? { success: true, error: null }
+          : { success: false, error: { message: 'Insufficient gas' } },
+      changedObjects:
+        status === 'success'
+          ? [
+              {
+                objectId: OBJECT_ID,
+                inputState: 'Exists',
+                inputVersion: '6',
+                inputDigest: 'input-digest',
+                inputOwner: { $kind: 'AddressOwner', AddressOwner: ADDRESS_ONE },
+                outputState: 'ObjectWrite',
+                outputVersion: '7',
+                outputDigest: 'object-digest',
+                outputOwner: { $kind: 'AddressOwner', AddressOwner: ADDRESS_TWO },
+                idOperation: 'None',
+              },
+            ]
+          : [],
     },
     events:
       status === 'success'
         ? [
             {
-              id: { txDigest: 'dry-run-digest', eventSeq: '0' },
               packageId: '0x2',
-              transactionModule: 'pay',
+              module: 'pay',
               sender: ADDRESS_ONE,
-              type: '0x2::pay::Paid',
-              parsedJson: { amount: '100' },
+              eventType: '0x2::pay::Paid',
+              json: { amount: '100' },
             },
           ]
         : [],
-    input: {},
-    objectChanges:
-      status === 'success'
-        ? [
-            {
-              type: 'transferred',
-              sender: ADDRESS_ONE,
-              recipient: { AddressOwner: ADDRESS_TWO },
-              objectId: OBJECT_ID,
-              objectType: '0x2::coin::Coin<0x2::sui::SUI>',
-              version: '7',
-              digest: 'object-digest',
-            },
-          ]
-        : [],
-  }) as unknown as DryRunTransactionBlockResponse;
+  };
+
+  return (status === 'success'
+    ? {
+        $kind: 'Transaction',
+        Transaction: transaction,
+        commandResults: undefined,
+      }
+    : {
+        $kind: 'FailedTransaction',
+        FailedTransaction: transaction,
+        commandResults: undefined,
+      }) as unknown as TestSimulationResult;
+};
 
 const createReviewTransaction = (gasOwner = ADDRESS_ONE) => {
   const tx = new Transaction();
@@ -127,7 +145,7 @@ test('rejects dry-run failure before creating review approval', async () => {
   const result = await createSignTransactionReview({
     tx: createReviewTransaction(),
     client: createClient(createDryRun('failure')),
-    bytes: 'request-bytes',
+    bytes: toBase64(new Uint8Array([1])),
     network: 'testnet',
   });
 
@@ -144,7 +162,7 @@ test('creates review with concrete command and dry-run facts', async () => {
   const result = await createSignTransactionReview({
     tx: createReviewTransaction(ADDRESS_TWO),
     client: createClient(createDryRun()),
-    bytes: 'request-bytes',
+    bytes: toBase64(new Uint8Array([1])),
     network: 'testnet',
   });
 
@@ -173,12 +191,12 @@ test('creates review with concrete command and dry-run facts', async () => {
 
   assert.deepEqual(review.dryRun.balanceChanges[0], {
     index: 0,
-    owner: `AddressOwner: ${ADDRESS_ONE}`,
+    owner: ADDRESS_ONE,
     coinType: '0x2::sui::SUI',
     amount: '-100',
-    summary: `-100 0x2::sui::SUI for AddressOwner: ${ADDRESS_ONE}`,
+    summary: `-100 0x2::sui::SUI for ${ADDRESS_ONE}`,
   });
-  assert.equal(review.dryRun.objectChanges[0].type, 'transferred');
+  assert.equal(review.dryRun.objectChanges[0].type, 'Exists -> ObjectWrite');
   assert.equal(review.dryRun.events[0].type, '0x2::pay::Paid');
 
   const formatted = formatSignTransactionReview(review);
@@ -206,7 +224,7 @@ test('derives sponsorship from gas owner relative to sender', async () => {
   const result = await createSignTransactionReview({
     tx: selfFunded,
     client: createClient(createDryRun()),
-    bytes: 'request-bytes',
+    bytes: toBase64(new Uint8Array([1])),
     network: 'testnet',
   });
 
@@ -222,7 +240,7 @@ test('turns user rejection into a structured validation error', async () => {
   const result = await createSignTransactionReview({
     tx: createReviewTransaction(),
     client: createClient(createDryRun()),
-    bytes: 'request-bytes',
+    bytes: toBase64(new Uint8Array([1])),
     network: 'testnet',
   });
 

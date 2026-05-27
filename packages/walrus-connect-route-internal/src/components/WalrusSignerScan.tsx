@@ -12,7 +12,7 @@ import { createRoot } from 'react-dom/client';
 import { QRScan } from './QRScan';
 import { ClipSigner, NETWORK, NotiVariant } from '../types';
 import { cleanupQrModalRoot } from '../utils/cleanup';
-import { settleNoCameraScan } from '../utils/scan';
+import { getCameraUnavailableMessage, settleNoCameraScan } from '../utils/scan';
 
 interface IWalrusSignerScanContext {
   scan: (signer: ClipSigner) => Promise<void>;
@@ -37,6 +37,8 @@ export const WalrusSignerScan = ({
   children: ReactNode;
 }) => {
   const [isScannerEnabled, setIsScannerEnabled] = useState<boolean>(false);
+  const [cameraUnavailableMessage, setCameraUnavailableMessage] =
+    useState<string>('Checking camera availability...');
 
   const scan = useCallback(
     (signer: ClipSigner): Promise<void> => {
@@ -60,24 +62,34 @@ export const WalrusSignerScan = ({
             />,
           );
         } else {
-          settleNoCameraScan({ onEvent, resolve });
+          settleNoCameraScan({
+            onEvent,
+            resolve,
+            message: cameraUnavailableMessage,
+          });
         }
       });
     },
-    [iceConfigUrl, isScannerEnabled, mode, network, onEvent],
+    [
+      cameraUnavailableMessage,
+      iceConfigUrl,
+      isScannerEnabled,
+      mode,
+      network,
+      onEvent,
+    ],
   );
 
   useEffect(() => {
     const testCamera = async () => {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputDevices = devices.filter(
-          (device) => device.kind === 'videoinput',
-        );
-        setIsScannerEnabled(videoInputDevices.length > 0);
-      } catch {
-        setIsScannerEnabled(false);
+      const unavailableMessage = await getCameraUnavailableMessage();
+      if (unavailableMessage === undefined) {
+        setIsScannerEnabled(true);
+        setCameraUnavailableMessage('No camera found on this device.');
+        return;
       }
+      setIsScannerEnabled(false);
+      setCameraUnavailableMessage(unavailableMessage);
     };
     testCamera();
   }, []);

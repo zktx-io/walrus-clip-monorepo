@@ -8,11 +8,12 @@ The current package is intentionally small. It supports:
 - Wallet Standard discovery/connect/disconnect/events.
 - QR/WebRTC air-gapped login.
 - QR/WebRTC `sui:signAndExecuteTransaction`.
+- QR/WebRTC `sui:signTransaction`.
+- QR/WebRTC `sui:signPersonalMessage`.
 - Basic read-only `Coin<T>` helper queries.
 
 It does not provide local private-key custody, zkLogin proof generation,
-password modals, sponsored transaction creation, `sui:signTransaction`, or
-`sui:signPersonalMessage`.
+password modals, or sponsored transaction creation.
 
 This package is still evolving. Treat the `0.4.x` line as a breaking
 modernization line, not a long-term stable API promise.
@@ -80,16 +81,23 @@ The wallet advertises only:
 - `standard:disconnect`
 - `standard:events`
 - `sui:signAndExecuteTransaction`
+- `sui:signTransaction`
+- `sui:signPersonalMessage`
+
+All three Sui signing methods route through QR/WebRTC. `sui:signTransaction`
+returns signed transaction bytes without submission, while
+`sui:signAndExecuteTransaction` submits and returns the digest/effects outcome.
 
 ## Boundaries
 
 QR/WebRTC is an internal signing route. dApps should not import route internals
 or launch QR modals directly. Use Wallet Standard features.
 
-The public Sui client helper remains JSON-RPC-compatible because dApp Kit and
-the coin helpers still depend on that shape. Transaction build, execution,
-finality, and signature verification for the QR route live behind the internal
-route owner.
+The public Sui client helper returns an SDK 2.x `SuiGrpcClient`. Coin helpers
+also use the same Core/gRPC client shape; fields that only existed in the older
+client response shape, such as locked-balance maps, are not fabricated.
+Transaction build, execution, finality, and signature verification for the QR
+route live behind the internal route owner.
 
 ## Current Limitations
 

@@ -514,6 +514,19 @@ export const startSignScannerRunner = ({
       );
     }
 
+    if ((message.payload.intent ?? 'signAndExecute') === 'sign') {
+      suppressCloseWarning = true;
+      sendProtocol('sign.response', { signature });
+      markTerminal('success');
+      session.markTerminal('success');
+      closeAfterFallback();
+      onEvent({
+        variant: 'success',
+        message: 'Transaction signed',
+      });
+      return;
+    }
+
     state = {
       type: 'awaiting_submitted',
       chain: { type: 'no_submit' },
@@ -521,6 +534,46 @@ export const startSignScannerRunner = ({
     };
     startSubmissionTimeout();
     sendProtocol('sign.response', { signature });
+  };
+
+  const handlePersonalMessage = async (
+    message: ProtocolEnvelope<'sign.personalMessage'>,
+  ) => {
+    clearProposalTimer?.();
+    const freshness = validateProtocolMessageFresh(message);
+    if (!freshness.ok) {
+      throwProtocolValidationError(freshness.error, 'personal_message');
+    }
+
+    state = {
+      type: 'signing_personal_message',
+      chain: { type: 'no_submit' },
+      delivery: { type: 'open' },
+    };
+    const requestBytes = message.payload.bytes;
+    const rawBytes = deps.decodeBytes(requestBytes);
+    const { bytes, signature } = await authority.cancellable(() =>
+      signer.signPersonalMessage(rawBytes),
+    );
+    if (isTerminal() || !session?.isActive()) return;
+    if (bytes !== requestBytes) {
+      throw new ProtocolMessageError(
+        createProtocolErrorPayload(
+          'transaction_validation_failed',
+          'Signed personal message bytes do not match request',
+        ),
+      );
+    }
+
+    suppressCloseWarning = true;
+    sendProtocol('sign.personalMessage.response', { bytes, signature });
+    markTerminal('success');
+    session.markTerminal('success');
+    closeAfterFallback();
+    onEvent({
+      variant: 'success',
+      message: 'Personal message signed',
+    });
   };
 
   session = new ProtocolSession({
@@ -535,7 +588,7 @@ export const startSignScannerRunner = ({
 
         const expectedTypes: readonly ProtocolMessageType[] =
           state.type === 'awaiting_transaction'
-            ? ['sign.transaction', 'protocol.error']
+            ? ['sign.transaction', 'sign.personalMessage', 'protocol.error']
             : state.type === 'awaiting_submitted'
               ? ['sign.submitted', 'protocol.error']
               : state.type === 'awaiting_finalized'
@@ -570,6 +623,12 @@ export const startSignScannerRunner = ({
         if (message.type === 'sign.transaction') {
           currentPhase = 'validate_sender';
           await handleTransaction(message);
+          return;
+        }
+
+        if (message.type === 'sign.personalMessage') {
+          currentPhase = 'personal_message';
+          await handlePersonalMessage(message);
           return;
         }
 
@@ -627,7 +686,8 @@ export const startSignScannerRunner = ({
         closeState.type === 'awaiting_transaction' ||
         closeState.type === 'validating_transaction' ||
         closeState.type === 'reviewing_transaction' ||
-        closeState.type === 'signing'
+        closeState.type === 'signing' ||
+        closeState.type === 'signing_personal_message'
       ) {
         onEvent({
           variant: 'error',

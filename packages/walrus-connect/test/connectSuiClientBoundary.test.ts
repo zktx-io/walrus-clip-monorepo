@@ -6,10 +6,9 @@ import { createJiti } from 'jiti';
 const jiti = createJiti(import.meta.url);
 
 const {
-  createWalrusConnectReviewClient,
   createWalrusConnectGrpcClient,
+  createWalrusConnectReviewClient,
   executeWalrusConnectTransaction,
-  getWalrusConnectFullnodeUrl,
   getWalrusConnectGrpcBaseUrl,
   waitForWalrusConnectTransaction,
 } = await jiti.import<
@@ -24,21 +23,6 @@ type FakeCore = {
 type FakeClient = Parameters<typeof executeWalrusConnectTransaction>[0];
 
 const fakeClient = (core: FakeCore) => ({ core }) as unknown as FakeClient;
-
-test('QR route Sui client owner keeps the JSON-RPC fullnode URL for the retained dry-run review client', () => {
-  assert.equal(
-    getWalrusConnectFullnodeUrl('mainnet'),
-    'https://fullnode.mainnet.sui.io:443',
-  );
-  assert.equal(
-    getWalrusConnectFullnodeUrl('testnet'),
-    'https://fullnode.testnet.sui.io:443',
-  );
-  assert.equal(
-    getWalrusConnectFullnodeUrl('devnet'),
-    'https://fullnode.devnet.sui.io:443',
-  );
-});
 
 test('QR route Sui client owner returns the gRPC-Web baseUrl per network', () => {
   assert.equal(
@@ -66,7 +50,7 @@ test('createWalrusConnectGrpcClient builds a gRPC transport client per network',
   assert.equal(devnetClient.network, 'devnet');
 });
 
-test('createWalrusConnectReviewClient builds a JSON-RPC compatibility client per network for dry-run review only', () => {
+test('createWalrusConnectReviewClient builds a gRPC transport client per network for simulation review', () => {
   const mainnetReview = createWalrusConnectReviewClient('mainnet');
   assert.equal(mainnetReview.network, 'mainnet');
 

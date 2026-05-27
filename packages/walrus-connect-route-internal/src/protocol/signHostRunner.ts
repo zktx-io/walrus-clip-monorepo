@@ -19,6 +19,7 @@ import {
   protocolCodec,
   protocolErrorFromUnknown,
   throwProtocolValidationError,
+  verifyPendingPersonalMessageSignature,
   verifyPendingTransactionSignature,
 } from './signRuntime';
 import {
@@ -42,6 +43,7 @@ import {
   SIGN_RESPONSE_TIMEOUT_MS,
   createSignProtocolErrorPayload,
   requirePendingSignTransaction,
+  type PendingPersonalMessage,
   type PendingSignTransaction,
   type SignProtocolPhase,
 } from '../utils/signProtocol';
@@ -69,10 +71,22 @@ type SignHostTransaction = {
   build: (input: { client: SignHostClient }) => Promise<Uint8Array>;
 };
 
+type SignHostRequest =
+  | {
+      type: 'transaction';
+      intent: 'sign' | 'signAndExecute';
+      transaction: { toJSON: () => Promise<string> };
+    }
+  | {
+      type: 'personalMessage';
+      message: Uint8Array;
+    };
+
 export type SignHostRunnerDeps = {
   createClient: (network: NETWORK) => SignHostClient;
   createTransactionFromJson: (json: string) => SignHostTransaction;
   encodeBytes: (bytes: Uint8Array) => string;
+  verifyPendingPersonalMessageSignature: typeof verifyPendingPersonalMessageSignature;
   verifyPendingTransactionSignature: typeof verifyPendingTransactionSignature;
 };
 
@@ -86,7 +100,7 @@ export type StartSignHostRunnerParams = {
   sessionId: string;
   network: NETWORK;
   transport: ProtocolTransport;
-  transaction: { toJSON: () => Promise<string> };
+  request: SignHostRequest;
   onEvent: (data: { variant: NotiVariant; message: string }) => void;
   onFinish: (outcome: QRSignOutcome) => void;
   deps?: Partial<SignHostRunnerDeps>;
@@ -97,6 +111,7 @@ const defaultDeps: SignHostRunnerDeps = {
   createClient: createWalrusConnectGrpcClient,
   createTransactionFromJson: (json) => Transaction.from(json),
   encodeBytes: toBase64,
+  verifyPendingPersonalMessageSignature,
   verifyPendingTransactionSignature,
 };
 
@@ -120,6 +135,20 @@ const normalizeSignerAddressOrThrow = (address: string): string => {
 
 const chainFromOutcome = (outcome: QRSignOutcome): SignChainFact => {
   if (outcome.type === 'failed_before_submit') return { type: 'no_submit' };
+  if (outcome.type === 'signed') {
+    return {
+      type: 'signed',
+      bytes: outcome.bytes,
+      signature: outcome.signature,
+    };
+  }
+  if (outcome.type === 'personal_message_signed') {
+    return {
+      type: 'personal_message_signed',
+      bytes: outcome.bytes,
+      signature: outcome.signature,
+    };
+  }
   if (outcome.type === 'execute_result_unknown') {
     return {
       type: 'execute_unknown',
@@ -158,7 +187,13 @@ const chainFromOutcome = (outcome: QRSignOutcome): SignChainFact => {
 };
 
 const deliveryFromOutcome = (outcome: QRSignOutcome): SignDeliveryFact => {
-  if (outcome.type === 'signed_and_finalized') return { type: 'closed', reason: 'success' };
+  if (
+    outcome.type === 'signed' ||
+    outcome.type === 'personal_message_signed' ||
+    outcome.type === 'signed_and_finalized'
+  ) {
+    return { type: 'closed', reason: 'success' };
+  }
   if (outcome.type === 'failed_before_submit') {
     return { type: 'closed', reason: outcome.reason };
   }
@@ -169,13 +204,14 @@ const isPreSubmitState = (state: SignHostLifecycleState) =>
   state.type === 'awaiting_address' ||
   state.type === 'building_transaction' ||
   state.type === 'awaiting_signature' ||
+  state.type === 'awaiting_personal_message_signature' ||
   state.type === 'verifying_signature';
 
 export const startSignHostRunner = ({
   sessionId,
   network,
   transport,
-  transaction,
+  request,
   onEvent,
   onFinish,
   deps: partialDeps,
@@ -352,7 +388,12 @@ export const startSignHostRunner = ({
   const startSignResponseTimeout = () => {
     clearSignResponseTimeout();
     clearSignResponseTimer = authority.setTimeout(() => {
-      if (state.type !== 'awaiting_signature') return;
+      if (
+        state.type !== 'awaiting_signature' &&
+        state.type !== 'awaiting_personal_message_signature'
+      ) {
+        return;
+      }
       void failBeforeSubmit(
         createSignProtocolErrorPayload({
           code: 'transaction_failed',
@@ -550,6 +591,26 @@ export const startSignHostRunner = ({
 
   const handleAddress = async (message: ProtocolEnvelope<'sign.address'>) => {
     const signerAddress = normalizeSignerAddressOrThrow(message.payload.address);
+    if (request.type === 'personalMessage') {
+      const rawBytes = request.message;
+      const bytes = deps.encodeBytes(rawBytes);
+      const pending: PendingPersonalMessage = {
+        bytes,
+        rawBytes,
+        signerAddress,
+      };
+      state = {
+        type: 'awaiting_personal_message_signature',
+        pending,
+        chain: { type: 'no_submit' },
+        delivery: { type: 'open' },
+        publicSettlement: { type: 'unresolved' },
+      };
+      startSignResponseTimeout();
+      authority.send(session, 'sign.personalMessage', { bytes });
+      return;
+    }
+
     state = {
       type: 'building_transaction',
       signerAddress,
@@ -559,7 +620,9 @@ export const startSignHostRunner = ({
     };
     onEvent({ variant: 'info', message: 'Creating transaction...' });
 
-    const txJson = await authority.cancellable(() => transaction.toJSON());
+    const txJson = await authority.cancellable(() =>
+      request.transaction.toJSON(),
+    );
     const txb = deps.createTransactionFromJson(txJson);
     authority.assertCancellable();
     txb.setSenderIfNotSet(signerAddress);
@@ -581,7 +644,7 @@ export const startSignHostRunner = ({
       publicSettlement: { type: 'unresolved' },
     };
     startSignResponseTimeout();
-    authority.send(session, 'sign.transaction', { bytes });
+    authority.send(session, 'sign.transaction', { bytes, intent: request.intent });
   };
 
   const handleSignResponse = async (
@@ -615,7 +678,7 @@ export const startSignHostRunner = ({
       delivery: { type: 'open' },
       publicSettlement: { type: 'unresolved' },
     };
-    onEvent({ variant: 'info', message: 'Executing transaction...' });
+    onEvent({ variant: 'info', message: 'Verifying signature...' });
     await authority.cancellable(() =>
       deps.verifyPendingTransactionSignature({
         pendingTransaction: pending,
@@ -624,6 +687,17 @@ export const startSignHostRunner = ({
       }),
     );
 
+    if (request.type === 'transaction' && request.intent === 'sign') {
+      settle({
+        type: 'signed',
+        bytes: pending.bytes,
+        signature,
+      });
+      session.close('success');
+      return;
+    }
+
+    onEvent({ variant: 'info', message: 'Executing transaction...' });
     state = {
       type: 'executing',
       pending,
@@ -662,6 +736,57 @@ export const startSignHostRunner = ({
     await completeSubmittedTransaction({ pending, signature, digest });
   };
 
+  const handlePersonalMessageResponse = async (
+    message: ProtocolEnvelope<'sign.personalMessage.response'>,
+  ) => {
+    clearSignResponseTimeout();
+    if (state.type !== 'awaiting_personal_message_signature') {
+      throw new ProtocolMessageError(
+        createSignProtocolErrorPayload({
+          code: 'invalid_payload',
+          message: 'Personal message response has no pending message',
+          phase: 'personal_message_response',
+        }),
+      );
+    }
+
+    const pending = state.pending;
+    const { bytes, signature } = message.payload;
+    if (bytes !== pending.bytes) {
+      throw new ProtocolMessageError(
+        createSignProtocolErrorPayload({
+          code: 'transaction_validation_failed',
+          message: 'Signed personal message bytes do not match request',
+          phase: 'personal_message_response',
+        }),
+      );
+    }
+
+    state = {
+      type: 'verifying_signature',
+      pending,
+      signature,
+      chain: { type: 'no_submit' },
+      delivery: { type: 'open' },
+      publicSettlement: { type: 'unresolved' },
+    };
+    onEvent({ variant: 'info', message: 'Verifying message signature...' });
+    await authority.cancellable(() =>
+      deps.verifyPendingPersonalMessageSignature({
+        pendingMessage: pending,
+        signature,
+        network,
+      }),
+    );
+
+    settle({
+      type: 'personal_message_signed',
+      bytes,
+      signature,
+    });
+    session.close('success');
+  };
+
   const handleMessage = async (message: ProtocolEnvelope) => {
     if (finished) return;
 
@@ -689,6 +814,15 @@ export const startSignHostRunner = ({
       ) {
         currentPhase = 'signature_verify';
         await handleSignResponse(message);
+        return;
+      }
+
+      if (
+        state.type === 'awaiting_personal_message_signature' &&
+        message.type === 'sign.personalMessage.response'
+      ) {
+        currentPhase = 'personal_message_response';
+        await handlePersonalMessageResponse(message);
         return;
       }
 

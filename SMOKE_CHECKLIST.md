@@ -3,19 +3,20 @@
 Use this checklist after changes that touch Wallet Standard runtime,
 QR/WebRTC signing, account state, network selection, or signing outcomes.
 
-Current status: verified for the QR/WebRTC stabilization scope in
-`3e421ad`. The product scope has been narrowed to air-gapped login and
-air-gapped `sui:signAndExecuteTransaction`; the smoke checklist below
-covers only those flows.
+Current status: implemented but unverified for the QR-backed signing surface
+after adding `sui:signTransaction` and `sui:signPersonalMessage`. The earlier
+QR/WebRTC stabilization scope in `3e421ad` has user-reported pass evidence for
+QR login, sign-and-execute approval, and remote review rejection only.
 
 Reason: automated checks pass and the user completed the QR/WebRTC browser
 smoke paths touched by `3e421ad fix(connect): stabilize qr webrtc connection`
-for QR login, QR sign approval, and remote review rejection on testnet.
-Local zkLogin signing, sponsored transactions, the `sui:signTransaction`
-feature, and the `sui:signPersonalMessage` feature have been removed from the
-product surface; they are not smoke gates and are not reachable from
-`@zktx.io/walrus-wallet`. Network mismatch and disconnect smoke are still
-unrecorded under the new product scope.
+for QR login, QR sign-and-execute approval, and remote review rejection on
+testnet. Local zkLogin signing and sponsored transactions remain removed from
+the product surface. The QR-backed `sui:signTransaction` and
+`sui:signPersonalMessage` features are now reachable from
+`@zktx.io/walrus-wallet`, but their manual smoke results are not yet recorded.
+Network mismatch and disconnect smoke are also still unrecorded under the
+current product scope.
 
 Automated checks run:
 
@@ -36,7 +37,7 @@ Automated checks run:
   `walrus-wallet`
 - wallet public error contract scan for route lifecycle outcome aliases and
   lifecycle variant strings
-- `walrus-connect` no-camera scan regression test, covering warning and
+- `walrus-connect` no-camera scan regression test, covering error event and
   Promise settlement when no camera is available
 - static scans for public `wallet-route` imports, private route package source
   ownership, wallet public type leaks, signer-app generated d.ts route leaks,
@@ -49,9 +50,10 @@ Automated checks run:
 Completion gate:
 
 - `npm run verify:completion` must pass before the architecture cycle can be
-  called `verified`. It is expected to fail until QR sign approve, QR sign
-  reject/cancel, network mismatch, and disconnect smoke are recorded against
-  the narrowed product scope.
+  called `verified`. It is expected to fail until QR sign-and-execute approve,
+  QR sign-only approve, QR personal-message approve, QR sign reject/cancel,
+  network mismatch, and disconnect smoke are recorded against the current
+  product scope.
 
 ## QR Login
 
@@ -66,8 +68,9 @@ opened`, `login.proof`, `login.result`, `login.result.ack`, and cleanup with
 - Select `Walrus Clip` from the Wallet Standard wallet list.
 - Complete QR login with a remote Clip signer.
 - Confirm the dApp sees a connected Wallet Standard account.
-- Confirm the account advertises only `sui:signAndExecuteTransaction` at the
-  Wallet Standard feature level.
+- Confirm the account advertises `sui:signAndExecuteTransaction`,
+  `sui:signTransaction`, and `sui:signPersonalMessage` at the Wallet Standard
+  feature level.
 - Confirm no private key, proof material, or signature is logged.
 
 ## QR Sign Approve
@@ -86,6 +89,31 @@ completed after QR login against the testnet demo flow.
   `{ digest, bytes, signature, effects }` or a structured
   `WalrusWalletQrRouteError` that preserves the submitted digest when
   submission happened.
+
+## QR Sign Transaction Approve
+
+Status: not run.
+
+- Connect through QR login.
+- Trigger a dApp `sui:signTransaction` request through Wallet Standard or
+  modern dApp Kit `dAppKit.signTransaction({ transaction })`.
+- Confirm the QR signing route shows the transaction review on the remote
+  signer.
+- Approve signing and confirm the dApp receives `{ bytes, signature }`.
+- Confirm no transaction digest or effects are produced, because this path must
+  not submit the transaction.
+
+## QR Personal Message Approve
+
+Status: not run.
+
+- Connect through QR login.
+- Trigger a dApp `sui:signPersonalMessage` request through Wallet Standard or
+  modern dApp Kit `dAppKit.signPersonalMessage({ message })`.
+- Confirm the remote signer receives and signs the message request.
+- Approve signing and confirm the dApp receives `{ bytes, signature }`.
+- Confirm no transaction review, digest, effects, or submission phase appears
+  for the personal-message path.
 
 ## QR Sign Reject And Cancel
 

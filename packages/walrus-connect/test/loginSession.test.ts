@@ -102,6 +102,8 @@ const protocolMessageTypes = [
   'sign.address',
   'sign.transaction',
   'sign.response',
+  'sign.personalMessage',
+  'sign.personalMessage.response',
   'sign.submitted',
   'sign.submitted.ack',
   'sign.finalized',
@@ -137,6 +139,13 @@ const payloadFor = <TType extends ProtocolMessageType>(
       return { bytes: 'bytes-1' } as ProtocolEnvelope<TType>['payload'];
     case 'sign.response':
       return { signature: 'signature-1' } as ProtocolEnvelope<TType>['payload'];
+    case 'sign.personalMessage':
+      return { bytes: 'message-1' } as ProtocolEnvelope<TType>['payload'];
+    case 'sign.personalMessage.response':
+      return {
+        bytes: 'message-1',
+        signature: 'signature-1',
+      } as ProtocolEnvelope<TType>['payload'];
     case 'sign.submitted':
       return { digest: 'digest-1' } as ProtocolEnvelope<TType>['payload'];
     case 'sign.submitted.ack':

@@ -23,11 +23,30 @@ const dAppKit = createDAppKit({
   autoConnect: true,
 });
 
+const stringifyWalletEventMessage = (message: unknown): string => {
+  if (typeof message === 'string') {
+    return message;
+  }
+
+  if (message instanceof Error) {
+    return message.message || message.name;
+  }
+
+  try {
+    const serialized = JSON.stringify(message, (_key, value) =>
+      typeof value === 'bigint' ? value.toString() : value,
+    );
+    return serialized ?? String(message);
+  } catch {
+    return String(message);
+  }
+};
+
 const onWalletEvent = (notification: {
   variant: 'success' | 'warning' | 'info' | 'error';
-  message: string;
+  message: unknown;
 }) => {
-  enqueueSnackbar(notification.message, {
+  enqueueSnackbar(stringifyWalletEventMessage(notification.message), {
     variant: notification.variant,
     style: {
       whiteSpace: 'nowrap',

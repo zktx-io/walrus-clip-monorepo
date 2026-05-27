@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { CoinBalance, CoinMetadata } from '@mysten/sui/jsonRpc';
 import { createJiti } from 'jiti';
 
 const jiti = createJiti(import.meta.url);
@@ -13,25 +12,27 @@ const {
   '../src/utils/coinHelpers.ts',
 );
 
-const balance = (overrides: Partial<CoinBalance> = {}): CoinBalance => ({
+type TestCoinBalance = Parameters<typeof formatWalrusCoinBalance>[0];
+type TestCoinMetadata = NonNullable<
+  Parameters<typeof formatWalrusCoinBalance>[1]
+>;
+
+const balance = (overrides: Partial<TestCoinBalance> = {}): TestCoinBalance => ({
   coinType: '0x2::sui::SUI',
-  coinObjectCount: 1,
-  totalBalance: '123456789000',
-  lockedBalance: {
-    epoch: '1000',
-  },
+  balance: '123456789000',
+  coinBalance: '123456789000',
+  addressBalance: '123456789000',
   ...overrides,
 });
 
-const metadata = (decimals: number): CoinMetadata =>
-  ({
-    id: null,
-    name: 'Walrus Test Coin',
-    symbol: 'WTC',
-    description: '',
-    iconUrl: null,
-    decimals,
-  }) as CoinMetadata;
+const metadata = (decimals: number): TestCoinMetadata => ({
+  id: null,
+  name: 'Walrus Test Coin',
+  symbol: 'WTC',
+  description: '',
+  iconUrl: null,
+  decimals,
+});
 
 test('formats integer raw balances without floating point arithmetic', () => {
   assert.equal(formatWalrusCoinAmount('0', 9), '0');
@@ -51,15 +52,13 @@ test('does not fabricate display balances without metadata decimals', () => {
   const formatted = formatWalrusCoinBalance(balance(), null);
 
   assert.equal(formatted.formattedBalance, null);
-  assert.equal(formatted.lockedBalance.epoch.formattedBalance, null);
   assert.equal(formatted.metadata, null);
 });
 
-test('uses metadata decimals for total and locked display balances', () => {
+test('uses metadata decimals for total display balances', () => {
   const formatted = formatWalrusCoinBalance(balance(), metadata(9));
 
   assert.equal(formatted.formattedBalance, '123.456789');
-  assert.equal(formatted.lockedBalance.epoch.formattedBalance, '0.000001');
   assert.equal(formatted.metadata?.decimals, 9);
 });
 
@@ -67,7 +66,7 @@ test('propagates malformed raw balances instead of rounding or fallback formatti
   assert.throws(() =>
     formatWalrusCoinBalance(
       balance({
-        totalBalance: 'not-a-number',
+        balance: 'not-a-number',
       }),
       metadata(9),
     ),

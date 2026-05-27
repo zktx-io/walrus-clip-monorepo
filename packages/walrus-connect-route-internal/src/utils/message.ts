@@ -10,6 +10,8 @@ export type ProtocolMessageType =
   | 'sign.address'
   | 'sign.transaction'
   | 'sign.response'
+  | 'sign.personalMessage'
+  | 'sign.personalMessage.response'
   | 'sign.submitted'
   | 'sign.submitted.ack'
   | 'sign.finalized'
@@ -65,9 +67,19 @@ export type SignAddressPayload = {
 
 export type SignTransactionPayload = {
   bytes: string;
+  intent?: 'sign' | 'signAndExecute';
 };
 
 export type SignResponsePayload = {
+  signature: string;
+};
+
+export type SignPersonalMessagePayload = {
+  bytes: string;
+};
+
+export type SignPersonalMessageResponsePayload = {
+  bytes: string;
   signature: string;
 };
 
@@ -108,6 +120,8 @@ export type ProtocolPayloadByType = {
   'sign.address': SignAddressPayload;
   'sign.transaction': SignTransactionPayload;
   'sign.response': SignResponsePayload;
+  'sign.personalMessage': SignPersonalMessagePayload;
+  'sign.personalMessage.response': SignPersonalMessageResponsePayload;
   'sign.submitted': SignSubmittedPayload;
   'sign.submitted.ack': SignSubmittedAckPayload;
   'sign.finalized': SignFinalizedPayload;
@@ -155,6 +169,8 @@ const PROTOCOL_MESSAGE_TYPES = new Set<ProtocolMessageType>([
   'sign.address',
   'sign.transaction',
   'sign.response',
+  'sign.personalMessage',
+  'sign.personalMessage.response',
   'sign.submitted',
   'sign.submitted.ack',
   'sign.finalized',
@@ -258,11 +274,25 @@ const payloadValidators: {
     isNonEmptyString(payload.address),
   'sign.transaction': (payload): payload is SignTransactionPayload =>
     isRecord(payload) &&
-    hasOnlyKeys(payload, ['bytes']) &&
-    isNonEmptyString(payload.bytes),
+    hasOnlyKeys(payload, ['bytes', 'intent']) &&
+    isNonEmptyString(payload.bytes) &&
+    (payload.intent === undefined ||
+      payload.intent === 'sign' ||
+      payload.intent === 'signAndExecute'),
   'sign.response': (payload): payload is SignResponsePayload =>
     isRecord(payload) &&
     hasOnlyKeys(payload, ['signature']) &&
+    isNonEmptyString(payload.signature),
+  'sign.personalMessage': (payload): payload is SignPersonalMessagePayload =>
+    isRecord(payload) &&
+    hasOnlyKeys(payload, ['bytes']) &&
+    isNonEmptyString(payload.bytes),
+  'sign.personalMessage.response': (
+    payload,
+  ): payload is SignPersonalMessageResponsePayload =>
+    isRecord(payload) &&
+    hasOnlyKeys(payload, ['bytes', 'signature']) &&
+    isNonEmptyString(payload.bytes) &&
     isNonEmptyString(payload.signature),
   'sign.submitted': (payload): payload is SignSubmittedPayload =>
     isRecord(payload) &&

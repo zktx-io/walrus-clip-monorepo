@@ -1,5 +1,8 @@
 import type { ProtocolEnvelope } from '../utils/message';
-import type { PendingSignTransaction } from '../utils/signProtocol';
+import type {
+  PendingPersonalMessage,
+  PendingSignTransaction,
+} from '../utils/signProtocol';
 
 export type QRSignResult = {
   bytes: string;
@@ -10,6 +13,16 @@ export type QRSignResult = {
 
 export type QRSignOutcome =
   | { type: 'failed_before_submit'; reason: string }
+  | {
+      type: 'signed';
+      bytes: string;
+      signature: string;
+    }
+  | {
+      type: 'personal_message_signed';
+      bytes: string;
+      signature: string;
+    }
   | {
       type: 'execute_result_unknown';
       bytes: string;
@@ -51,6 +64,7 @@ export type SignProtocolPhaseState =
   | 'awaiting_address'
   | 'building_transaction'
   | 'awaiting_signature'
+  | 'awaiting_personal_message_signature'
   | 'verifying_signature'
   | 'executing'
   | 'awaiting_submitted_ack'
@@ -60,6 +74,8 @@ export type SignProtocolPhaseState =
 
 export type SignChainFact =
   | { type: 'no_submit' }
+  | { type: 'signed'; bytes: string; signature: string }
+  | { type: 'personal_message_signed'; bytes: string; signature: string }
   | { type: 'execute_in_flight'; bytes: string; signature: string }
   | { type: 'execute_unknown'; bytes: string; signature: string; reason: string }
   | {
@@ -116,8 +132,15 @@ export type SignHostLifecycleState =
       publicSettlement: { type: 'unresolved' };
     }
   | {
+      type: 'awaiting_personal_message_signature';
+      pending: PendingPersonalMessage;
+      chain: { type: 'no_submit' };
+      delivery: SignDeliveryFact;
+      publicSettlement: { type: 'unresolved' };
+    }
+  | {
       type: 'verifying_signature';
-      pending: PendingSignTransaction;
+      pending: PendingSignTransaction | PendingPersonalMessage;
       signature: string;
       chain: { type: 'no_submit' };
       delivery: SignDeliveryFact;
@@ -178,7 +201,11 @@ export type SignScannerLifecycleState =
       delivery: SignDeliveryFact;
     }
   | {
-      type: 'validating_transaction' | 'reviewing_transaction' | 'signing';
+      type:
+        | 'validating_transaction'
+        | 'reviewing_transaction'
+        | 'signing'
+        | 'signing_personal_message';
       chain: { type: 'no_submit' };
       delivery: SignDeliveryFact;
     }
@@ -223,6 +250,7 @@ export const createSignHostFailureOutcome = (
     case 'awaiting_address':
     case 'building_transaction':
     case 'awaiting_signature':
+    case 'awaiting_personal_message_signature':
     case 'verifying_signature':
       return { type: 'failed_before_submit', reason };
     case 'executing':
@@ -276,6 +304,8 @@ export const signOutcomeToResult = (
 
 export const formatQRSignOutcome = (outcome: QRSignOutcome): string => {
   if (outcome.type === 'failed_before_submit') return outcome.reason;
+  if (outcome.type === 'signed') return 'Transaction signed';
+  if (outcome.type === 'personal_message_signed') return 'Personal message signed';
   if (outcome.type === 'execute_result_unknown') {
     return outcome.digest
       ? `${outcome.reason} Digest: ${outcome.digest}`

@@ -14,18 +14,25 @@ import { ClipSigner, NETWORK, NotiVariant } from '../types';
 import type { QRSignOutcome } from '../protocol/signHostRunner';
 import { QRSign } from './QRSign';
 import { cleanupQrModalRoot } from '../utils/cleanup';
-import { settleNoCameraScan } from '../utils/scan';
+import { getCameraUnavailableMessage, settleNoCameraScan } from '../utils/scan';
 
 interface IWalrusScanContext {
   scan: (signer: ClipSigner) => Promise<void>;
   openSignTxModal: (
     title: string,
     description: string,
-    data: {
-      transaction: {
-        toJSON: () => Promise<string>;
-      };
-    },
+    data:
+      | {
+          type: 'transaction';
+          intent: 'sign' | 'signAndExecute';
+          transaction: {
+            toJSON: () => Promise<string>;
+          };
+        }
+      | {
+          type: 'personalMessage';
+          message: Uint8Array;
+        },
   ) => Promise<QRSignOutcome>;
 }
 
@@ -49,6 +56,8 @@ export const WalrusScan = ({
   children: ReactNode;
 }) => {
   const [isScannerEnabled, setIsScannerEnabled] = useState<boolean>(false);
+  const [cameraUnavailableMessage, setCameraUnavailableMessage] =
+    useState<string>('Checking camera availability...');
 
   const scan = useCallback(
     (signer: ClipSigner): Promise<void> => {
@@ -72,22 +81,40 @@ export const WalrusScan = ({
             />,
           );
         } else {
-          settleNoCameraScan({ onEvent, resolve });
+          settleNoCameraScan({
+            onEvent,
+            resolve,
+            message: cameraUnavailableMessage,
+          });
         }
       });
     },
-    [iceConfigUrl, isScannerEnabled, mode, network, onEvent],
+    [
+      cameraUnavailableMessage,
+      iceConfigUrl,
+      isScannerEnabled,
+      mode,
+      network,
+      onEvent,
+    ],
   );
 
   const openSignTxModal = useCallback(
     (
       title: string,
       description: string,
-      data: {
-        transaction: {
-          toJSON: () => Promise<string>;
-        };
-      },
+      data:
+        | {
+            type: 'transaction';
+            intent: 'sign' | 'signAndExecute';
+            transaction: {
+              toJSON: () => Promise<string>;
+            };
+          }
+        | {
+            type: 'personalMessage';
+            message: Uint8Array;
+          },
     ): Promise<QRSignOutcome> => {
       return new Promise((resolve) => {
         const container = document.createElement('div');
@@ -98,7 +125,7 @@ export const WalrusScan = ({
             mode={mode || 'light'}
             data={{
               network: network,
-              transaction: data.transaction,
+              request: data,
             }}
             icon={icon}
             option={{
@@ -120,19 +147,14 @@ export const WalrusScan = ({
 
   useEffect(() => {
     const testCamera = async () => {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputDevices = devices.filter(
-          (device) => device.kind === 'videoinput',
-        );
-        if (videoInputDevices.length > 0) {
-          setIsScannerEnabled(true);
-        } else {
-          setIsScannerEnabled(false);
-        }
-      } catch {
-        setIsScannerEnabled(false);
+      const unavailableMessage = await getCameraUnavailableMessage();
+      if (unavailableMessage === undefined) {
+        setIsScannerEnabled(true);
+        setCameraUnavailableMessage('No camera found on this device.');
+        return;
       }
+      setIsScannerEnabled(false);
+      setCameraUnavailableMessage(unavailableMessage);
     };
     testCamera();
   }, []);

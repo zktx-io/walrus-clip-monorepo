@@ -97,6 +97,8 @@ const protocolMessageTypes = [
   'sign.address',
   'sign.transaction',
   'sign.response',
+  'sign.personalMessage',
+  'sign.personalMessage.response',
   'sign.submitted',
   'sign.submitted.ack',
   'sign.finalized',
@@ -132,6 +134,13 @@ const payloadFor = <TType extends ProtocolMessageType>(
       return { bytes: 'bytes-1' } as ProtocolEnvelope<TType>['payload'];
     case 'sign.response':
       return { signature: 'signature-1' } as ProtocolEnvelope<TType>['payload'];
+    case 'sign.personalMessage':
+      return { bytes: 'message-1' } as ProtocolEnvelope<TType>['payload'];
+    case 'sign.personalMessage.response':
+      return {
+        bytes: 'message-1',
+        signature: 'signature-1',
+      } as ProtocolEnvelope<TType>['payload'];
     case 'sign.submitted':
       return { digest: 'digest-1' } as ProtocolEnvelope<TType>['payload'];
     case 'sign.submitted.ack':
@@ -276,7 +285,128 @@ const createDeps = ({
     build: async () => new Uint8Array([1, 2, 3]),
   }),
   encodeBytes: (bytes) => Array.from(bytes).join(','),
+  verifyPendingPersonalMessageSignature: async () => {},
   verifyPendingTransactionSignature: async () => {},
+});
+
+test('sign-only host route settles signed transaction without execution', async () => {
+  const transport = new FakeTransport();
+  const outcomes: unknown[] = [];
+  let executeCalled = false;
+
+  startSignHostRunner({
+    sessionId,
+    network,
+    transport,
+    request: {
+      type: 'transaction',
+      intent: 'sign',
+      transaction: { toJSON: async () => '{}' },
+    },
+    onEvent: () => {},
+    onFinish: (outcome) => outcomes.push(outcome),
+    deps: {
+      ...createDeps(),
+      createClient: () =>
+        ({
+          core: {
+            executeTransaction: async () => {
+              executeCalled = true;
+              return executeSuccess('unexpected-digest');
+            },
+            waitForTransaction: async () =>
+              waitWithEffects(new Uint8Array([9, 9, 9])),
+          },
+        }) as unknown as ReturnType<SignHostRunnerDeps['createClient']>,
+    },
+    timeouts: { ackMs: 5, signResponseMs: 100, finalityMs: 100 },
+  });
+
+  emitHostInbound({
+    transport,
+    sequence: 1,
+    type: 'sign.address',
+    payload: { address: signerAddress },
+  });
+  await waitFor(
+    () => findSent(transport, 'sign.transaction') !== undefined,
+    'sign.transaction',
+  );
+  assert.equal(findSent(transport, 'sign.transaction')?.payload.intent, 'sign');
+
+  emitHostInbound({
+    transport,
+    sequence: 2,
+    type: 'sign.response',
+    payload: { signature: 'signature-1' },
+  });
+  await waitFor(() => outcomes.length === 1, 'signed outcome');
+
+  assert.equal(executeCalled, false);
+  assert.deepEqual(outcomes[0], {
+    type: 'signed',
+    bytes: '1,2,3',
+    signature: 'signature-1',
+  });
+});
+
+test('personal-message host route settles signed message without transaction build', async () => {
+  const transport = new FakeTransport();
+  const outcomes: unknown[] = [];
+  let buildCalled = false;
+
+  startSignHostRunner({
+    sessionId,
+    network,
+    transport,
+    request: {
+      type: 'personalMessage',
+      message: new Uint8Array([4, 5]),
+    },
+    onEvent: () => {},
+    onFinish: (outcome) => outcomes.push(outcome),
+    deps: {
+      ...createDeps(),
+      createTransactionFromJson: () => ({
+        setSenderIfNotSet: () => {},
+        build: async () => {
+          buildCalled = true;
+          return new Uint8Array([1, 2, 3]);
+        },
+      }),
+    },
+    timeouts: { ackMs: 5, signResponseMs: 100, finalityMs: 100 },
+  });
+
+  emitHostInbound({
+    transport,
+    sequence: 1,
+    type: 'sign.address',
+    payload: { address: signerAddress },
+  });
+  await waitFor(
+    () => findSent(transport, 'sign.personalMessage') !== undefined,
+    'sign.personalMessage',
+  );
+  assert.equal(findSent(transport, 'sign.personalMessage')?.payload.bytes, '4,5');
+
+  emitHostInbound({
+    transport,
+    sequence: 2,
+    type: 'sign.personalMessage.response',
+    payload: {
+      bytes: '4,5',
+      signature: 'signature-1',
+    },
+  });
+  await waitFor(() => outcomes.length === 1, 'personal message outcome');
+
+  assert.equal(buildCalled, false);
+  assert.deepEqual(outcomes[0], {
+    type: 'personal_message_signed',
+    bytes: '4,5',
+    signature: 'signature-1',
+  });
 });
 
 test('preserves submitted digest when delivery fails after non-sponsored execution', async () => {
@@ -295,7 +425,11 @@ test('preserves submitted digest when delivery fails after non-sponsored executi
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps: createDeps({ executeDigest: 'digest-executed' }),
@@ -359,7 +493,11 @@ test('separates finalized chain result from finalization delivery failure', asyn
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps: createDeps({ executeDigest: 'digest-finalized' }),
@@ -419,7 +557,11 @@ test('preserves remote terminal reason when execution succeeds after protocol er
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -495,7 +637,11 @@ test('remote close before verification completes prevents execution', async () =
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -554,7 +700,11 @@ test('serializes duplicate addresses so transaction is built once', async () => 
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -622,7 +772,11 @@ test('cancel before execute prevents execution', async () => {
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -682,7 +836,11 @@ test('cancel during execute preserves submitted digest', async () => {
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -744,7 +902,11 @@ test('dispose during execute preserves submitted digest instead of going silent'
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -803,7 +965,11 @@ test('execute rejection after start settles explicit uncertainty', async () => {
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -863,7 +1029,11 @@ test('remote close during execute preserves submitted digest', async () => {
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -912,7 +1082,11 @@ test('submitted ACK timeout preserves digest', async () => {
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps: createDeps({ executeDigest: 'digest-ack-timeout' }),
@@ -985,7 +1159,11 @@ test('finality failure after submitted ACK sends structured terminal', async () 
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps: createDeps({
@@ -1062,7 +1240,11 @@ test('accepts synchronous sign response during transaction delivery', async () =
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps: createDeps({ executeDigest: 'digest-sync-response' }),
@@ -1218,7 +1400,11 @@ test('close during finality observation preserves finalized chain result', async
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -1294,7 +1480,11 @@ test('execute uncertainty is delivered as structured terminal when session is op
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,
@@ -1387,7 +1577,11 @@ test('sign host rejects every unexpected pre-submit message without going silent
         sessionId,
         network,
         transport,
-        transaction: { toJSON: async () => '{}' },
+        request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
         onEvent: () => {},
         onFinish: (outcome) => outcomes.push(outcome),
         deps: createDeps(),
@@ -1443,7 +1637,11 @@ test('sign host preserves submitted digest when submitted ACK is invalid', async
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps: createDeps({ executeDigest: 'digest-invalid-submitted-ack' }),
@@ -1511,7 +1709,11 @@ test('sign host preserves finalized effects when finalized ACK is invalid', asyn
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps: createDeps({ executeDigest: 'digest-invalid-finalized-ack' }),
@@ -1592,7 +1794,11 @@ test('sign host finality observation drops queued app messages without downgradi
     sessionId,
     network,
     transport,
-    transaction: { toJSON: async () => '{}' },
+    request: {
+      type: 'transaction',
+      intent: 'signAndExecute',
+      transaction: { toJSON: async () => '{}' },
+    },
     onEvent: () => {},
     onFinish: (outcome) => outcomes.push(outcome),
     deps,

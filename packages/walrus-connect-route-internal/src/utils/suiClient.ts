@@ -1,23 +1,17 @@
 import { SuiGrpcClient } from '@mysten/sui/grpc';
-import {
-  getJsonRpcFullnodeUrl,
-  SuiJsonRpcClient,
-} from '@mysten/sui/jsonRpc';
 import type { Transaction } from '@mysten/sui/transactions';
+import { fromBase64 } from '@mysten/sui/utils';
 
 import type { NETWORK } from '../types';
 
 export type WalrusConnectGrpcClient = SuiGrpcClient;
-export type WalrusConnectReviewClient = SuiJsonRpcClient;
+export type WalrusConnectReviewClient = SuiGrpcClient;
 export type WalrusConnectBuildableTransaction = {
   build: (input: {
     client: WalrusConnectGrpcClient;
     onlyTransactionKind?: boolean;
   }) => Promise<Uint8Array>;
 };
-
-export const getWalrusConnectFullnodeUrl = (network: NETWORK) =>
-  getJsonRpcFullnodeUrl(network);
 
 // SDK README documents these as the gRPC-Web baseUrls.
 // `.WORK/ts-sdks/packages/sui/README.md:75-81`.
@@ -36,15 +30,7 @@ export const createWalrusConnectGrpcClient = (network: NETWORK) =>
     baseUrl: getWalrusConnectGrpcBaseUrl(network),
   });
 
-// Dry-run review still needs JSON-RPC compatibility:
-// Core `simulateTransaction` does not preserve the JSON-RPC
-// `DryRunTransactionBlockResponse` object-change union, balance-change owner
-// fields, or event facts that the existing review surface depends on.
-export const createWalrusConnectReviewClient = (network: NETWORK) =>
-  new SuiJsonRpcClient({
-    network,
-    url: getWalrusConnectFullnodeUrl(network),
-  });
+export const createWalrusConnectReviewClient = createWalrusConnectGrpcClient;
 
 export const buildWalrusConnectTransaction = ({
   client,
@@ -68,10 +54,19 @@ export const getWalrusConnectTransactionDigest = ({
   transaction: Transaction;
 }) => transaction.getDigest({ client });
 
-export const dryRunWalrusConnectTransaction = (
+export const simulateWalrusConnectTransaction = (
   client: WalrusConnectReviewClient,
-  input: Parameters<WalrusConnectReviewClient['dryRunTransactionBlock']>[0],
-) => client.dryRunTransactionBlock(input);
+  input: { transactionBlock: string },
+) =>
+  client.core.simulateTransaction({
+    transaction: fromBase64(input.transactionBlock),
+    include: {
+      balanceChanges: true,
+      effects: true,
+      events: true,
+      objectTypes: true,
+    },
+  });
 
 export type WalrusConnectExecuteInput = {
   bytes: Uint8Array;

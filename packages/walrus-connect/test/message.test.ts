@@ -181,6 +181,61 @@ test('parses sign submitted and finalized messages', () => {
   });
 });
 
+test('parses sign-only intent and personal-message protocol messages', () => {
+  const signOnlyRaw = createProtocolMessage({
+    sessionId: 'session-1',
+    network: 'testnet',
+    sequence: 1,
+    type: 'sign.transaction',
+    payload: { bytes: 'tx-bytes', intent: 'sign' },
+    now: 1000,
+  });
+  const personalMessageRaw = createProtocolMessage({
+    sessionId: 'session-1',
+    network: 'testnet',
+    sequence: 2,
+    type: 'sign.personalMessage',
+    payload: { bytes: 'message-bytes' },
+    now: 1000,
+  });
+  const personalMessageResponseRaw = createProtocolMessage({
+    sessionId: 'session-1',
+    network: 'testnet',
+    sequence: 3,
+    type: 'sign.personalMessage.response',
+    payload: { bytes: 'message-bytes', signature: 'signature-1' },
+    now: 1000,
+  });
+
+  assert.deepEqual(
+    parseProtocolMessage(signOnlyRaw, {
+      expectedSessionId: 'session-1',
+      expectedNetwork: 'testnet',
+      expectedType: 'sign.transaction',
+      now: 1001,
+    }).payload,
+    { bytes: 'tx-bytes', intent: 'sign' },
+  );
+  assert.deepEqual(
+    parseProtocolMessage(personalMessageRaw, {
+      expectedSessionId: 'session-1',
+      expectedNetwork: 'testnet',
+      expectedType: 'sign.personalMessage',
+      now: 1001,
+    }).payload,
+    { bytes: 'message-bytes' },
+  );
+  assert.deepEqual(
+    parseProtocolMessage(personalMessageResponseRaw, {
+      expectedSessionId: 'session-1',
+      expectedNetwork: 'testnet',
+      expectedType: 'sign.personalMessage.response',
+      now: 1001,
+    }).payload,
+    { bytes: 'message-bytes', signature: 'signature-1' },
+  );
+});
+
 test('parses milestone and terminal acknowledgement messages', () => {
   const submittedAckRaw = createProtocolMessage({
     sessionId: 'session-1',

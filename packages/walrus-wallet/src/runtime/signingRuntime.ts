@@ -2,10 +2,16 @@ import type {
   ReadonlyWalletAccount,
   SuiSignAndExecuteTransactionInput,
   SuiSignAndExecuteTransactionOutput,
+  SuiSignPersonalMessageInput,
+  SuiSignPersonalMessageOutput,
+  SuiSignTransactionInput,
+  SignedTransaction,
 } from '@mysten/wallet-standard';
 import type { NETWORK } from '../utils/walletTypes';
 
 import {
+  signPersonalMessageWithQrRoute,
+  signTransactionWithQrRoute,
   signAndExecuteTransactionWithQrRoute,
   type WalletQrSignModal,
 } from './signingRoutes';
@@ -33,5 +39,37 @@ export const signAndExecuteWalletTransaction = async (
   return signAndExecuteTransactionWithQrRoute({
     openSignTxModal: config.openSignTxModal,
     transaction,
+  });
+};
+
+export const signWalletTransaction = async (
+  config: WalletSigningRuntimeConfig,
+  { transaction, account, chain }: SuiSignTransactionInput,
+): Promise<SignedTransaction> => {
+  assertWalletRequestAccount({
+    activeAccount: config.activeAccount,
+    requestedAccount: account,
+  });
+  assertWalletRequestChain({ network: config.network, chain });
+
+  return signTransactionWithQrRoute({
+    openSignTxModal: config.openSignTxModal,
+    transaction,
+  });
+};
+
+export const signWalletPersonalMessage = async (
+  config: WalletSigningRuntimeConfig,
+  { message, account, chain }: SuiSignPersonalMessageInput,
+): Promise<SuiSignPersonalMessageOutput> => {
+  assertWalletRequestAccount({
+    activeAccount: config.activeAccount,
+    requestedAccount: account,
+  });
+  assertWalletRequestChain({ network: config.network, chain, required: false });
+
+  return signPersonalMessageWithQrRoute({
+    openSignTxModal: config.openSignTxModal,
+    message,
   });
 };

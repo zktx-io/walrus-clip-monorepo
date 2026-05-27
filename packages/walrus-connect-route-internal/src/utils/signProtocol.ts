@@ -24,6 +24,8 @@ export type SignProtocolPhase =
   | 'dry_run'
   | 'review'
   | 'sign'
+  | 'personal_message'
+  | 'personal_message_response'
   | 'sign_response'
   | 'signature_verify'
   | 'execute'
@@ -33,6 +35,12 @@ export type SignProtocolPhase =
 export type PendingSignTransaction = {
   bytes: string;
   rawBytes?: Uint8Array;
+  signerAddress: string;
+};
+
+export type PendingPersonalMessage = {
+  bytes: string;
+  rawBytes: Uint8Array;
   signerAddress: string;
 };
 

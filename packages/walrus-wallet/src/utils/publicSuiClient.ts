@@ -1,8 +1,8 @@
-import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import type { SuiGrpcClient } from '@mysten/sui/grpc';
 
 import { createWalrusWalletSuiClient as createInternal } from './suiClient';
 import type { NETWORK } from './walletTypes';
 
 export const createWalrusWalletSuiClient = (
   network: NETWORK,
-): SuiJsonRpcClient => createInternal(network);
+): SuiGrpcClient => createInternal(network);

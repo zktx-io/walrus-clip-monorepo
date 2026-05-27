@@ -92,6 +92,8 @@ const protocolMessageTypes = [
   'sign.address',
   'sign.transaction',
   'sign.response',
+  'sign.personalMessage',
+  'sign.personalMessage.response',
   'sign.submitted',
   'sign.submitted.ack',
   'sign.finalized',
@@ -129,6 +131,13 @@ const payloadFor = <TType extends ProtocolMessageType>(
       } as ProtocolEnvelope<TType>['payload'];
     case 'sign.response':
       return { signature: 'signature-1' } as ProtocolEnvelope<TType>['payload'];
+    case 'sign.personalMessage':
+      return { bytes: 'message-1' } as ProtocolEnvelope<TType>['payload'];
+    case 'sign.personalMessage.response':
+      return {
+        bytes: 'message-1',
+        signature: 'signature-1',
+      } as ProtocolEnvelope<TType>['payload'];
     case 'sign.submitted':
       return { digest: 'digest-submitted' } as ProtocolEnvelope<TType>['payload'];
     case 'sign.submitted.ack':
@@ -250,6 +259,10 @@ const createHappySigner = () =>
   ({
     getAddress: () => signerAddress,
     reviewTransaction: async () => true,
+    signPersonalMessage: async () => ({
+      bytes: 'message-1',
+      signature: 'message-signature-1',
+    }),
     signTransaction: async () => ({
       bytes: 'bytes-1',
       signature: 'signature-1',
@@ -308,6 +321,101 @@ const startScannerAt = async (
 
   return runner;
 };
+
+test('scanner settles a sign-only transaction request after sending the signature', async () => {
+  const transport = new FakeTransport();
+  const events: Array<{ variant: string; message: string }> = [];
+  const runner = startSignScannerRunner({
+    signer: createHappySigner(),
+    network,
+    sessionId,
+    transport,
+    onEvent: (event) => events.push(event),
+    deps: createHappyDeps(),
+    timeouts: {
+      proposalMs: 100,
+      submissionMs: 100,
+      finalityMs: 100,
+      ackMs: 20,
+      closeFallbackMs: 5,
+    },
+  });
+
+  await waitFor(
+    () => findSent(transport, 'sign.address') !== undefined,
+    'sign.address',
+  );
+  emitScannerInbound({
+    transport,
+    sequence: 1,
+    type: 'sign.transaction',
+    payload: { ...payloadFor('sign.transaction'), intent: 'sign' },
+  });
+  await waitFor(
+    () => findSent(transport, 'sign.response') !== undefined,
+    'sign.response',
+  );
+
+  assert.equal(findSent(transport, 'sign.response')?.payload.signature, 'signature-1');
+  assert.deepEqual(events.at(-1), {
+    variant: 'success',
+    message: 'Transaction signed',
+  });
+  runner.dispose();
+});
+
+test('scanner signs personal-message requests without transaction review', async () => {
+  let reviewCalled = false;
+  const transport = new FakeTransport();
+  const events: Array<{ variant: string; message: string }> = [];
+  const runner = startSignScannerRunner({
+    signer: createHappySigner(),
+    network,
+    sessionId,
+    transport,
+    onEvent: (event) => events.push(event),
+    deps: {
+      ...createHappyDeps(),
+      approveSignTransactionReview: async () => {
+        reviewCalled = true;
+        return { ok: true };
+      },
+    },
+    timeouts: {
+      proposalMs: 100,
+      submissionMs: 100,
+      finalityMs: 100,
+      ackMs: 20,
+      closeFallbackMs: 5,
+    },
+  });
+
+  await waitFor(
+    () => findSent(transport, 'sign.address') !== undefined,
+    'sign.address',
+  );
+  emitScannerInbound({
+    transport,
+    sequence: 1,
+    type: 'sign.personalMessage',
+    payload: { bytes: 'message-1' },
+  });
+  await waitFor(
+    () => findSent(transport, 'sign.personalMessage.response') !== undefined,
+    'sign.personalMessage.response',
+  );
+
+  assert.equal(reviewCalled, false);
+  assert.deepEqual(findSent(transport, 'sign.personalMessage.response')?.payload, {
+    bytes: 'message-1',
+    signature: 'message-signature-1',
+  });
+  assert.deepEqual(events.at(-1), {
+    variant: 'success',
+    message: 'Personal message signed',
+  });
+  runner.dispose();
+});
 
 test('terminal ack remains allowed after remote sign scanner protocol error', async () => {
   const transport = new FakeTransport();
@@ -673,24 +781,31 @@ test('sign scanner rejects every unexpected message in stable states without goi
   const matrix = [
     {
       state: 'awaiting_transaction',
-      expectedType: 'sign.transaction',
+      expectedTypes: ['sign.transaction', 'sign.personalMessage'],
       inboundSequence: 1,
     },
     {
       state: 'awaiting_submitted',
-      expectedType: 'sign.submitted',
+      expectedTypes: ['sign.submitted'],
       inboundSequence: 2,
     },
     {
       state: 'awaiting_finalized',
-      expectedType: 'sign.finalized',
+      expectedTypes: ['sign.finalized'],
       inboundSequence: 3,
     },
   ] as const;
 
-  for (const { state, expectedType, inboundSequence } of matrix) {
+  for (const { state, expectedTypes, inboundSequence } of matrix) {
     for (const type of protocolMessageTypes) {
-      if (type === expectedType || type === 'protocol.error') continue;
+      if (
+        expectedTypes.includes(
+          type as (typeof expectedTypes)[number],
+        ) ||
+        type === 'protocol.error'
+      ) {
+        continue;
+      }
 
       const transport = new FakeTransport();
       const events: Array<{ variant: string; message: string }> = [];

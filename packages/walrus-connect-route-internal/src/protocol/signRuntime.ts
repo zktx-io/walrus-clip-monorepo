@@ -1,5 +1,8 @@
 import { fromBase64 } from '@mysten/sui/utils';
-import { verifyTransactionSignature } from '@mysten/sui/verify';
+import {
+  verifyPersonalMessageSignature,
+  verifyTransactionSignature,
+} from '@mysten/sui/verify';
 
 import type { NETWORK } from '../types';
 import {
@@ -12,6 +15,7 @@ import {
 } from '../utils/message';
 import {
   createSignProtocolErrorPayload,
+  type PendingPersonalMessage,
   type PendingSignTransaction,
   type SignProtocolPhase,
 } from '../utils/signProtocol';
@@ -54,6 +58,8 @@ const errorCodeForPhase = (phase: SignProtocolPhase): ProtocolErrorCode => {
     phase === 'submitted' ||
     phase === 'finality' ||
     phase === 'sign' ||
+    phase === 'personal_message' ||
+    phase === 'personal_message_response' ||
     phase === 'sign_response'
   ) {
     return 'transaction_failed';
@@ -109,4 +115,21 @@ export const verifyPendingTransactionSignature = async ({
       client,
     },
   );
+};
+
+export const verifyPendingPersonalMessageSignature = async ({
+  pendingMessage,
+  signature,
+  network,
+}: {
+  pendingMessage: PendingPersonalMessage;
+  signature: string;
+  network: NETWORK;
+}) => {
+  const client = createWalrusConnectGrpcClient(network);
+
+  await verifyPersonalMessageSignature(pendingMessage.rawBytes, signature, {
+    address: pendingMessage.signerAddress,
+    client,
+  });
 };

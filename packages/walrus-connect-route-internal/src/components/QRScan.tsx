@@ -15,6 +15,13 @@ import {
 import { connectQRLogin } from '../protocol/loginScannerSession';
 import { connectQRSign } from '../protocol/signScannerConnector';
 import { ClipSigner, NETWORK, NotiVariant } from '../types';
+import {
+  FALLBACK_CAMERA_MESSAGE,
+  REAR_CAMERA_CONSTRAINTS,
+  formatCameraErrorMessage,
+  getFallbackCameraConstraints,
+  isCameraFallbackEligibleError,
+} from '../utils/scan';
 import { parsePeerId } from '../webrtc/qr-id';
 
 export const QRScan = ({
@@ -35,7 +42,10 @@ export const QRScan = ({
   iceConfigUrl?: string;
 }) => {
   const [error, setError] = useState<string | undefined>(undefined);
+  const [cameraConstraints, setCameraConstraints] =
+    useState<MediaTrackConstraints>(REAR_CAMERA_CONSTRAINTS);
   const scanHandledRef = useRef(false);
+  const cameraFallbackAttemptedRef = useRef(false);
   const connectionCleanupRef = useRef<(() => void) | undefined>(undefined);
   const closedRef = useRef(false);
 
@@ -46,8 +56,10 @@ export const QRScan = ({
       return;
     }
     scanHandledRef.current = false;
+    cameraFallbackAttemptedRef.current = false;
     closedRef.current = false;
     setError(undefined);
+    setCameraConstraints(REAR_CAMERA_CONSTRAINTS);
     connectionCleanupRef.current?.();
     connectionCleanupRef.current = undefined;
   }, [open]);
@@ -145,6 +157,28 @@ export const QRScan = ({
     [iceConfigUrl, network, onEvent, onClose, signer],
   );
 
+  const handleCameraError = useCallback(
+    async (error: unknown) => {
+      if (
+        !closedRef.current &&
+        !cameraFallbackAttemptedRef.current &&
+        isCameraFallbackEligibleError(error)
+      ) {
+        cameraFallbackAttemptedRef.current = true;
+        const fallbackConstraints = await getFallbackCameraConstraints();
+        if (closedRef.current) return;
+        if (fallbackConstraints) {
+          setError(FALLBACK_CAMERA_MESSAGE);
+          setCameraConstraints(fallbackConstraints);
+          return;
+        }
+      }
+
+      handleClose(formatCameraErrorMessage(error));
+    },
+    [handleClose],
+  );
+
   return (
     <DlgRoot open={open}>
       <DlgPortal>
@@ -185,11 +219,10 @@ export const QRScan = ({
                 container: { width: '256px', height: '256px' },
                 video: { width: '256px', height: '256px' },
               }}
+              constraints={cameraConstraints}
               formats={['qr_code']}
               onScan={handleScan}
-              onError={(error) => {
-                handleClose(`${error}`);
-              }}
+              onError={handleCameraError}
             />
           </div>
           <DlgDescription2 mode={mode}>
