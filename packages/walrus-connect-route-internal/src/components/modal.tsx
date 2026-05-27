@@ -1,4 +1,8 @@
-import React from 'react';
+import type {
+  ButtonHTMLAttributes,
+  ComponentPropsWithoutRef,
+  Ref,
+} from 'react';
 
 import * as Dialog from '@radix-ui/react-dialog';
 
@@ -8,125 +12,185 @@ export const DlgRoot = Dialog.Root;
 export const DlgTrigger = Dialog.Trigger;
 export const DlgPortal = Dialog.Portal;
 
-export const DlgOverlay = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentProps<typeof Dialog.Overlay> & { mode?: Mode }
->(({ className = '', mode = 'light', ...props }, ref) => (
-  <Dialog.Overlay
-    ref={ref}
-    data-mode={mode}
-    className={`dlg-overlay ${className}`.trim()}
-    {...props}
-  />
-));
-DlgOverlay.displayName = 'DlgOverlay';
+type DlgOverlayProps = ComponentPropsWithoutRef<typeof Dialog.Overlay> & {
+  mode?: Mode;
+  ref?: Ref<HTMLDivElement>;
+};
 
-export const DlgContent = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentProps<typeof Dialog.Content> & { mode?: Mode }
->(({ className = '', mode = 'light', ...props }, ref) => (
-  <Dialog.Content
-    ref={ref}
-    data-mode={mode}
-    className={`dlg-content ${className}`.trim()}
-    aria-describedby={undefined}
-    {...props}
-  />
-));
-DlgContent.displayName = 'DlgContent';
+export function DlgOverlay({
+  className = '',
+  mode = 'light',
+  ref,
+  ...props
+}: DlgOverlayProps) {
+  return (
+    <Dialog.Overlay
+      ref={ref}
+      data-mode={mode}
+      className={`dlg-overlay ${className}`.trim()}
+      {...props}
+    />
+  );
+}
 
-export const DlgContentQR = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentProps<typeof Dialog.Content> & { mode?: Mode }
->(({ className = '', mode = 'light', ...props }, ref) => (
-  <Dialog.Content
-    ref={ref}
-    data-mode={mode}
-    className={`dlg-content-qr ${className}`.trim()}
-    aria-describedby={undefined}
-    {...props}
-  />
-));
-DlgContentQR.displayName = 'DlgContentQR';
+type DlgContentProps = ComponentPropsWithoutRef<typeof Dialog.Content> & {
+  mode?: Mode;
+  ref?: Ref<HTMLDivElement>;
+};
 
-export const DlgContentBottom = React.forwardRef<
-  HTMLDivElement,
-  React.ComponentProps<typeof Dialog.Content> & { mode?: Mode }
->(({ className = '', mode = 'light', ...props }, ref) => (
-  <Dialog.Content
-    ref={ref}
-    data-mode={mode}
-    className={`dlg-content-bottom ${className}`.trim()}
-    aria-describedby={undefined}
-    {...props}
-  />
-));
-DlgContentBottom.displayName = 'DlgContentBottom';
+export function DlgContent({
+  className = '',
+  mode = 'light',
+  ref,
+  ...props
+}: DlgContentProps) {
+  return (
+    <Dialog.Content
+      ref={ref}
+      data-mode={mode}
+      className={`dlg-content ${className}`.trim()}
+      aria-describedby={undefined}
+      {...props}
+    />
+  );
+}
 
-export const DlgTitle = React.forwardRef<
-  HTMLHeadingElement,
-  React.ComponentProps<typeof Dialog.Title> & { mode?: Mode }
->(({ className = '', mode = 'light', ...props }, ref) => (
-  <Dialog.Title
-    ref={ref}
-    data-mode={mode}
-    className={`dlg-title ${className}`.trim()}
-    {...props}
-  />
-));
-DlgTitle.displayName = 'DlgTitle';
+export function DlgContentQR({
+  className = '',
+  mode = 'light',
+  ref,
+  ...props
+}: DlgContentProps) {
+  return (
+    <Dialog.Content
+      ref={ref}
+      data-mode={mode}
+      className={`dlg-content-qr ${className}`.trim()}
+      aria-describedby={undefined}
+      {...props}
+    />
+  );
+}
 
-export const DlgDescription = React.forwardRef<
-  HTMLParagraphElement,
-  React.ComponentProps<typeof Dialog.Description> & {
-    mode?: Mode;
-    center?: boolean;
-  }
->(({ className = '', mode = 'light', center, ...props }, ref) => (
-  <Dialog.Description
-    ref={ref}
-    data-mode={mode}
-    className={`dlg-desc ${center ? 'dlg-desc-center' : ''} ${className}`.trim()}
-    {...props}
-  />
-));
-DlgDescription.displayName = 'DlgDescription';
+export function DlgContentBottom({
+  className = '',
+  mode = 'light',
+  ref,
+  ...props
+}: DlgContentProps) {
+  return (
+    <Dialog.Content
+      ref={ref}
+      data-mode={mode}
+      className={`dlg-content-bottom ${className}`.trim()}
+      aria-describedby={undefined}
+      {...props}
+    />
+  );
+}
 
-export const DlgDescription2 = React.forwardRef<
-  HTMLParagraphElement,
-  React.ComponentProps<typeof Dialog.Description> & { mode?: Mode }
->(({ className = '', mode = 'light', ...props }, ref) => (
-  <Dialog.Description
-    ref={ref}
-    data-mode={mode}
-    className={`dlg-desc dlg-desc-center ${className}`.trim()}
-    {...props}
-  />
-));
-DlgDescription2.displayName = 'DlgDescription2';
+type DlgTitleProps = ComponentPropsWithoutRef<typeof Dialog.Title> & {
+  mode?: Mode;
+  ref?: Ref<HTMLHeadingElement>;
+};
 
-export const DlgButtonIcon = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { mode?: Mode }
->(({ className = '', mode = 'light', ...props }, ref) => (
-  <button
-    ref={ref}
-    data-mode={mode}
-    className={`dlg-btn-icon ${className}`.trim()}
-    {...props}
-  />
-));
-DlgButtonIcon.displayName = 'DlgButtonIcon';
+export function DlgTitle({
+  className = '',
+  mode = 'light',
+  ref,
+  ...props
+}: DlgTitleProps) {
+  return (
+    <Dialog.Title
+      ref={ref}
+      data-mode={mode}
+      className={`dlg-title ${className}`.trim()}
+      {...props}
+    />
+  );
+}
 
-export const DlgButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { mode?: Mode }
->(({ className = '', mode = 'light', ...props }, ref) => (
-  <button
-    ref={ref}
-    data-mode={mode}
-    className={`dlg-btn ${className}`.trim()}
-    {...props}
-  />
-));
-DlgButton.displayName = 'DlgButton';
+type DlgDescriptionProps = ComponentPropsWithoutRef<
+  typeof Dialog.Description
+> & {
+  mode?: Mode;
+  center?: boolean;
+  ref?: Ref<HTMLParagraphElement>;
+};
+
+export function DlgDescription({
+  className = '',
+  mode = 'light',
+  center,
+  ref,
+  ...props
+}: DlgDescriptionProps) {
+  return (
+    <Dialog.Description
+      ref={ref}
+      data-mode={mode}
+      className={`dlg-desc ${center ? 'dlg-desc-center' : ''} ${className}`.trim()}
+      {...props}
+    />
+  );
+}
+
+type DlgDescription2Props = ComponentPropsWithoutRef<
+  typeof Dialog.Description
+> & {
+  mode?: Mode;
+  ref?: Ref<HTMLParagraphElement>;
+};
+
+export function DlgDescription2({
+  className = '',
+  mode = 'light',
+  ref,
+  ...props
+}: DlgDescription2Props) {
+  return (
+    <Dialog.Description
+      ref={ref}
+      data-mode={mode}
+      className={`dlg-desc dlg-desc-center ${className}`.trim()}
+      {...props}
+    />
+  );
+}
+
+type DlgButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  mode?: Mode;
+  ref?: Ref<HTMLButtonElement>;
+};
+
+export function DlgButtonIcon({
+  className = '',
+  mode = 'light',
+  ref,
+  ...props
+}: DlgButtonProps) {
+  return (
+    <button
+      ref={ref}
+      data-mode={mode}
+      className={`dlg-btn-icon ${className}`.trim()}
+      {...props}
+    />
+  );
+}
+
+export function DlgButton({
+  className = '',
+  mode = 'light',
+  ref,
+  ...props
+}: DlgButtonProps) {
+  return (
+    <button
+      ref={ref}
+      data-mode={mode}
+      className={`dlg-btn ${className}`.trim()}
+      {...props}
+    />
+  );
+}
